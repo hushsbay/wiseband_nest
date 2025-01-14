@@ -25,12 +25,11 @@ export class MenuService {
         const detailInfo = hush.addDetailInfo(kind, 'user/kind')
         try {
             //const fields = ['KIND', 'ID', 'NM', 'SEQ', 'INUSE', 'BASIC', 'ONCAT(BASE_ADDR, " ", DTL_ADDR) AS ADDR']
-
             if (!userid || !kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
-            const list = await this.menuRepo.find({ where: { KIND: kind }, order: { ID: 'ASC' }})
-
-
-
+            const list = await this.menuRepo.createQueryBuilder('a').leftJoinAndSelect("a.s_menuper_tbl", 'per')
+            .where('p.ID = :id', { id : id })
+            .getMany()
+            console.log(JSON.stringify(list))
             if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
             resJson.list = list
             return resJson

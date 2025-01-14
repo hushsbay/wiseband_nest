@@ -2,7 +2,7 @@ import { Controller, HttpCode, HttpStatus, Post, Body } from '@nestjs/common'
 
 import { MenuService } from 'src/menu/menu.service'
 
-@Controller('sidemenu')
+@Controller('menu')
 export class MenuController {
 
     constructor(private readonly menuSvc: MenuService) {}
