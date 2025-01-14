@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column } from 'typeorm'
+import { Entity, PrimaryColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm'
 
 @Entity({ name: 'S_MENU_TBL'})
 export class Menu {
@@ -27,6 +27,9 @@ export class Menu {
     @Column()
     RMKS: string
 
+    @OneToMany(() => MenuPer, (menuper) => menuper.menu)
+    menupers: MenuPer[]
+
 }
 
 @Entity({ name: 'S_MENUPER_TBL'})
@@ -40,6 +43,10 @@ export class MenuPer {
 
     @PrimaryColumn()
     ID: string
+
+    @ManyToOne(() => Menu, (menu) => menu.menupers)
+    @JoinColumn({ name: 'ID' })
+    menu: Menu
 
 }
 
