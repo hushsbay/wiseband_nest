@@ -29,7 +29,7 @@ export class MenuService {
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
             //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나
             //typeorm으로 leftjoin내의 subquery 구현을 제대로 해내지 못해 결국 포기하고 일단 아래 raw sql로 얻고자 함
-            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.RMKS, B.USER_ID "
+            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USER_ID "
             sql += "     FROM s_menu_tbl A "
             sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM s_menuper_tbl WHERE USER_ID = ? AND KIND = ?) B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
