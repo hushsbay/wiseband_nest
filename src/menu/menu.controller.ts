@@ -12,7 +12,7 @@ export class MenuController {
     qry(@Body() dto: Record<string, any>) { return this.menuSvc.qry(dto) }
 
     @HttpCode(HttpStatus.OK)
-    @Post('qry')
-    qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qry(dto) }
+    @Post('qryChan')
+    qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qryChan(dto) }
 
 }

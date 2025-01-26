@@ -52,38 +52,38 @@ export class MenuService {
         const detailInfo = hush.addDetailInfo(kind, 'user/kind') //수정 필요함
         try {
             if (!userid || !kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
-            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK "
+            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM JAY.S_GRMST_TBL A "
             sql += "    INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE A.INUSE = 'Y' "
             sql += "      AND B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
-            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, 0, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.MEMCNT CHAN_MEMCNT, Y.KIND, Y.NOTI, Y.BOOKMARK "
+            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, 0, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.MEMCNT CHAN_MEMCNT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM "
             sql += "             FROM JAY.S_GRMST_TBL A "
             sql += "            INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "            WHERE A.INUSE = 'Y' "
             sql += "              AND B.USERID = '" + userid + "') X "
             if (kind == 'my') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
                 sql += "                   INNER JOIN JAY.S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
-            } else if (kind == 'others') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK "
+            } else if (kind == 'other') {
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM JAY.S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
-            } else { //all = my + others
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK "
+            } else { //all = my + other
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
                 sql += "                   INNER JOIN JAY.S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
-                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK "
+                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND A.STATE = 'A' "
