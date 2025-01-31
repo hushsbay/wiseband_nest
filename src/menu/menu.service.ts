@@ -31,12 +31,12 @@ export class MenuService {
             //typeorm으로 leftjoin내의 subquery 구현을 제대로 해내지 못해 결국 포기하고 일단 아래 raw sql로 얻고자 함
             let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USER_ID "
             sql += "     FROM s_menu_tbl A "
-            sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM s_menuper_tbl WHERE USER_ID = ? AND KIND = ?) B "
+            sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM s_menuper_tbl WHERE USER_ID = ? AND KIND = 'side') B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
-            sql += "    WHERE A.KIND = ? "
-            sql += "      AND A.INUSE = ? "
+            sql += "    WHERE A.KIND = 'side' "
+            sql += "      AND A.INUSE = 'Y' "
             sql += "    ORDER BY A.SEQ "
-            const list = await this.dataSource.query(sql, [userid, 'side', 'side', 'Y'])
+            const list = await this.dataSource.query(sql, [userid])
             if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
             resJson.list = list
             return resJson
@@ -68,13 +68,12 @@ export class MenuService {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
                 sql += "                   INNER JOIN JAY.S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-                sql += "                   WHERE A.INUSE = 'Y' "
+                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
             } else if (kind == 'other') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
-                sql += "                   WHERE A.INUSE = 'Y' "
-                sql += "                     AND A.STATE = 'A' "
+                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM JAY.S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             } else { //all = my + other
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
@@ -85,8 +84,7 @@ export class MenuService {
                 sql += "                   UNION ALL "
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM JAY.S_CHANMST_TBL A "
-                sql += "                   WHERE A.INUSE = 'Y' "
-                sql += "                     AND A.STATE = 'A' "
+                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM JAY.S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
