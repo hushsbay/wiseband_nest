@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column } from 'typeorm'
+import { Entity, PrimaryColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm'
 
 @Entity({ name: 'S_MSGMST_TBL'})
 export class MsgMst {
@@ -203,6 +203,9 @@ export class GrMst {
     @Column()
     UDT: string
 
+    @OneToMany(() => GrDtl, (dtl) => dtl.mst)
+    dtl: GrDtl[]
+
 }
 
 @Entity({ name: 'S_GRDTL_TBL'})
@@ -222,5 +225,9 @@ export class GrDtl {
 
     @Column()
     UDT: string
+
+    @ManyToOne(() => GrMst, (mst) => mst.dtl)
+    @JoinColumn({ name: 'GR_ID' })
+    mst: GrMst
 
 }

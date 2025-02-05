@@ -21,10 +21,10 @@ export class MenuService {
     async qry(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
-        const kind = dto.kind //console.log(userid, kind)
-        const detailInfo = hush.addDetailInfo(kind, 'user/kind') //수정 필요함
+        const kind = dto.kind
+        const detailInfo = hush.addDetailInfo(kind, 'kind')
         try {
-            if (!userid || !kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
+            if (!kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
             //여기서는 아래 sql처럼 menu중에 특정user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
             //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나
@@ -49,9 +49,9 @@ export class MenuService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const kind = dto.kind //console.log(userid, kind)
-        const detailInfo = hush.addDetailInfo(kind, 'user/kind') //수정 필요함
+        const detailInfo = hush.addDetailInfo(kind, 'kind')
         try {
-            if (!userid || !kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
+            if (!kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
             let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM JAY.S_GRMST_TBL A "
             sql += "    INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
