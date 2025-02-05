@@ -123,11 +123,29 @@ export function isvoid(obj: any) { //0 ?? 500 = 0을 반환. 0 || 500 = 500을 �
     return false
 }
 
-export function addDetailInfo(val: string, title?: string, newLine?: boolean) {
+export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 메시지 사용하도록 모두 고치기
     const deli = newLine ? '\n' : ' => '
     const valStr = (val == '') ? '없음' : val
-    if (title) return deli + title + '[' + valStr + ']'
+    if (title) return deli + title + ' [' + valStr + ']'
     return deli + '[' + valStr + ']'
+}
+
+export function addWarnMsg(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
+    const deli = newLine ? '\n' : ' => '
+    let valStr = ""
+    if (val == '') {
+        valStr = ' [없음]'
+    } else if (Array.isArray(val)) {
+        if (val.length == 1) {
+            valStr = " [" + val + "]"
+        } else {
+            valStr = " [" + val.join("][") + "]"
+        }
+    } else {
+        valStr = " [" + val + "]"
+    }
+    if (title) return deli + title + valStr
+    return deli + valStr
 }
 
 export function encrypt(text: string, key: string) { //key = 32bytes

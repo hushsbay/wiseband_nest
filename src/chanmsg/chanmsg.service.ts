@@ -27,17 +27,14 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         const grid = dto.grid
         const chanid = dto.chanid //console.log(grid, chanid, userid)
-        const gridInfo = hush.addDetailInfo(grid, 'grid')
-        const chanidInfo = hush.addDetailInfo(chanid, 'chanid')
+        const warnMsg = hush.addWarnMsg([grid, chanid], 'grid/chanid')
         try {
-            if (!grid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + gridInfo, hush.Code.BLANK_DATA, this.req)
-            if (!chanid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + chanidInfo, hush.Code.BLANK_DATA, this.req)
+            if (!grid || !chanid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + warnMsg, hush.Code.BLANK_DATA, this.req)
             const list = await this.grmstRepo.createQueryBuilder('A') //.innerJoinAndSelect('A.dtl', 'B') //모든 필드 가져오기 (아래 2행 대신)
             .select(['A.GR_NM', 'A.MEMCNT', 'A.RMKS']) //(1)
             .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
             .where("A.GR_ID = :grid and A.INUSE = 'Y' and B.USERID = :userid", { grid: grid, userid: userid }).getOne()
-            //아래에서.. 없는 이유가 진짜 없는 경우와 해당 사용자가 포함되지 않기 때문에 권한이 없는 경우를 분리해서 안내해야 함
-            if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + gridInfo + chanidInfo, hush.Code.NOT_FOUND, this.req)
+            if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req) //1) 진짜 없는 경우 2) 사용자가 없어 권한이 없는 경우 혼재
             resJson.list = list
             return resJson
         } catch (ex) {
