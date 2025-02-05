@@ -19,6 +19,7 @@ export enum Code {
     JWT_EXPIRED = '-803',
     JWT_ETC = '-809',
     PWD_MISMATCH = '-811',
+    NOT_AUTHORIZED = '860',
 }
 
 export enum Msg {
@@ -32,6 +33,7 @@ export enum Msg {
     JWT_EXPIRED = '인증토큰이 만료되었습니다.',
     //JWT_ETC는 없음 = ex.message 사용
     PWD_MISMATCH = '비번이 다릅니다.',
+    NOT_AUTHORIZED = '권한이 없습니다.',
 }
 
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용
