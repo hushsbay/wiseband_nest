@@ -73,23 +73,38 @@ export class ChanmsgService {
                 resJson.data = data
                 return resJson
             } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
-            //////////d) S_MSGMST_TBL (그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
-            const msglist = await this.msgmstRepo.createQueryBuilder('A')
-            .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
+            //////////d) S_MSGMST_TBL (그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
+            const qb = this.msgmstRepo.createQueryBuilder('A')
+            const msglist = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
             .where("A.CHANID = :chanid and A.DEL = '' and A.REPLYTO = ''", { chanid: chanid })
             .orderBy('A.CDT', 'ASC').getMany()
             if (!msglist) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
             data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
-                const msgdtl = await this.msgdtlRepo.createQueryBuilder('A') //S_MSGDTL_TBL(각종 이모티콘)
-                .select(['A.KIND', 'COUNT(A.KIND) AS CNT', 'GROUP_CONCAT(A.USERNM ORDER BY A.USERNM SEPARATOR ", ") AS NM'])
-                .where("A.CHANID = :chanid and A.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
-                .groupBy('A.KIND')
-                .orderBy('A.KIND', 'ASC').getRawMany() //console.log(chanid, item.MSGID, msgdtl.length)
+                const msgdtl = await this.msgdtlRepo.createQueryBuilder('B') //1) S_MSGDTL_TBL(각종 이모티콘)
+                .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
+                .where("B.CHANID = :chanid and B.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
+                .groupBy('B.KIND')
+                .orderBy('B.KIND', 'ASC').getRawMany()
                 if (!msgdtl) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
                 item.msgdtl = msgdtl
-                
+                const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
+                .select(['C.KIND', 'C.SEQ', 'C.BODY'])
+                .where("C.CHANID = :chanid and C.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
+                .orderBy('C.KIND', 'ASC').addOrderBy('C.SEQ', 'ASC').getMany()
+                if (!msgsub) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                const msglink = msgsub.filter((val) => val.KIND == 'L')
+                const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
+                const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
+                item.msglink = msglink
+                item.msgfile = msgfile
+                item.msgimg = msgimg
+                const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
+                .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = ''", { chanid: chanid, msgid: item.MSGID })                
+                .orderBy('DT', 'DESC').getRawMany()
+                if (!reply) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                item.reply = reply
             }
             //////////END
             resJson.data = data
