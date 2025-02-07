@@ -73,14 +73,24 @@ export class ChanmsgService {
                 resJson.data = data
                 return resJson
             } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
-            //////////d) S_MSGMST_TBL
+            //////////d) S_MSGMST_TBL (그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
             const msglist = await this.msgmstRepo.createQueryBuilder('A')
             .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
-            .where("A.CHANID = :chanid and A.DEL = ''", { chanid: chanid })
+            .where("A.CHANID = :chanid and A.DEL = '' and A.REPLYTO = ''", { chanid: chanid })
             .orderBy('A.CDT', 'ASC').getMany()
-            console.log(chanid, userid)
             if (!msglist) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
-            data.msglist = msglist     
+            data.msglist = msglist
+            for (let i = 0; i < data.msglist.length; i++) {
+                const item = data.msglist[i]
+                const msgdtl = await this.msgdtlRepo.createQueryBuilder('A') //S_MSGDTL_TBL(각종 이모티콘)
+                .select(['A.KIND', 'COUNT(A.KIND) AS CNT', 'GROUP_CONCAT(A.USERNM ORDER BY A.USERNM SEPARATOR ", ") AS NM'])
+                .where("A.CHANID = :chanid and A.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
+                .groupBy('A.KIND')
+                .orderBy('A.KIND', 'ASC').getRawMany() //console.log(chanid, item.MSGID, msgdtl.length)
+                if (!msgdtl) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                item.msgdtl = msgdtl
+                
+            }
             //////////END
             resJson.data = data
             return resJson
