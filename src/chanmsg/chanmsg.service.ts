@@ -28,20 +28,26 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         const grid = dto.grid
         const chanid = dto.chanid //console.log(grid, chanid, userid)
-        const warnMsg = hush.addWarnMsg([grid, chanid], 'grid/chanid')
+        const fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
         try {
-            if (!grid || !chanid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + warnMsg, hush.Code.BLANK_DATA, this.req)
+            if (!grid || !chanid) {
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            }
             //////////a) S_GRMST_TBL
             const gr = await this.grmstRepo.createQueryBuilder('A') //.innerJoinAndSelect('A.dtl', 'B') //모든 필드 가져오기 (아래 2행 대신)
             .select(['A.GR_NM']) //(1) .select(['A.GR_NM', 'A.MEMCNT', 'A.RMKS'])
             .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
             .where("A.GR_ID = :grid and A.INUSE = 'Y' and B.USERID = :userid", { grid: grid, userid: userid }).getOne() //권한 체크 포함
-            if (!gr) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req) //1) 진짜 없는 경우 2) 사용자가 없어 권한이 없는 경우 혼재
+            if (!gr) { //1) 진짜 없는 경우 2) 사용자가 없어 권한이 없는 경우 혼재
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'gr')
+            }
             //////////b) S_CHANMST_TBL
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.MASTERNM', 'A.STATE', 'A.MEMCNT'])
             .where("A.CHANID = :chanid and A.INUSE = 'Y' and A.TYP = 'WS'", { chanid: chanid }).getOne()
-            if (!chanmst) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+            if (!chanmst) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmst')
+            }
             data.chanmst = chanmst
             data.chanmst.GR_NM = gr.GR_NM
             //////////c) S_CHANDTL_TBL
@@ -49,7 +55,9 @@ export class ChanmsgService {
             .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
             .where("A.CHANID = :chanid", { chanid: chanid })
             .orderBy('A.USERNM', 'ASC').getMany()
-            if (!chandtl) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+            if (!chandtl) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chandtl')
+            }
             for (let item of chandtl) {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
@@ -62,11 +70,11 @@ export class ChanmsgService {
                 //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수는 있음
             } else { //비공개(Private)
                 if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + warnMsg, hush.Code.NOT_AUTHORIZED, this.req)                    
+                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, this.req, 'private')                    
                 }
             }
             if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
-                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + warnMsg, hush.Code.NOT_AUTHORIZED, this.req)
+                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, this.req, 'out')
             }
             data.chandtl = chandtl            
             if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
@@ -78,7 +86,9 @@ export class ChanmsgService {
             const msglist = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
             .where("A.CHANID = :chanid and A.DEL = '' and A.REPLYTO = ''", { chanid: chanid })
             .orderBy('A.CDT', 'ASC').getMany()
-            if (!msglist) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+            if (!msglist) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist')
+            }
             data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
@@ -87,13 +97,17 @@ export class ChanmsgService {
                 .where("B.CHANID = :chanid and B.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
                 .groupBy('B.KIND')
                 .orderBy('B.KIND', 'ASC').getRawMany()
-                if (!msgdtl) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                if (!msgdtl) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-msgdtl')
+                }
                 item.msgdtl = msgdtl
                 const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
                 .select(['C.KIND', 'C.SEQ', 'C.BODY'])
                 .where("C.CHANID = :chanid and C.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
                 .orderBy('C.KIND', 'ASC').addOrderBy('C.SEQ', 'ASC').getMany()
-                if (!msgsub) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                if (!msgsub) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-msgsub')
+                }
                 const msglink = msgsub.filter((val) => val.KIND == 'L')
                 const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
                 const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
@@ -103,7 +117,9 @@ export class ChanmsgService {
                 const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
                 .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = ''", { chanid: chanid, msgid: item.MSGID })                
                 .orderBy('DT', 'DESC').getRawMany()
-                if (!reply) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + warnMsg, hush.Code.NOT_FOUND, this.req)
+                if (!reply) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-reply')
+                }
                 item.reply = reply
             }
             //////////END

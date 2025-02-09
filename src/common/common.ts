@@ -95,19 +95,20 @@ export function chkResJson(json: ResJson, okFilter?: string) {
     return false
 }
 
-export function setResJson(json: ResJson, msg: string, code?: string, req?: Request) {
+export function setResJson(json: ResJson, msg: string, code?: string, req?: Request, smallTitle?: string) {
     if (req) { //req가 전달되면 로깅하겠다는 의도로 보면 됨
-        const [msgStr, bracket] = setMsgBracket(msg, code, req)
+        const [msgStr, bracket] = setMsgBracket(msg, code, req, smallTitle)
         comLog.warn(msgStr, bracket)
     }
     json.code = isvoid(code) ? '-1' : code
-    json.msg = msg
+    json.msg = smallTitle ? smallTitle + ' : ' + msg : msg
     return json
 }
 
-export function setMsgBracket(msg: string, code?: string, req?: Request) { //logger에 표시되는 메시지 포맷팅
+export function setMsgBracket(msg: string, code?: string, req?: Request, smallTitle?: string) { //logger에 표시되는 메시지 포맷팅
     const codeStr = isvoid(code) ? '-1' : code
-    const msgStr = msg + ' / ' + codeStr
+    let msgStr = codeStr + ' / ' + msg
+    if (smallTitle) msgStr = smallTitle + ' : ' + msgStr
     if (req) {
         const bracket = req['user'] ? (req['user'].userid + '/' + req.ip) : req.ip
         return [msgStr, bracket]
@@ -132,7 +133,7 @@ export function addDetailInfo(val: string, title?: string, newLine?: boolean) { 
     return deli + '[' + valStr + ']'
 }
 
-export function addWarnMsg(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
+export function addFieldValue(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
     const deli = newLine ? '\n' : ' => '
     let valStr = ""
     if (val == '') {
