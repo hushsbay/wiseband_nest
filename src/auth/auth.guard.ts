@@ -29,7 +29,7 @@ export class AuthGuard implements CanActivate {
                 hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH)
             }
             request['user'] = payload
-            const payloadToUpdate = { userid: payload.userid, orgcd: payload.orgcd, toporgcd: payload.toporgcd }
+            const payloadToUpdate = { userid: payload.userid, usernm: payload.usernm, orgcd: payload.orgcd, toporgcd: payload.toporgcd }
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate) //무조건 갱신함
             response.cookie('token', tokenToUpdate)
         } catch (ex) {
