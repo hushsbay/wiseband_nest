@@ -129,6 +129,42 @@ export class ChanmsgService {
             hush.throwCatchedEx(ex, this.req)
         }
     }
+
+    async saveMsg(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        const crud = dto.crud //C or U만 처리 
+        const chanid = dto.chanid
+        let msgid = dto.msgid
+        const body = dto.body
+        console.log(userid, chanid, crud, body)
+        let fv = ''
+        try {            
+            if (crud == 'C' || crud == 'U') {
+                fv = hush.addFieldValue([chanid, body], 'chanid/body')
+                if (!chanid || !body) {
+                    return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)    
+                }
+            } else {
+                fv = hush.addFieldValue(crud, 'crud')
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            }
+            const qbMsgMst = this.msgmstRepo.createQueryBuilder()
+            if (crud == 'C') {
+                const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne() //console.log(ret.ID, ret.DT)
+                msgid = unidObj.ID
+                await qbMsgMst.insert().values({ 
+                    MSGID: () => msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
+                }).execute()
+                resJson.data.msgid = msgid
+            }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
 }
 
 /*

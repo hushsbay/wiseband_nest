@@ -36,6 +36,10 @@ export enum Msg {
     NOT_AUTHORIZED = '권한이 없습니다.',
 }
 
+export const cons = {
+    unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT"
+}
+
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용
 //- A서비스에서 B서비스를 호출시 B가 A에게 throw도 아닌 코드값을 전달하고 싶을 경우가 많은데 특히, TypeORM에서
 //- 예를 들어 async findOne(userid: string): Promise<User | undefined> {로 처리시 오류내지 않고 code와 msg를 제대로 전달할 방법을 못찾음

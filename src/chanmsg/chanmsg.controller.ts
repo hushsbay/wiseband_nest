@@ -11,4 +11,8 @@ export class ChanmsgController {
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgService.qry(dto) }
 
+    @HttpCode(HttpStatus.OK)
+    @Post('saveMsg')
+    saveMsg(@Body() dto: Record<string, any>) { return this.chanmsgService.saveMsg(dto) }
+
 }
