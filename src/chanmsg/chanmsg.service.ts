@@ -108,10 +108,10 @@ export class ChanmsgService {
                 if (!msgsub) {
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-msgsub')
                 }
-                const msglink = msgsub.filter((val) => val.KIND == 'L')
+                //const msglink = msgsub.filter((val) => val.KIND == 'L')
                 const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
                 const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
-                item.msglink = msglink
+                //item.msglink = msglink
                 item.msgfile = msgfile
                 item.msgimg = msgimg
                 const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
