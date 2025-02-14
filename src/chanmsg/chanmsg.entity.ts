@@ -57,6 +57,9 @@ export class MsgSub {
     BODY: string
 
     @Column()
+    FILESIZE: number
+
+    @Column()
     BUFFER: Buffer /////////////Buffer로 되어 있음을 유의 (테스트 필요)
 
     @Column()

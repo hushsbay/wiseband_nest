@@ -1,8 +1,9 @@
-import { Inject, Injectable, Scope } from '@nestjs/common'
+import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { Propagation, Transactional } from 'typeorm-transactional'
 
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
@@ -155,10 +156,49 @@ export class ChanmsgService {
                 const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne() //console.log(ret.ID, ret.DT)
                 msgid = unidObj.ID
                 await qbMsgMst.insert().values({ 
-                    MSGID: () => msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
+                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
                 }).execute()
                 resJson.data.msgid = msgid
             }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    @Transactional({ propagation: Propagation.REQUIRED }) //delete and insert 있음
+    async uploadBlob(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const chanid = dto.chanid
+        const msgid = dto.msgid
+        const kind = dto.kind
+        const body = dto.body
+        const filesize = dto.filesize
+        console.log(userid, chanid, msgid, kind, body, filesize)
+        let fv = ''
+        try {
+            const msgmst = await this.msgmstRepo.createQueryBuilder('A')
+            .select('COUNT(*) CNT')
+            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = ''", { msgid: msgid, chanid: chanid }).getRawOne()
+            if (msgmst.CNT == 0) {
+                fv = hush.addFieldValue([chanid, msgid], 'chanid/msgid')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msgmst')
+            }
+            const qbMsgSub = this.msgsubRepo.createQueryBuilder('A')
+            const msgsub = await qbMsgSub
+            .select('COUNT(*) CNT, MAX(SEQ) SEQ')
+            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.KIND = :kind", { msgid: msgid, chanid: chanid, kind: kind }).getRawOne()
+            if (msgsub.CNT > 0) {
+                await qbMsgSub
+                .delete()
+                .where("A.MSGID = :msgid and A.CHANID = :chanid", { msgid: msgid, chanid: chanid }).execute()
+            }
+            let seq = !msgsub.SEQ ? '01' : (parseInt(msgsub.SEQ) + 1).toString().padStart(2, "0")
+            const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne() //console.log(ret.DT)
+            await qbMsgSub.insert().values({ 
+                MSGID: msgid, CHANID: chanid, KIND: kind, SEQ: seq, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT
+            }).execute()
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
