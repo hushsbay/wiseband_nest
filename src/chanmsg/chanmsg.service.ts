@@ -24,7 +24,7 @@ export class ChanmsgService {
     ) {}
 
     async qry(dto: Record<string, any>): Promise<any> {
-        let data = { chanmst : null, chandtl : null, msglist : null }
+        let data = { chanmst : null, chandtl : [], msglist : [], tempfilelist : [], tempimagelist : [] }
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const grid = dto.grid
@@ -56,7 +56,7 @@ export class ChanmsgService {
             .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
             .where("A.CHANID = :chanid", { chanid: chanid })
             .orderBy('A.USERNM', 'ASC').getMany()
-            if (!chandtl) {
+            if (chandtl.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chandtl')
             }
             for (let item of chandtl) {
@@ -87,9 +87,7 @@ export class ChanmsgService {
             const msglist = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
             .where("A.CHANID = :chanid and A.DEL = '' and A.REPLYTO = ''", { chanid: chanid })
             .orderBy('A.CDT', 'ASC').getMany()
-            if (!msglist) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist')
-            }
+            if (msglist.length > 0) data.msglist = msglist
             data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
@@ -98,31 +96,41 @@ export class ChanmsgService {
                 .where("B.CHANID = :chanid and B.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
                 .groupBy('B.KIND')
                 .orderBy('B.KIND', 'ASC').getRawMany()
-                if (!msgdtl) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-msgdtl')
-                }
-                item.msgdtl = msgdtl
+                item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
                 const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
-                .select(['C.KIND', 'C.SEQ', 'C.BODY'])
+                .select(['C.KIND', 'C.CDT', 'C.BODY'])
                 .where("C.CHANID = :chanid and C.MSGID = :msgid", { chanid: chanid, msgid: item.MSGID })                
-                .orderBy('C.KIND', 'ASC').addOrderBy('C.SEQ', 'ASC').getMany()
-                if (!msgsub) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-msgsub')
-                }
-                //const msglink = msgsub.filter((val) => val.KIND == 'L')
-                const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
-                const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
-                //item.msglink = msglink
-                item.msgfile = msgfile
-                item.msgimg = msgimg
+                .orderBy('C.KIND', 'ASC').addOrderBy('C.CDT', 'ASC').getMany()
+                if (msgsub.length > 0) {
+                    const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
+                    const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
+                    item.msgfile = msgfile
+                    item.msgimg = msgimg
+                } else {
+                    item.msgfile = []
+                    item.msgimg = []
+                }                
                 const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
                 .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = ''", { chanid: chanid, msgid: item.MSGID })                
                 .orderBy('DT', 'DESC').getRawMany()
-                if (!reply) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msglist-reply')
-                }
-                item.reply = reply
+                item.reply = (reply.length > 0) ? reply : []
             }
+            //////////e) S_MSGSUB_TBL (메시지에 저장해려고 올렸던 파일, 이미지 - 임시)
+            const arr = ['F', 'I']
+            for (let i = 0; i < arr.length; i++) {
+                const msgsub = await this.msgsubRepo.createQueryBuilder('A')
+                .select(['A.CDT', 'A.BODY', 'A.FILESIZE', 'A.CDT'])
+                .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
+                    userid: userid, chanid: chanid, kind: arr[i] 
+                }).orderBy('A.CDT', 'ASC').getMany()
+                if (msgsub.length > 0) {
+                    if (arr[i] == 'F') {
+                        data.tempfilelist = msgsub
+                    } else { //Image
+                        data.tempimagelist = msgsub
+                    }
+                }
+            }    
             //////////END
             resJson.data = data
             return resJson
@@ -131,6 +139,7 @@ export class ChanmsgService {
         }
     }
 
+    @Transactional({ propagation: Propagation.REQUIRED })
     async saveMsg(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
@@ -139,7 +148,9 @@ export class ChanmsgService {
         const chanid = dto.chanid
         let msgid = dto.msgid
         const body = dto.body
-        console.log(userid, chanid, crud, body)
+        const num_file = dto.num_file
+        const num_image = dto.num_image
+        console.log(userid, chanid, crud, body, num_file, num_image)
         let fv = ''
         try {            
             if (crud == 'C' || crud == 'U') {
@@ -155,9 +166,26 @@ export class ChanmsgService {
             if (crud == 'C') {
                 const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne() //console.log(ret.ID, ret.DT)
                 msgid = unidObj.ID
-                await qbMsgMst.insert().values({ 
+                await qbMsgMst
+                .insert().values({ 
                     MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
                 }).execute()
+                const qbMsgSub = this.msgsubRepo.createQueryBuilder()
+                if (num_file > 0) {                    
+                    const msgsub = await qbMsgSub
+                    .select("COUNT(*) CNT")
+                    .where("MSGID = :userid and CHANID = :chanid and KIND = 'F'", {
+                        userid: userid, chanid: chanid
+                    }).getRawOne()
+                    if (msgsub.CNT > 0) {
+                        await qbMsgSub
+                        .update()
+                        .set({ MSGID: msgid })
+                        .where("MSGID = :userid and CHANID = :chanid and KIND = 'F'", {
+                            userid: userid, chanid: chanid
+                        }).execute()
+                    }
+                }
                 resJson.data.msgid = msgid
             }
             return resJson
@@ -166,19 +194,17 @@ export class ChanmsgService {
         }
     }
 
-    @Transactional({ propagation: Propagation.REQUIRED }) //delete and insert 있음
     async uploadBlob(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const chanid = dto.chanid
-        const msgid = dto.msgid
+        //const msgid = dto.msgid
         const kind = dto.kind
         const body = dto.body
         const filesize = dto.filesize
-        console.log(userid, chanid, msgid, kind, body, filesize)
-        let fv = ''
+        console.log(userid, chanid, kind, body, filesize)
         try {
-            const msgmst = await this.msgmstRepo.createQueryBuilder('A')
+            /*const msgmst = await this.msgmstRepo.createQueryBuilder('A')
             .select('COUNT(*) CNT')
             .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = ''", { msgid: msgid, chanid: chanid }).getRawOne()
             if (msgmst.CNT == 0) {
@@ -198,6 +224,33 @@ export class ChanmsgService {
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne() //console.log(ret.DT)
             await qbMsgSub.insert().values({ 
                 MSGID: msgid, CHANID: chanid, KIND: kind, SEQ: seq, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT
+            }).execute()*/
+            const qbMsgSub = this.msgsubRepo.createQueryBuilder()
+            const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
+            await qbMsgSub.insert().values({ 
+                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT,
+                BUFFER: Buffer.from(new Uint8Array(file.buffer))
+            }).execute()
+            resJson.data.cdt = curdtObj.DT
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async delBlob(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const chanid = dto.chanid
+        const kind = dto.kind
+        const name = dto.name
+        const cdt = dto.cdt
+        console.log(userid, chanid, kind, name, cdt)
+        try {
+            await this.msgsubRepo.createQueryBuilder()
+            .delete()
+            .where("MSGID = :userid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+                userid: userid, chanid: chanid, kind: kind, cdt: cdt, name: name
             }).execute()
             return resJson
         } catch (ex) {

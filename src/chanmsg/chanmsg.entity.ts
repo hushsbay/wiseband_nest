@@ -51,7 +51,7 @@ export class MsgSub {
     KIND: string    
 
     @PrimaryColumn()
-    SEQ: string    
+    CDT: string    
 
     @Column()
     BODY: string
@@ -61,9 +61,6 @@ export class MsgSub {
 
     @Column()
     BUFFER: Buffer /////////////Buffer로 되어 있음을 유의 (테스트 필요)
-
-    @Column()
-    CDT: string
 
     @Column()
     UDT: string
@@ -86,13 +83,10 @@ export class MsgDtl {
     KIND: string    
 
     @PrimaryColumn()
-    SEQ: string    
+    CDT: string    
 
     @Column()
     BODY: string
-
-    @Column()
-    CDT: string
 
     @Column()
     UDT: string

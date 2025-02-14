@@ -19,8 +19,11 @@ export class ChanmsgController {
     @Post('uploadBlob')
     @UseInterceptors(FileInterceptor('file'))
     uploadBlob(@Body() dto: Record<string, any>, @UploadedFile() file: Express.Multer.File) {
-        console.log('@@@@', file)
         return this.chanmsgService.uploadBlob(dto, file)
     }
+
+    @HttpCode(HttpStatus.OK)
+    @Post('delBlob')
+    delBlob(@Body() dto: Record<string, any>) { return this.chanmsgService.delBlob(dto) }
 
 }
