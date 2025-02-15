@@ -241,17 +241,46 @@ export class ChanmsgService {
     async delBlob(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장전에 미리 업로드한 것임
         const chanid = dto.chanid
         const kind = dto.kind
         const name = dto.name
         const cdt = dto.cdt
-        console.log(userid, chanid, kind, name, cdt)
+        console.log(userid, msgid, chanid, kind, name, cdt)
         try {
             await this.msgsubRepo.createQueryBuilder()
             .delete()
-            .where("MSGID = :userid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
-                userid: userid, chanid: chanid, kind: kind, cdt: cdt, name: name
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name
             }).execute()
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async readBlob(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장전에 미리 업로드한 것임
+        const chanid = dto.chanid
+        const kind = dto.kind
+        const name = dto.name
+        const cdt = dto.cdt
+        console.log(userid, msgid, chanid, kind, name, cdt)
+        try {
+            const msgsub = await this.msgsubRepo.createQueryBuilder('A')
+            .select(['A.BUFFER'])
+            // .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+            //     msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name
+            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.KIND = :kind and A.BODY = :name", {
+                msgid: msgid, chanid: chanid, kind: kind, name: name
+            }).getOne()
+            if (!msgsub) {
+                const fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'readBlob')
+            }
+            resJson.data = msgsub
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
