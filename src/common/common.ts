@@ -1,5 +1,5 @@
 import { HttpStatus, HttpException, Logger } from '@nestjs/common'
-import { Request } from 'express'
+import { Request, Response } from 'express'
 import { createCipheriv, randomBytes, createDecipheriv } from 'crypto'
 //import * as _ from 'lodash' //const keyStr = _.findKey(HttpStatus, (o) => o === statusCode)
 
@@ -38,7 +38,8 @@ export enum Msg {
 
 export const cons = {
     unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
-    curdtMySqlStr : "DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT"
+    curdtMySqlStr : "DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
+    tempdir : 'd:/temp/' //파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임
 }
 
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용
@@ -110,6 +111,17 @@ export function setResJson(json: ResJson, msg: string, code?: string, req?: Requ
     return json
 }
 
+export function writeLogError(msg: string, code?: string, req?: Request, smallTitle?: string) {
+    //console.log()만으로는 로깅처리가 안됨. 이 함수로 로깅 및 console.log() 동시 처리함 (error만 지원)
+    const [msgStr, bracket] = setMsgBracket(msg, code, req, smallTitle)
+    comLog.error(msgStr, bracket)
+    if (bracket) {
+        console.log(bracket, msgStr)
+    } else {
+        console.log(msgStr)
+    }
+}
+
 export function setMsgBracket(msg: string, code?: string, req?: Request, smallTitle?: string) { //logger에 표시되는 메시지 포맷팅
     const codeStr = isvoid(code) ? '-1' : code
     let msgStr = codeStr + ' / ' + msg
@@ -120,6 +132,20 @@ export function setMsgBracket(msg: string, code?: string, req?: Request, smallTi
     } else {
         return [msgStr, null]
     }
+}
+
+export function procDownloadFailure(res: Response) { //임시폴더에 다운로드실패.txt를 미리 두고 다운로드시킴
+    //오류처리안하면 요청한 파일명이 그대로 내려가는데 그걸 열어봐야 깨진 줄 알게되므로 사용자 불편사항임
+    //그걸, 일단 response로 전환하기 쉽지 않아 그나마 일단 실패를 알리는 파일이라도 다운로드하는 방법을 택한 것임
+    //그런데, 결과적으로 잘안됨 (axios 호출결과에서도 실패인지 구분이 안되고 있어서 현재 방법 못찾고 있음)
+    const filename = '다룬로드실패.txt'
+    const filePath = cons.tempdir + filename
+    res.setHeader('Content-Type', 'text/plain')
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+    res.download(filePath, filename, (err) => {
+        if (err) writeLogError(err.toString())
+        //이 파일은 지우면 안됨 (안내용 파일)
+    })
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

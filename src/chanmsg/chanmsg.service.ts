@@ -259,22 +259,16 @@ export class ChanmsgService {
         }
     }
 
-    async readBlob(dto: Record<string, any>): Promise<any> {
+    async readBlob(dto: Record<string, any>): Promise<any> { //파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장전에 미리 업로드한 것임
-        const chanid = dto.chanid
-        const kind = dto.kind
-        const name = dto.name
-        const cdt = dto.cdt
-        console.log(userid, msgid, chanid, kind, name, cdt)
+        const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
         try {
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
             .select(['A.BUFFER'])
-            // .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
-            //     msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name
-            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.KIND = :kind and A.BODY = :name", {
-                msgid: msgid, chanid: chanid, kind: kind, name: name
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name //name은 없어도 될 것이나 더 정확한 조회 목적임
             }).getOne()
             if (!msgsub) {
                 const fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
