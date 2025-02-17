@@ -1,19 +1,20 @@
 import { Inject, Injectable, Scope } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
-import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+//import { InjectRepository } from '@nestjs/typeorm'
+//import { DataSource, Repository } from 'typeorm'
+import { DataSource } from 'typeorm'
 
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
-import { Menu, MenuPer } from 'src/menu/menu.entity'
+//import { Menu, MenuPer } from 'src/menu/menu.entity'
 
 @Injectable({ scope: Scope.REQUEST })
 export class MenuService {
     
     constructor(
-        @InjectRepository(Menu) private menuRepo: Repository<Menu>, 
-        @InjectRepository(MenuPer) private menuperRepo: Repository<MenuPer>, 
+        //@InjectRepository(Menu) private menuRepo: Repository<Menu>, 
+        //@InjectRepository(MenuPer) private menuperRepo: Repository<MenuPer>, 
         private dataSource : DataSource,
         @Inject(REQUEST) private readonly req: Request
     ) {}
@@ -22,10 +23,10 @@ export class MenuService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const kind = dto.kind
-        const fv = hush.addFieldValue(kind, 'kind')
+        let fv = hush.addFieldValue(kind, 'kind')
         try {
             if (!kind) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'menu>qry')
             }
             //여기서는 아래 sql처럼 menu중에 특정user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
@@ -40,7 +41,7 @@ export class MenuService {
             sql += "    ORDER BY A.SEQ "
             const list = await this.dataSource.query(sql, [userid])
             if (!list) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry')
             }
             resJson.list = list
             return resJson
@@ -52,11 +53,11 @@ export class MenuService {
     async qryChan(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
-        const kind = dto.kind //console.log(userid, kind)
-        const fv = hush.addFieldValue(kind, 'kind')
+        const kind = dto.kind
+        let fv = hush.addFieldValue(kind, 'kind')
         try {
             if (!kind) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'menu>qryChan')
             }
             let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM JAY.S_GRMST_TBL A "
@@ -97,7 +98,7 @@ export class MenuService {
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
             const list = await this.dataSource.query(sql, null)
             if (!list) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
             }
             resJson.list = list
             return resJson

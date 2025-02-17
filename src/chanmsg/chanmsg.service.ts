@@ -24,12 +24,12 @@ export class ChanmsgService {
     ) {}
 
     async qry(dto: Record<string, any>): Promise<any> {
-        let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [] }
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const { grid, chanid } = dto
-        let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
         try {
+            let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [] }
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { grid, chanid } = dto
+            let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
             if (!grid || !chanid) {
                 return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
             }
@@ -147,19 +147,19 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveMsg(dto: Record<string, any>): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const usernm = this.req['user'].usernm
-        const { crud, chanid, body, num_file, num_image } = dto //cud는 C or U만 처리 
-        let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, body, num_file, num_image)
-        let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image], 'msgid/chanid/crud/num_file/num_image')
         try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const usernm = this.req['user'].usernm
+            const { crud, chanid, body, num_file, num_image } = dto //cud는 C or U만 처리 
+            let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, body, num_file, num_image)
+            let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image], 'msgid/chanid/crud/num_file/num_image')
             if (crud == 'C' || crud == 'U') {
                 if (!chanid || !body) {
-                    return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)    
+                    return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
                 }
             } else {
-                return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req)
+                return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
             }
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
             if (crud == 'C') {
@@ -194,19 +194,14 @@ export class ChanmsgService {
     }
 
     async uploadBlob(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const chanid = dto.chanid
-        const kind = dto.kind
-        const body = dto.body
-        const filesize = dto.filesize
-        console.log(userid, chanid, kind, body, filesize)
         try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, kind, body, filesize } = dto //console.log(userid, chanid, kind, body, filesize)
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
-                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT,
-                //BUFFER: Buffer.from(new Uint8Array(file.buffer)) 
+                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT, BUFFER: Buffer.from(new Uint8Array(file.buffer)) 
             }).execute()
             resJson.data.cdt = curdtObj.DT
             return resJson
@@ -216,18 +211,15 @@ export class ChanmsgService {
     }
 
     async delBlob(dto: Record<string, any>): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장전에 미리 업로드한 것임
-        const chanid = dto.chanid
-        const kind = dto.kind
-        const name = dto.name
-        const cdt = dto.cdt
-        console.log(userid, msgid, chanid, kind, name, cdt)
+        
         try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
+            const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
             await this.msgsubRepo.createQueryBuilder()
             .delete()
-            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name ", {
                 msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name
             }).execute()
             return resJson
@@ -236,20 +228,20 @@ export class ChanmsgService {
         }
     }
 
-    async readBlob(dto: Record<string, any>): Promise<any> { //파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
+    async readBlob(dto: Record<string, any>): Promise<any> { //파일 또는 이미지 읽어서 다운로드. 파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
         const resJson = new ResJson()
         const userid = this.req['user'].userid
-        const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장전에 미리 업로드한 것임
+        const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
         const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
+        let fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
         try {
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
             .select(['A.BUFFER'])
-            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name", {
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name ", {
                 msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name //name은 없어도 될 것이나 더 정확한 조회 목적임
             }).getOne()
-            if (!msgsub) {
-                const fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'readBlob')
+            if (!msgsub) {                
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>readBlob')
             }
             resJson.data = msgsub
             return resJson
