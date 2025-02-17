@@ -50,7 +50,7 @@ export class ChanmsgController {
                 res.download(filePath, filename, (err) => {
                     if (err) { //##1 잘안되고 있음
                         hush.procDownloadFailure(res) //hush.throwHttpEx(err.toString())
-                        return
+                        return 
                     }
                     unlink(filePath, () => {}) //오류든 아니든 temp file은 삭제
                 })

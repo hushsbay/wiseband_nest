@@ -184,7 +184,7 @@ export class ChanmsgService {
                         .where("MSGID = :userid and CHANID = :chanid and KIND = 'F'", {
                             userid: userid, chanid: chanid
                         }).execute()
-                    }
+                    } 
                 }
                 resJson.data.msgid = msgid
             }
@@ -198,38 +198,16 @@ export class ChanmsgService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const chanid = dto.chanid
-        //const msgid = dto.msgid
         const kind = dto.kind
         const body = dto.body
         const filesize = dto.filesize
         console.log(userid, chanid, kind, body, filesize)
         try {
-            /*const msgmst = await this.msgmstRepo.createQueryBuilder('A')
-            .select('COUNT(*) CNT')
-            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = ''", { msgid: msgid, chanid: chanid }).getRawOne()
-            if (msgmst.CNT == 0) {
-                fv = hush.addFieldValue([chanid, msgid], 'chanid/msgid')
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'msgmst')
-            }
-            const qbMsgSub = this.msgsubRepo.createQueryBuilder('A')
-            const msgsub = await qbMsgSub
-            .select('COUNT(*) CNT, MAX(SEQ) SEQ')
-            .where("A.MSGID = :msgid and A.CHANID = :chanid and A.KIND = :kind", { msgid: msgid, chanid: chanid, kind: kind }).getRawOne()
-            if (msgsub.CNT > 0) {
-                await qbMsgSub
-                .delete()
-                .where("A.MSGID = :msgid and A.CHANID = :chanid", { msgid: msgid, chanid: chanid }).execute()
-            }
-            let seq = !msgsub.SEQ ? '01' : (parseInt(msgsub.SEQ) + 1).toString().padStart(2, "0")
-            const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne() //console.log(ret.DT)
-            await qbMsgSub.insert().values({ 
-                MSGID: msgid, CHANID: chanid, KIND: kind, SEQ: seq, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT
-            }).execute()*/
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
-            await qbMsgSub.insert().values({ 
+            await qbMsgSub.insert().values({
                 MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT,
-                BUFFER: Buffer.from(new Uint8Array(file.buffer))
+                //BUFFER: Buffer.from(new Uint8Array(file.buffer)) 
             }).execute()
             resJson.data.cdt = curdtObj.DT
             return resJson
