@@ -2,10 +2,10 @@ import { ConfigModule } from '@nestjs/config'
 import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_FILTER } from '@nestjs/core'
 import { TypeOrmModule } from '@nestjs/typeorm'
-//import { ServeStaticModule} from '@nestjs/serve-static'
-//import { join } from 'path'
 import { DataSource } from 'typeorm'
 import { addTransactionalDataSource } from 'typeorm-transactional'
+//import { ServeStaticModule} from '@nestjs/serve-static' //donotdelete
+//import { join } from 'path' //donotdelete
 
 import appConfig from 'src/app.config'
 import { HttpExceptionFilter } from 'src/common/http-exception.filter'
@@ -16,11 +16,7 @@ import { AuthModule } from 'src/auth/auth.module'
 import { CodeModule } from 'src/code/code.module'
 import { MenuModule } from 'src/menu/menu.module'
 import { UserModule } from 'src/user/user.module'
-import { DealerModule } from './dealer/dealer.module'
-import { PhotoModule } from './photo/photo.module';
-import { PhotometaModule } from './photometa/photometa.module';
-import { ProfileModule } from './profile/profile.module';
-import { ChanmsgModule } from './chanmsg/chanmsg.module';
+import { ChanmsgModule } from 'src/chanmsg/chanmsg.module'
 
 @Module({
     imports: [
@@ -47,10 +43,10 @@ import { ChanmsgModule } from './chanmsg/chanmsg.module';
                 return addTransactionalDataSource(new DataSource(option));
             },
         }),
-        //ServeStaticModule.forRoot({ //https://dev.to/zakmiller/how-to-serve-vue-with-nest-1e11 향후 운영서버에서 배포를 위한 기본 설정 (그전에 linux docker부터 적용 검토)
+        //ServeStaticModule.forRoot({ //https://dev.to/zakmiller/how-to-serve-vue-with-nest-1e11 향후 운영서버에서 배포를 위한 기본 설정
         //    rootPath: join(__dirname, '..', 'public') //__dirname이 d:/src/git/nest/dist이므로 rootPath는 d:/src/git/nest/public (dist폴더는 build시마다 리셋됨)
         //}), 여기가 살아나면 localhost에서의 2개 포트 사용을 full test해봐야 함
-        AuthModule, CodeModule, UserModule, MenuModule, DealerModule, PhotoModule, PhotometaModule, ProfileModule, ChanmsgModule
+        AuthModule, CodeModule, UserModule, MenuModule, ChanmsgModule
     ],
     controllers: [AppController],
     providers: [
@@ -58,7 +54,8 @@ import { ChanmsgModule } from './chanmsg/chanmsg.module';
             provide: APP_FILTER,
             useClass: HttpExceptionFilter
         },
-        AppService, Logger
+        AppService, 
+        Logger
     ],
 })
 

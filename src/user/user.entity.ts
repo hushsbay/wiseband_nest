@@ -1,6 +1,4 @@
-import { Entity, PrimaryColumn, Column, OneToOne, JoinColumn, OneToMany } from 'typeorm'
-
-import { Profile } from 'src/profile/profile.entity'
+import { Entity, PrimaryColumn, Column } from 'typeorm'
 
 @Entity({ name: 'Z_USER_TBL'})
 export class User {
@@ -49,11 +47,5 @@ export class User {
 
     @Column()
     MODDT: string
-
-    // @Column()
-    // UID: string
-
-    @OneToMany(() => Profile, (profile) => profile.user)
-    profiles: Profile[]
 
 }

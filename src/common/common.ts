@@ -138,7 +138,7 @@ export function procDownloadFailure(res: Response) { //임시폴더에 다운로
     //오류처리안하면 요청한 파일명이 그대로 내려가는데 그걸 열어봐야 깨진 줄 알게되므로 사용자 불편사항임
     //그걸, 일단 response로 전환하기 쉽지 않아 그나마 일단 실패를 알리는 파일이라도 다운로드하는 방법을 택한 것임
     //그런데, 결과적으로 잘안됨 (axios 호출결과에서도 실패인지 구분이 안되고 있어서 현재 방법 못찾고 있음)
-    const filename = '다룬로드실패.txt'
+    const filename = '다운로드실패.txt'
     const filePath = cons.tempdir + filename
     res.setHeader('Content-Type', 'text/plain')
     res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
@@ -157,7 +157,7 @@ export function isvoid(obj: any) { //0 ?? 500 = 0을 반환. 0 || 500 = 500을 �
     return false
 }
 
-export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 메시지 사용하도록 모두 고치기
+export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 addFieldValue 사용하도록 모두 고치기
     const deli = newLine ? '\n' : ' => '
     const valStr = (val == '') ? '없음' : val
     if (title) return deli + title + ' [' + valStr + ']'

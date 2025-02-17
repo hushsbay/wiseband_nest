@@ -28,7 +28,9 @@ import { AuthService } from 'src/auth/auth.service'
           provide: APP_GUARD,
           useClass: AuthGuard,
         }, 
-        AuthService, Logger, Response
+        AuthService, 
+        Logger, 
+        Response
     ],
     controllers: [AuthController],
     exports: [AuthService]

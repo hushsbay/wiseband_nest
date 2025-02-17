@@ -1,11 +1,11 @@
 import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Query, Res, StreamableFile } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express/multer'
 import { createReadStream, createWriteStream, ReadStream, unlink } from 'fs'
-import * as mime from 'mime-types'
 import { Response } from 'express'
+import * as mime from 'mime-types'
 
 import * as hush from 'src/common/common'
-import { ChanmsgService } from './chanmsg.service'
+import { ChanmsgService } from 'src/chanmsg/chanmsg.service'
 
 @Controller('chanmsg')
 export class ChanmsgController {
@@ -29,11 +29,11 @@ export class ChanmsgController {
 
     /////////////////////////////////////////////////////////////////////////////////////
     //readBlob1보다 안정적임. 파일 만들지 않고 바로 res.download로 가는 pipe는 메소드는 아직 구현하지 못함 (가능한지도 아직 모름)
-    //그리고 또한, 대부분 db에는 파일을 저장하는 것을 권장하지 않으므로 일단 upload시 용량제한을 두기로 함
+    //그리고 또한, 대부분 db에는 파일을 저장하는 것을 권장하지 않는데 구현한 것이므로 upload시 용량제한을 반드시 두어야 함
     @Get('readBlob')
-    async readBlob(@Query() dto: Record<string, any>, @Res() res: Response) { //반환없음. express모듈의 Response임
-        const filename = dto.name //console.log(filename, "##############")
+    async readBlob(@Query() dto: Record<string, any>, @Res() res: Response) { //반환없음. Response은 express모듈임
         try {
+            const filename = dto.name
             const rs = await this.chanmsgService.readBlob(dto) //as ResJson //Promise
             if (rs.code != hush.Code.OK) { //비즈니스로직 실패시 오류처리에 대한 부분 구현이 현재 어려움 (procDownloadFailure in common.ts 참조)
                 hush.procDownloadFailure(res) //res.json(rs). ##1 procDownloadFailure()도 현재 제대로 안됨
@@ -61,8 +61,8 @@ export class ChanmsgController {
     }
 
     @Get('readBlob1') //동작은 잘되나 사용하지 말고 위 readBlob을 사용하기로 함
-    //여기서 바로 unlink 불가능할 수도 있을 것임. StreamableFile이 메모리에 모두 올려 놓고 할 것 같지 않아서 unlink하려면 오류날 수도 있지 않을까 추정
-    async readBlob1(@Query() dto: Record<string, any>, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> { //passthrough 없으면 pending
+    //여기서 바로 unlink 불가능할 수도 있을 것임. StreamableFile이 메모리에 모두 올려 놓고 할 것 같지 않아서 unlink하려면 오류날 수도 있지 않을까 추정됨
+    async readBlob1(@Query() dto: Record<string, any>, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> { //passthrough 없으면 pending됨
         try {
             const rs = await this.chanmsgService.readBlob(dto) //as ResJson //Promise
             const buf = Buffer.from(new Uint8Array(rs.data.BUFFER))
