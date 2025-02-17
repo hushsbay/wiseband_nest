@@ -32,11 +32,11 @@ export class ChanmsgController {
     //그리고 또한, 대부분 db에는 파일을 저장하는 것을 권장하지 않으므로 일단 upload시 용량제한을 두기로 함
     @Get('readBlob')
     async readBlob(@Query() dto: Record<string, any>, @Res() res: Response) { //반환없음. express모듈의 Response임
-        const filename = dto.name
+        const filename = dto.name //console.log(filename, "##############")
         try {
             const rs = await this.chanmsgService.readBlob(dto) //as ResJson //Promise
             if (rs.code != hush.Code.OK) { //비즈니스로직 실패시 오류처리에 대한 부분 구현이 현재 어려움 (procDownloadFailure in common.ts 참조)
-                hush.procDownloadFailure(res) //res.json(rs). procDownloadFailure()도 현재 제대로 안됨
+                hush.procDownloadFailure(res) //res.json(rs). ##1 procDownloadFailure()도 현재 제대로 안됨
                 return
             }
             const buf = Buffer.from(new Uint8Array(rs.data.BUFFER))            
@@ -46,9 +46,9 @@ export class ChanmsgController {
             writer.end()
             writer.on("finish", () => { 
                 res.setHeader('Content-Type', mime.lookup(filename))
-                res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+                res.setHeader('Content-Disposition', 'attachment; filename="' + encodeURIComponent(filename) + '"')
                 res.download(filePath, filename, (err) => {
-                    if (err) {
+                    if (err) { //##1 잘안되고 있음
                         hush.procDownloadFailure(res) //hush.throwHttpEx(err.toString())
                         return
                     }
