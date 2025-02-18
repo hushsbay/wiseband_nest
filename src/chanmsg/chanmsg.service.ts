@@ -121,22 +121,35 @@ export class ChanmsgService {
                 }).orderBy('DT', 'DESC').getRawMany()
                 item.reply = (reply.length > 0) ? reply : []
             }
-            //////////e) S_MSGSUB_TBL (메시지에 저장해려고 올렸던 임시 저장된 파일/이미지)
-            const arr = ['F', 'I']
-            for (let i = 0; i < arr.length; i++) {
-                const msgsub = await this.msgsubRepo.createQueryBuilder('A')
-                .select(['A.CDT', 'A.BODY', 'A.FILESIZE', 'A.CDT'])
-                .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
-                    userid: userid, chanid: chanid, kind: arr[i] 
-                }).orderBy('A.CDT', 'ASC').getMany()
-                if (msgsub.length > 0) {
-                    if (arr[i] == 'F') {
-                        data.tempfilelist = msgsub
-                    } else { //Image
-                        data.tempimagelist = msgsub
-                    }
-                }
-            }    
+            //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지)
+            // const arr = ['F', 'I']
+            // for (let i = 0; i < arr.length; i++) {
+            //     const msgsub = await this.msgsubRepo.createQueryBuilder('A')
+            //     .select(['A.CDT', 'A.BODY', 'A.FILESIZE', 'A.CDT'])
+            //     .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
+            //         userid: userid, chanid: chanid, kind: arr[i] 
+            //     }).orderBy('A.CDT', 'ASC').getMany()
+            //     if (msgsub.length > 0) {
+            //         if (arr[i] == 'F') {
+            //             data.tempfilelist = msgsub
+            //         } else { //Image
+            //             data.tempimagelist = msgsub
+            //         }
+            //     }
+            // }
+            const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')    
+            const msgsub1 = await qbMsgsub
+            .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
+            .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
+                userid: userid, chanid: chanid
+            }).orderBy('A.CDT', 'ASC').getMany()
+            if (msgsub1.length > 0) data.tempfilelist = msgsub1
+            const msgsub2 = await qbMsgsub
+            .select(['A.CDT', 'A.BUFFER'])
+            .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'I' ", { 
+                userid: userid, chanid: chanid
+            }).orderBy('A.CDT', 'ASC').getMany()
+            if (msgsub2.length > 0) data.tempimagelist = msgsub2
             //////////END
             resJson.data = data
             return resJson
@@ -170,18 +183,26 @@ export class ChanmsgService {
                     MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
-                if (num_file > 0) {                    
+                let arr = []
+                if (num_file > 0 && num_image > 0) {
+                    arr = ['F', 'I']
+                } else if (num_file > 0) {
+                    arr = ['F']
+                } else if (num_image > 0) {
+                    arr = ['I']
+                }
+                for (let i = 0; i < arr.length; i++) {
                     const msgsub = await qbMsgSub
                     .select("COUNT(*) CNT")
-                    .where("MSGID = :userid and CHANID = :chanid and KIND = 'F' ", {
-                        userid: userid, chanid: chanid
+                    .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
+                        userid: userid, chanid: chanid, kind: arr[i]
                     }).getRawOne()
                     if (msgsub.CNT > 0) {
                         await qbMsgSub
                         .update()
                         .set({ MSGID: msgid })
-                        .where("MSGID = :userid and CHANID = :chanid and KIND = 'F' ", {
-                            userid: userid, chanid: chanid
+                        .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
+                            userid: userid, chanid: chanid, kind: arr[i]
                         }).execute()
                     }
                 }
