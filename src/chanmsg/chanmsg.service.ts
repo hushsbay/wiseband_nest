@@ -102,7 +102,7 @@ export class ChanmsgService {
                 }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
                 const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
-                .select(['C.KIND', 'C.CDT', 'C.BODY'])
+                .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
                 .where("C.CHANID = :chanid and C.MSGID = :msgid ", { 
                     chanid: chanid, msgid: item.MSGID 
                 }).orderBy('C.KIND', 'ASC').addOrderBy('C.CDT', 'ASC').getMany()
@@ -122,21 +122,6 @@ export class ChanmsgService {
                 item.reply = (reply.length > 0) ? reply : []
             }
             //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지)
-            // const arr = ['F', 'I']
-            // for (let i = 0; i < arr.length; i++) {
-            //     const msgsub = await this.msgsubRepo.createQueryBuilder('A')
-            //     .select(['A.CDT', 'A.BODY', 'A.FILESIZE', 'A.CDT'])
-            //     .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
-            //         userid: userid, chanid: chanid, kind: arr[i] 
-            //     }).orderBy('A.CDT', 'ASC').getMany()
-            //     if (msgsub.length > 0) {
-            //         if (arr[i] == 'F') {
-            //             data.tempfilelist = msgsub
-            //         } else { //Image
-            //             data.tempimagelist = msgsub
-            //         }
-            //     }
-            // }
             const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')    
             const msgsub1 = await qbMsgsub
             .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
