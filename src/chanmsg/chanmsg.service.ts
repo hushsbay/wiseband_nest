@@ -2,7 +2,7 @@ import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
 
 import * as hush from 'src/common/common'
@@ -20,6 +20,7 @@ export class ChanmsgService {
         @InjectRepository(ChanDtl) private chandtlRepo: Repository<ChanDtl>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
+        private dataSource : DataSource,
         @Inject(REQUEST) private readonly req: Request
     ) {}
 
@@ -55,7 +56,7 @@ export class ChanmsgService {
             data.chanmst = chanmst
             data.chanmst.GR_NM = gr.GR_NM
             //////////c) S_CHANDTL_TBL
-            const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+            /*const chandtl = await this.chandtlRepo.createQueryBuilder('A')
             .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
             .where("A.CHANID = :chanid ", { 
                 chanid: chanid 
@@ -63,11 +64,38 @@ export class ChanmsgService {
             if (chandtl.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>chandtl')
             }
+            const userqb = this.userRepo.createQueryBuilder('A')
             for (let item of chandtl) {
+                const user = await userqb
+                .select(['A.PICTURE'])
+                .where("A.USER_ID = :userid ", { 
+                    userid: userid 
+                }).getOne()
+                if (user) { //(사진)이미지 없으면 그냥 넘어가면 됨
+                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생
+                }
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND
-                    data.chanmst.STATE1 = item.STATE //STATE가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1)
+                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
+                    break
+                }
+            } TYPEORM으로 처리시 이미지 담기에 노력이 들어가므로 간단하게 아래 SQL로 처리함 */            
+            let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND, B.PICTURE "
+            sql += "     FROM jay.S_CHANDTL_TBL A "
+            sql += "    INNER JOIN jay.S_USER_TBL B ON A.USERID = B.USER_ID "
+            sql += "    WHERE A.CHANID = ? "
+            sql += "      AND A.STATE IN ('', 'M') " //매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
+            sql += "    ORDER BY A.USERNM "
+            const chandtl = await this.dataSource.query(sql, [chanid])
+            if (chandtl.length == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>chandtl')
+            }
+            for (let item of chandtl) {
+                if (item.USERID == userid) {
+                    data.chanmst.USERID = item.USERID
+                    data.chanmst.KIND = item.KIND //R(읽기전용)
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z). S_CHANMST_TBL에도 STATE(공용,비밀)가 존재함
                     break
                 }
             }
@@ -210,6 +238,10 @@ export class ChanmsgService {
                 MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT, BUFFER: Buffer.from(new Uint8Array(file.buffer)) 
             }).execute()
             resJson.data.cdt = curdtObj.DT
+            //임시 코딩 - 사진 넣기 시작
+            let sql = "UPDATE jay.s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
+            await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
+            //임시 코딩 - 사진 넣기 끝
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

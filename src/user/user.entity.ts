@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm'
 
-@Entity({ name: 'Z_USER_TBL'})
+@Entity({ name: 'S_USER_TBL'})
 export class User {
 
     @PrimaryColumn()
@@ -28,7 +28,7 @@ export class User {
     TOP_ORG_NM: string
 
     @Column()
-    PICTURE: Buffer /////////////Buffer로 되어 있음을 유의 (테스트 필요)
+    PICTURE: Buffer
 
     @Column()
     MIMETYPE: string
