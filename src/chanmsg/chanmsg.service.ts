@@ -80,7 +80,7 @@ export class ChanmsgService {
                     data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
                     break
                 }
-            } TYPEORM으로 처리시 이미지 담기에 노력이 들어가므로 간단하게 아래 SQL로 처리함 */            
+            } 위 TYPEORM으로 처리시 이미지 담기에 노력이 들어가므로 간단하게 아래 SQL로 처리함 */            
             let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND, B.PICTURE "
             sql += "     FROM jay.S_CHANDTL_TBL A "
             sql += "    INNER JOIN jay.S_USER_TBL B ON A.USERID = B.USER_ID "
@@ -239,8 +239,10 @@ export class ChanmsgService {
             }).execute()
             resJson.data.cdt = curdtObj.DT
             //임시 코딩 - 사진 넣기 시작
-            let sql = "UPDATE jay.s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
-            await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
+            if (kind == 'I') {
+                let sql = "UPDATE jay.s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
+                await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
+            }
             //임시 코딩 - 사진 넣기 끝
             return resJson
         } catch (ex) {
