@@ -30,9 +30,9 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid } = dto
-            let lastMsgMstCdt = dto.lastMsgMstCdt ?? ""
-            console.log(lastMsgMstCdt, "@@@@@@@@@@")
-            //lastMsgMstCdt가 있으면 e)는 제외하고 조회후 화면에서는 목록에 추가함
+            let lastMsgMstCdt = dto.lastMsgMstCdt
+            let firstMsgMstCdt = dto.firstMsgMstCdt //메시지 작성후 화면 맨 아래에 방금 작성한 메시지 추가하기 위한 param
+            console.log(lastMsgMstCdt, "@@@@@@@@@@", firstMsgMstCdt)
             let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
             if (!grid || !chanid) {
                 return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
@@ -75,7 +75,7 @@ export class ChanmsgService {
                     userid: userid 
                 }).getOne()
                 if (user) { //(사진)이미지 없으면 그냥 넘어가면 됨
-                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생
+                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생 ******************************
                 }
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
@@ -83,7 +83,7 @@ export class ChanmsgService {
                     data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
                     break
                 }
-            } 위 TYPEORM으로 처리시 이미지 담기에 노력이 들어가므로 간단하게 아래 SQL로 처리함 */            
+            } 위 TYPEORM으로 처리시 이미지 담기에 노력(****)이 들어가므로 간단하게 아래 SQL로 처리함 */            
             let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND, B.PICTURE "
             sql += "     FROM jay.S_CHANDTL_TBL A "
             sql += "    INNER JOIN jay.S_USER_TBL B ON A.USERID = B.USER_ID "
@@ -119,10 +119,19 @@ export class ChanmsgService {
             } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
             //////////d) S_MSGMST_TBL (그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
             const qb = this.msgmstRepo.createQueryBuilder('A')
-            const msglist = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
-            .where("A.CHANID = :chanid and A.CDT > :cdt and A.DEL = '' and A.REPLYTO = '' ", { 
-                chanid: chanid, cdt: lastMsgMstCdt
-            }).orderBy('A.CDT', 'ASC').getMany()
+            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT']
+            let msglist: MsgMst[]
+            if (firstMsgMstCdt) {
+                msglist = await qb.select(fldArr)
+                .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.DEL = '' and A.REPLYTO = '' ", { 
+                    chanid: chanid, firstcdt: firstMsgMstCdt
+                }).orderBy('A.CDT', 'DESC').getMany()
+            } else {
+                msglist = await qb.select(fldArr)
+                .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.DEL = '' and A.REPLYTO = '' ", { 
+                    chanid: chanid, lastcdt: lastMsgMstCdt
+                }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
+            }
             if (msglist.length > 0) data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
