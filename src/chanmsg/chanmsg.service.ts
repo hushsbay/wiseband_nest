@@ -30,6 +30,9 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid } = dto
+            let lastMsgMstCdt = dto.lastMsgMstCdt ?? ""
+            console.log(lastMsgMstCdt, "@@@@@@@@@@")
+            //lastMsgMstCdt가 있으면 e)는 제외하고 조회후 화면에서는 목록에 추가함
             let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
             if (!grid || !chanid) {
                 return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
@@ -117,8 +120,8 @@ export class ChanmsgService {
             //////////d) S_MSGMST_TBL (그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const msglist = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT'])
-            .where("A.CHANID = :chanid and A.DEL = '' and A.REPLYTO = '' ", { 
-                chanid: chanid 
+            .where("A.CHANID = :chanid and A.CDT > :cdt and A.DEL = '' and A.REPLYTO = '' ", { 
+                chanid: chanid, cdt: lastMsgMstCdt
             }).orderBy('A.CDT', 'ASC').getMany()
             if (msglist.length > 0) data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
