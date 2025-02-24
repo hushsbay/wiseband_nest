@@ -135,12 +135,14 @@ export class ChanmsgService {
             if (msglist.length > 0) data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
+                //d-1) S_MSGDTL_TBL
                 const msgdtl = await this.msgdtlRepo.createQueryBuilder('B') //1) S_MSGDTL_TBL(각종 이모티콘)
                 .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
                 .where("B.CHANID = :chanid and B.MSGID = :msgid ", { 
                     chanid: chanid, msgid: item.MSGID 
                 }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
+                //d-2) S_MSGSUB_TBL
                 const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
                 .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
                 .where("C.CHANID = :chanid and C.MSGID = :msgid ", { 
@@ -154,7 +156,8 @@ export class ChanmsgService {
                 } else {
                     item.msgfile = []
                     item.msgimg = []
-                }                
+                }
+                //d-3) S_MSGMST_TBL (댓글-스레드)
                 const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
                 .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
                     chanid: chanid, msgid: item.MSGID 
@@ -232,7 +235,7 @@ export class ChanmsgService {
                     }
                 }
                 resJson.data.msgid = msgid
-            }
+            } //수정저장시엔 권한 체크 필요 (미리 있는지 체크)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -301,6 +304,58 @@ export class ChanmsgService {
             hush.throwCatchedEx(ex, this.req)
         }
     }
+
+    /*async toggleAction(dto: Record<string, any>): Promise<any> {
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { msgid, chanid, kind } = dto //cud는 C or U만 처리 
+            let fv = hush.addFieldValue([msgid, chanid, kind], 'msgid/chanid/kind')
+            if (!msgid || !chanid || !kind) {
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>toggleAction')    
+            }
+
+            //아래부터 코딩 - 공통모듈 호출부터 짜기
+
+
+            const qbMsgMst = this.msgmstRepo.createQueryBuilder()
+            const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
+                msgid = unidObj.ID
+                await qbMsgMst
+                .insert().values({ 
+                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
+                }).execute()
+                const qbMsgSub = this.msgsubRepo.createQueryBuilder()
+                let arr = []
+                if (num_file > 0 && num_image > 0) {
+                    arr = ['F', 'I']
+                } else if (num_file > 0) {
+                    arr = ['F']
+                } else if (num_image > 0) {
+                    arr = ['I']
+                }
+                for (let i = 0; i < arr.length; i++) {
+                    const msgsub = await qbMsgSub
+                    .select("COUNT(*) CNT")
+                    .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
+                        userid: userid, chanid: chanid, kind: arr[i]
+                    }).getRawOne()
+                    if (msgsub.CNT > 0) {
+                        await qbMsgSub
+                        .update()
+                        .set({ MSGID: msgid })
+                        .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
+                            userid: userid, chanid: chanid, kind: arr[i]
+                        }).execute()
+                    }
+                }
+                resJson.data.msgid = msgid
+            } //수정저장시엔 권한 체크 필요 (미리 있는지 체크)
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }*/
 
 }
 
