@@ -18,6 +18,9 @@ export class ChanmsgController {
     @Post('saveMsg')
     saveMsg(@Body() dto: Record<string, any>) { return this.chanmsgService.saveMsg(dto) }
 
+    @Post('toggleAction')
+    toggleAction(@Body() dto: Record<string, any>) { return this.chanmsgService.toggleAction(dto) }
+
     @Post('uploadBlob')
     @UseInterceptors(FileInterceptor('file'))
     uploadBlob(@Body() dto: Record<string, any>, @UploadedFile() file: Express.Multer.File) {

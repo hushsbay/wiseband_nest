@@ -91,6 +91,9 @@ export class MsgDtl {
     @Column()
     UDT: string
 
+    @Column()
+    USERNM: string
+
 }
 
 //////////////////////////////////////////////////////////////////
