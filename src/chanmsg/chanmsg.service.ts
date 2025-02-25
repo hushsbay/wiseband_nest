@@ -24,6 +24,7 @@ export class ChanmsgService {
         @Inject(REQUEST) private readonly req: Request
     ) {}
 
+    /* 여기말고 그 아래 chkQry가 잘되면 여긴 지우기
     async chkQry(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
@@ -56,7 +57,125 @@ export class ChanmsgService {
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
             //////////c) S_CHANDTL_TBL (지우지 말 것)
-            /*const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+            /#const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+            .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
+            .where("A.CHANID = :chanid ", { 
+                chanid: chanid 
+            }).orderBy('A.USERNM', 'ASC').getMany()
+            if (chandtl.length == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>chandtl')
+            }
+            const userqb = this.userRepo.createQueryBuilder('A')
+            for (let item of chandtl) {
+                const user = await userqb
+                .select(['A.PICTURE'])
+                .where("A.USER_ID = :userid ", { 
+                    userid: userid 
+                }).getOne()
+                if (user) { //(사진)이미지 없으면 그냥 넘어가면 됨
+                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생 ******************************
+                }
+                if (item.USERID == userid) {
+                    data.chanmst.USERID = item.USERID
+                    data.chanmst.KIND = item.KIND
+                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
+                    break
+                }
+            } 위 TYPEORM으로 처리시 이미지 담기에 노력(****)이 들어가므로 간단하게 아래 SQL로 처리함 #/
+            const picFld = includeBlob ? ", B.PICTURE" : ""
+            let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND " + picFld
+            sql += "     FROM S_CHANDTL_TBL A "
+            sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+            sql += "    WHERE A.CHANID = ? "
+            sql += "      AND A.STATE IN ('', 'M') " //매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
+            sql += "    ORDER BY A.USERNM "
+            const chandtl = await this.dataSource.query(sql, [chanid])
+            if (chandtl.length == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chandtl')
+            }
+            for (let item of chandtl) {
+                if (item.USERID == userid) {
+                    data.chanmst.USERID = item.USERID
+                    data.chanmst.KIND = item.KIND //R(읽기전용)
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z). S_CHANMST_TBL에도 STATE(공용,비밀)가 존재함
+                    break
+                }
+            }
+            if (data.chanmst.STATE == 'A') {
+                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수는 있음
+            } else { //비공개(Private)
+                if (!data.chanmst.USERID) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>private')
+                }
+            }
+            if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
+                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>out')
+            }
+            data.chandtl = chandtl            
+            if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
+                resJson.data = data
+                return resJson
+            } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
+            //////////d) S_MSGMST_TBL
+            if (msgid) {
+                let msgmst = await this.msgmstRepo.createQueryBuilder('A')
+                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.REPLY', 'A.CDT', 'A.UDT'])
+                .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = '' ", { 
+                    msgid: msgid, chanid: chanid
+                }).getOne()
+                if (msgmst) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>msgmst')
+                }
+                data.msgmst = msgmst
+            }
+            resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }*/
+
+    async chkQry(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
+        try {
+            let data = { chanmst: null, chandtl: [], msgmst: null }
+            const resJson = new ResJson()
+            const { userid, grid, chanid, msgid, includeBlob } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함
+            let fv = hush.addFieldValue([userid, grid, chanid, msgid], 'userid/grid/chanid/msgid')
+            //////////a) S_CHANMST_TBL + S_GRMST_TBL
+            //TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동)
+            //STATE : 공개(A)/비공개(P)
+            const chanmst = await this.chanmstRepo.createQueryBuilder('A')
+            .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE', 'A.RMKS'])
+            .where("A.CHANID = :chanid and A.INUSE = 'Y' ", { 
+                chanid: chanid 
+            }).getOne()
+            if (!chanmst) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chanmst')
+            }
+            let grnm = ''
+            if (chanmst.TYP == 'GS') {
+                //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
+            } else {
+                if (grid) {
+                    if (grid != chanmst.GR_ID) {
+                        return hush.setResJson(resJson, 'grid와 chanid에서 가져온 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkQry>grid')
+                    }
+                }
+                const gr = await this.grmstRepo.createQueryBuilder('A')
+                .select(['A.GR_NM'])
+                .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
+                .where("A.GR_ID = :grid and A.INUSE = 'Y' and B.USERID = :userid ", { 
+                    grid: chanmst.GR_ID, userid: userid 
+                }).getOne()
+                if (!gr) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>gr')
+                }
+                grnm = gr.GR_NM
+            }
+            data.chanmst = chanmst
+            data.chanmst.GR_NM = grnm
+            //////////b) S_CHANDTL_TBL
+            /* (지우지 말 것) const chandtl = await this.chandtlRepo.createQueryBuilder('A')
             .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
             .where("A.CHANID = :chanid ", { 
                 chanid: chanid 
@@ -96,12 +215,12 @@ export class ChanmsgService {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z). S_CHANMST_TBL에도 STATE(공용,비밀)가 존재함
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
                     break
                 }
             }
             if (data.chanmst.STATE == 'A') {
-                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수는 있음
+                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음
             } else { //비공개(Private)
                 if (!data.chanmst.USERID) {
                     return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>private')
@@ -114,8 +233,9 @@ export class ChanmsgService {
             if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
                 resJson.data = data
                 return resJson
-            } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
+            } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트든 서버든 로직 추가될 수 있음
             //////////d) S_MSGMST_TBL
+            //KIND : 아직은 Invite만 존재함
             if (msgid) {
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.REPLY', 'A.CDT', 'A.UDT'])
