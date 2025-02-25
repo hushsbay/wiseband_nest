@@ -256,7 +256,7 @@ export class ChanmsgService {
 
     async qry(dto: Record<string, any>): Promise<any> {
         try {
-            let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [] }
+            let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [] }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid } = dto
@@ -300,11 +300,14 @@ export class ChanmsgService {
                 if (msgsub.length > 0) {
                     const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
                     const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
+                    const msglink = msgsub.filter((val) => val.KIND == 'L')
                     item.msgfile = msgfile
                     item.msgimg = msgimg
+                    item.msglink = msglink
                 } else {
                     item.msgfile = []
                     item.msgimg = []
+                    item.msglink = []
                 }
                 //d-3) S_MSGMST_TBL (댓글-스레드)
                 const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
@@ -313,20 +316,40 @@ export class ChanmsgService {
                 }).orderBy('DT', 'DESC').getRawMany()
                 item.reply = (reply.length > 0) ? reply : []
             }
-            //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지)
-            const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')    
-            const msgsub1 = await qbMsgsub
-            .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
-            .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
-                userid: userid, chanid: chanid
-            }).orderBy('A.CDT', 'ASC').getMany()
-            if (msgsub1.length > 0) data.tempfilelist = msgsub1
-            const msgsub2 = await qbMsgsub
-            .select(['A.CDT', 'A.BUFFER'])
-            .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'I' ", { 
-                userid: userid, chanid: chanid
-            }).orderBy('A.CDT', 'ASC').getMany()
-            if (msgsub2.length > 0) data.tempimagelist = msgsub2
+            //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
+            // const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
+            // const msgsub1 = await qbMsgsub //파일
+            // .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
+            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
+            //     userid: userid, chanid: chanid
+            // }).orderBy('A.CDT', 'ASC').getMany()
+            // if (msgsub1.length > 0) data.tempfilelist = msgsub1
+            // const msgsub2 = await qbMsgsub //이미지
+            // .select(['A.CDT', 'A.BUFFER'])
+            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'I' ", { 
+            //     userid: userid, chanid: chanid
+            // }).orderBy('A.CDT', 'ASC').getMany()
+            // if (msgsub2.length > 0) data.tempimagelist = msgsub2
+            // const msgsub3 = await qbMsgsub //링크
+            // .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
+            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
+            //     userid: userid, chanid: chanid
+            // }).orderBy('A.CDT', 'ASC').getMany()
+            // if (msgsub3.length > 0) data.templinklist = msgsub3
+            const acc = ['F', 'I', 'L'] //파일,이미지,링크
+            const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
+            for (let item of acc) {
+                const msgsub = await qbMsgsub
+                .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
+                .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
+                    userid: userid, chanid: chanid, kind: item
+                }).orderBy('A.CDT', 'ASC').getMany()
+                if (msgsub.length > 0) {
+                    if (item == 'F') data.tempfilelist = msgsub
+                    if (item == 'I') data.tempimagelist = msgsub
+                    if (item == 'L') data.templinklist = msgsub
+                }
+            }            
             //////////END
             resJson.data = data
             return resJson
@@ -433,7 +456,8 @@ export class ChanmsgService {
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
-                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT, BUFFER: Buffer.from(new Uint8Array(file.buffer)) 
+                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT, 
+                BUFFER: (kind != 'L') ? Buffer.from(new Uint8Array(file.buffer)) : null 
             }).execute()
             resJson.data.cdt = curdtObj.DT
             //임시 코딩 - 사진 넣기 시작
@@ -453,12 +477,12 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
-            const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
+            const { chanid, kind, cdt } = dto //console.log(userid, msgid, chanid, kind, cdt)
             await this.chkQry({ userid: userid, chanid: chanid })
             await this.msgsubRepo.createQueryBuilder()
             .delete()
-            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name ", {
-                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt ", {
+                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt
             }).execute()
             return resJson
         } catch (ex) {
@@ -466,7 +490,7 @@ export class ChanmsgService {
         }
     }
 
-    async readBlob(dto: Record<string, any>): Promise<any> { //파일 또는 이미지 읽어서 다운로드. 파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
+    async readBlob(dto: Record<string, any>): Promise<any> { //파일,이미지 읽어서 다운로드. 파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
