@@ -331,23 +331,30 @@ export class ChanmsgService {
             // }).orderBy('A.CDT', 'ASC').getMany()
             // if (msgsub2.length > 0) data.tempimagelist = msgsub2
             // const msgsub3 = await qbMsgsub //링크
-            // .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
-            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
+            // .select(['A.CDT', 'A.BODY'])
+            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'L' ", { 
             //     userid: userid, chanid: chanid
             // }).orderBy('A.CDT', 'ASC').getMany()
             // if (msgsub3.length > 0) data.templinklist = msgsub3
-            const acc = ['F', 'I', 'L'] //파일,이미지,링크
+            const arr = ['F', 'I', 'L'] //파일,이미지,링크
             const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
-            for (let item of acc) {
+            for (let i = 0; i < arr.length; i++) {
                 const msgsub = await qbMsgsub
-                .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
+                .select(['A.CDT', 'A.BODY', 'A.BUFFER', 'A.FILESIZE'])
                 .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
-                    userid: userid, chanid: chanid, kind: item
+                    userid: userid, chanid: chanid, kind: arr[i]
                 }).orderBy('A.CDT', 'ASC').getMany()
                 if (msgsub.length > 0) {
-                    if (item == 'F') data.tempfilelist = msgsub
-                    if (item == 'I') data.tempimagelist = msgsub
-                    if (item == 'L') data.templinklist = msgsub
+                    if (i == 0) {
+                        console.log(arr[i], JSON.stringify(msgsub))
+                        data.tempfilelist = msgsub
+                    } else if (i == 1) {
+                        console.log(arr[i], JSON.stringify(msgsub))
+                        data.tempimagelist = msgsub
+                    } else {
+                        console.log(arr[i], JSON.stringify(msgsub))
+                        data.templinklist = msgsub
+                    }
                 }
             }            
             //////////END
@@ -364,9 +371,9 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const usernm = this.req['user'].usernm
-            const { crud, chanid, body, num_file, num_image } = dto //cud는 C or U만 처리 
+            const { crud, chanid, body, num_file, num_image, num_link } = dto //cud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, body, num_file, num_image)
-            let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image], 'msgid/chanid/crud/num_file/num_image')
+            let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image, num_link], 'msgid/chanid/crud/num_file/num_image/num_link')
             if (crud == 'C' || crud == 'U') {
                 if (!chanid || !body) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
@@ -385,13 +392,9 @@ export class ChanmsgService {
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
                 let arr = []
-                if (num_file > 0 && num_image > 0) {
-                    arr = ['F', 'I']
-                } else if (num_file > 0) {
-                    arr = ['F']
-                } else if (num_image > 0) {
-                    arr = ['I']
-                }
+                if (num_file > 0) arr.push('F')
+                if (num_image > 0) arr.push('I')
+                if (num_link > 0) arr.push('L')
                 for (let i = 0; i < arr.length; i++) {
                     const msgsub = await qbMsgSub
                     .select("COUNT(*) CNT")
