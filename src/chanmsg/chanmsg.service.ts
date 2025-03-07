@@ -314,12 +314,13 @@ export class ChanmsgService {
                 // .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
                 //     chanid: chanid, msgid: item.MSGID 
                 // }).orderBy('DT', 'DESC').getRawMany()
-                const reply = await qb.select(['A.AUTHORID', 'A.AUTHORNM']) //3) 댓글
+                //const reply = await qb.select(['A.AUTHORID', 'A.AUTHORNM']) //3) 댓글
+                const reply = await qb.select('AUTHORID').addSelect('AUTHORNM') //3) 댓글
                 .distinct(true)
-                .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
+                .where("CHANID = :chanid and REPLYTO = :msgid and DEL = '' ", { 
                     chanid: chanid, msgid: item.MSGID 
-                }).groupBy('A.AUTHORID').addGroupBy('A.AUTHORNM')
-                .orderBy('AUTHORNM', 'ASC').getRawMany()
+                }).groupBy('AUTHORID').addGroupBy('AUTHORNM')
+                .orderBy('AUTHORNM', 'ASC').limit(hush.cons.replyCntLimit).getRawMany()
                 item.reply = (reply.length > 0) ? reply : []
                 let sql = "SELECT SUM(CNT) CNT_BY_USER, "
                 sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
@@ -333,6 +334,7 @@ export class ChanmsgService {
                     let fv = hush.addFieldValue([chanid, item.MSGID], 'chanid/item.MSGID')
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>replyInfo')
                 }
+                item.replyinfo = replyInfo
             }
             //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             // const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')

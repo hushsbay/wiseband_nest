@@ -38,6 +38,7 @@ export enum Msg {
 
 export const cons = {
     rowsCnt : 20,
+    replyCntLimit : 2, //댓글표시할 때 사진 보여주기 Max값
     unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     curdtMySqlStr : "DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     tempdir : 'd:/temp/', //파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임
