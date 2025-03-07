@@ -263,7 +263,7 @@ export class ChanmsgService {
             let lastMsgMstCdt = dto.lastMsgMstCdt
             let firstMsgMstCdt = dto.firstMsgMstCdt //메시지 작성후 화면 맨 아래에 방금 작성한 메시지 추가하기 위한 param
             //console.log(lastMsgMstCdt, "@@@@@@@@@@", firstMsgMstCdt) //let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
-            const rs = await this.chkQry({ userid: userid, grid: grid, chanid: chanid })
+            const rs = await this.chkQry({ userid: userid, grid: grid, chanid: chanid, includeBlob: true })
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
             //////////d) S_MSGMST_TBL (목록 읽어오기. 그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
@@ -345,14 +345,11 @@ export class ChanmsgService {
                     userid: userid, chanid: chanid, kind: arr[i]
                 }).orderBy('A.CDT', 'ASC').getMany()
                 if (msgsub.length > 0) {
-                    if (i == 0) {
-                        console.log(arr[i], JSON.stringify(msgsub))
+                    if (i == 0) { //console.log(arr[i], JSON.stringify(msgsub))
                         data.tempfilelist = msgsub
                     } else if (i == 1) {
-                        console.log(arr[i], JSON.stringify(msgsub))
                         data.tempimagelist = msgsub
                     } else {
-                        console.log(arr[i], JSON.stringify(msgsub))
                         data.templinklist = msgsub
                     }
                 }
@@ -454,7 +451,8 @@ export class ChanmsgService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, kind, body, filesize } = dto //console.log(userid, chanid, kind, body, filesize)
+            const { chanid, kind, body, filesize } = dto 
+            console.log(userid, chanid, kind, body, filesize)
             await this.chkQry({ userid: userid, chanid: chanid })
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
@@ -465,6 +463,7 @@ export class ChanmsgService {
             resJson.data.cdt = curdtObj.DT
             //임시 코딩 - 사진 넣기 시작
             if (kind == 'I') {
+                console.log(userid, chanid, kind, body, filesize, "@@@@@@")
                 let sql = "UPDATE jay.s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
                 await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
             }
