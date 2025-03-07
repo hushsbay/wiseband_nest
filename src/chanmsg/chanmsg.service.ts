@@ -310,11 +310,29 @@ export class ChanmsgService {
                     item.msglink = []
                 }
                 //d-3) S_MSGMST_TBL (댓글-스레드)
-                const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
+                // const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
+                // .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
+                //     chanid: chanid, msgid: item.MSGID 
+                // }).orderBy('DT', 'DESC').getRawMany()
+                const reply = await qb.select(['A.AUTHORID', 'A.AUTHORNM']) //3) 댓글
+                .distinct(true)
                 .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
                     chanid: chanid, msgid: item.MSGID 
-                }).orderBy('DT', 'DESC').getRawMany()
+                }).groupBy('A.AUTHORID').addGroupBy('A.AUTHORNM')
+                .orderBy('AUTHORNM', 'ASC').getRawMany()
                 item.reply = (reply.length > 0) ? reply : []
+                let sql = "SELECT SUM(CNT) CNT_BY_USER, "
+                sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
+                sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
+                sql += "     FROM (SELECT 1 CNT "
+                sql += "             FROM S_MSGMST_TBL "
+                sql += "            WHERE CHANID = ? AND REPLYTO = ? "
+                sql += "            GROUP BY AUTHORID) Z "
+                const replyInfo = await this.dataSource.query(sql, [chanid, item.MSGID, chanid, item.MSGID, chanid, item.MSGID])
+                if (replyInfo.length == 0) {
+                    let fv = hush.addFieldValue([chanid, item.MSGID], 'chanid/item.MSGID')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>replyInfo')
+                }
             }
             //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             // const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
