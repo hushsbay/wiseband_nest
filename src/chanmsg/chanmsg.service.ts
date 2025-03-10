@@ -126,7 +126,7 @@ export class ChanmsgService {
             } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트든 서버든 로직 추가될 수 있음
             //////////c) S_MSGMST_TBL
             //KIND : 아직은 Invite만 존재함
-            if (msgid) {
+            if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
                 .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
