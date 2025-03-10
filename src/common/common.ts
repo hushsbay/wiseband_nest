@@ -57,7 +57,7 @@ export function throwHttpEx(msg?: string, code?: string) { //, logger?: Logger, 
     //     if (debug) logger.debug(msg, code) //오류로 처리하되 로그파일에 남기지 않고 console에만 정해진 포맷으로 표시 (개발자 대량 테스트 등에 유용)
     //     else logger.error(msg, code) //로그파일에 오류로 남김 (error와 warn이 오류파일에 남기도록 winston에 설정되어 있음)
     // }
-    const codeReal = code ?? '-1'
+    const codeReal = code ?? Code.NOT_OK
     const msgReal = msg ?? Msg.NOT_OK
     throw new HttpException({
         statusCode: statusCode,
@@ -108,7 +108,7 @@ export function setResJson(json: ResJson, msg: string, code?: string, req?: Requ
         const [msgStr, bracket] = setMsgBracket(msg, code, req, smallTitle)
         comLog.warn(msgStr, bracket)
     }
-    json.code = isvoid(code) ? '-1' : code
+    json.code = isvoid(code) ? Code.NOT_OK : code
     json.msg = smallTitle ? smallTitle + ' : ' + msg : msg
     return json
 }

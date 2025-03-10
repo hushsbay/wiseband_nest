@@ -24,122 +24,12 @@ export class ChanmsgService {
         @Inject(REQUEST) private readonly req: Request
     ) {}
 
-    /* 여기말고 그 아래 chkQry가 잘되면 여긴 지우기
-    async chkQry(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
+    async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const resJson = new ResJson()
-            const { userid, grid, chanid, msgid, includeBlob } = dto
-            let fv = hush.addFieldValue([userid, grid, chanid, msgid], 'userid/grid/chanid/msgid')
-            //////////a) S_GRMST_TBL
-            let grnm = ''
-            if (grid) {
-                const gr = await this.grmstRepo.createQueryBuilder('A')
-                .select(['A.GR_NM', 'A.RMKS'])
-                .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
-                .where("A.GR_ID = :grid and A.INUSE = 'Y' and B.USERID = :userid ", { 
-                    grid: grid, userid: userid 
-                }).getOne()
-                if (!gr) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>gr')
-                }
-                grnm = gr.GR_NM
-            }
-            //////////b) S_CHANMST_TBL
-            const chanmst = await this.chanmstRepo.createQueryBuilder('A')
-            .select(['A.CHANNM', 'A.MASTERNM', 'A.STATE'])
-            .where("A.CHANID = :chanid and A.INUSE = 'Y' and A.TYP = 'WS' ", { 
-                chanid: chanid 
-            }).getOne()
-            if (!chanmst) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chanmst')
-            }
-            data.chanmst = chanmst
-            data.chanmst.GR_NM = grnm
-            //////////c) S_CHANDTL_TBL (지우지 말 것)
-            /#const chandtl = await this.chandtlRepo.createQueryBuilder('A')
-            .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
-            .where("A.CHANID = :chanid ", { 
-                chanid: chanid 
-            }).orderBy('A.USERNM', 'ASC').getMany()
-            if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>chandtl')
-            }
-            const userqb = this.userRepo.createQueryBuilder('A')
-            for (let item of chandtl) {
-                const user = await userqb
-                .select(['A.PICTURE'])
-                .where("A.USER_ID = :userid ", { 
-                    userid: userid 
-                }).getOne()
-                if (user) { //(사진)이미지 없으면 그냥 넘어가면 됨
-                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생 ******************************
-                }
-                if (item.USERID == userid) {
-                    data.chanmst.USERID = item.USERID
-                    data.chanmst.KIND = item.KIND
-                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
-                    break
-                }
-            } 위 TYPEORM으로 처리시 이미지 담기에 노력(****)이 들어가므로 간단하게 아래 SQL로 처리함 #/
-            const picFld = includeBlob ? ", B.PICTURE" : ""
-            let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND " + picFld
-            sql += "     FROM S_CHANDTL_TBL A "
-            sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-            sql += "    WHERE A.CHANID = ? "
-            sql += "      AND A.STATE IN ('', 'M') " //매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
-            sql += "    ORDER BY A.USERNM "
-            const chandtl = await this.dataSource.query(sql, [chanid])
-            if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chandtl')
-            }
-            for (let item of chandtl) {
-                if (item.USERID == userid) {
-                    data.chanmst.USERID = item.USERID
-                    data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z). S_CHANMST_TBL에도 STATE(공용,비밀)가 존재함
-                    break
-                }
-            }
-            if (data.chanmst.STATE == 'A') {
-                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수는 있음
-            } else { //비공개(Private)
-                if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>private')
-                }
-            }
-            if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
-                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>out')
-            }
-            data.chandtl = chandtl            
-            if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
-                resJson.data = data
-                return resJson
-            } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트에서 사용됨
-            //////////d) S_MSGMST_TBL
-            if (msgid) {
-                let msgmst = await this.msgmstRepo.createQueryBuilder('A')
-                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
-                .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
-                    msgid: msgid, chanid: chanid
-                }).getOne()
-                if (msgmst) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>msgmst')
-                }
-                data.msgmst = msgmst
-            }
-            resJson.data = data
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
-        }
-    }*/
-
-    async chkQry(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
-        try {
-            let data = { chanmst: null, chandtl: [], msgmst: null }
-            const resJson = new ResJson()
-            const { userid, grid, chanid, msgid, includeBlob } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함
+            const { userid, grid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함
+            console.log('chkAcl', userid, grid, chanid, msgid, includeBlob, chkAuthor)
             let fv = hush.addFieldValue([userid, grid, chanid, msgid], 'userid/grid/chanid/msgid')
             //////////a) S_CHANMST_TBL + S_GRMST_TBL
             //TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동)
@@ -150,7 +40,7 @@ export class ChanmsgService {
                 chanid: chanid 
             }).getOne()
             if (!chanmst) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chanmst')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chanmst')
             }
             let grnm = ''
             if (chanmst.TYP == 'GS') {
@@ -158,7 +48,7 @@ export class ChanmsgService {
             } else {
                 if (grid) {
                     if (grid != chanmst.GR_ID) {
-                        return hush.setResJson(resJson, 'grid와 chanid에서 가져온 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkQry>grid')
+                        return hush.setResJson(resJson, 'grid와 chanid에서 가져온 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
                     }
                 }
                 const gr = await this.grmstRepo.createQueryBuilder('A')
@@ -168,7 +58,7 @@ export class ChanmsgService {
                     grid: chanmst.GR_ID, userid: userid 
                 }).getOne()
                 if (!gr) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>gr')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>gr')
                 }
                 grnm = gr.GR_NM
             }
@@ -209,7 +99,7 @@ export class ChanmsgService {
             sql += "    ORDER BY A.USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
             if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>chandtl')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chandtl')
             }
             for (let item of chandtl) {
                 if (item.USERID == userid) {
@@ -223,11 +113,11 @@ export class ChanmsgService {
                 //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음
             } else { //비공개(Private)
                 if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>private')
+                    return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
                 }
             }
             if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
-                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkQry>out')
+                return hush.setResJson(resJson, hush.Msg.NOT_AUTHORIZED + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
             }
             data.chandtl = chandtl            
             if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
@@ -242,8 +132,12 @@ export class ChanmsgService {
                 .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
                     msgid: msgid, chanid: chanid
                 }).getOne()
-                if (msgmst) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkQry>msgmst')
+                if (!msgmst) {
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>msgmst')
+                }
+                console.log(chkAuthor, userid, msgmst.AUTHORID)
+                if (chkAuthor && userid != msgmst.AUTHORID) {
+                    return hush.setResJson(resJson, '작성자가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>chkAuthor')
                 }
                 data.msgmst = msgmst
             }
@@ -263,7 +157,8 @@ export class ChanmsgService {
             let lastMsgMstCdt = dto.lastMsgMstCdt
             let firstMsgMstCdt = dto.firstMsgMstCdt //메시지 작성후 화면 맨 아래에 방금 작성한 메시지 추가하기 위한 param
             //console.log(lastMsgMstCdt, "@@@@@@@@@@", firstMsgMstCdt) //let fv = hush.addFieldValue([grid, chanid], 'grid/chanid')
-            const rs = await this.chkQry({ userid: userid, grid: grid, chanid: chanid, includeBlob: true })
+            const rs = await this.chkAcl({ userid: userid, grid: grid, chanid: chanid, includeBlob: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
             //////////d) S_MSGMST_TBL (목록 읽어오기. 그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
@@ -395,7 +290,8 @@ export class ChanmsgService {
                 if (!chanid || !body) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
                 }
-                await this.chkQry({ userid: userid, chanid: chanid })
+                const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveMsg')
             } else {
                 return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
             }
@@ -441,7 +337,8 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { msgid, chanid } = dto
-            await this.chkQry({ userid: userid, chanid: chanid, msgid: msgid })
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')            
             let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT) "
             sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT "
             sql += "     FROM S_MSGMST_TBL "
@@ -484,7 +381,8 @@ export class ChanmsgService {
             const userid = this.req['user'].userid
             const usernm = this.req['user'].usernm
             const { msgid, chanid, kind } = dto
-            await this.chkQry({ userid: userid, chanid: chanid, msgid: msgid })
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleAction')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             const msgdtl = await qbMsgDtl
@@ -514,9 +412,10 @@ export class ChanmsgService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, kind, body, filesize } = dto 
-            console.log(userid, chanid, kind, body, filesize)
-            await this.chkQry({ userid: userid, chanid: chanid })
+            const { msgid, chanid, kind, body, filesize } = dto 
+            console.log(userid, msgid, chanid, kind, body, filesize)
+            const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>uploadBlob')
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
@@ -543,7 +442,8 @@ export class ChanmsgService {
             const userid = this.req['user'].userid
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
             const { chanid, kind, cdt } = dto //console.log(userid, msgid, chanid, kind, cdt)
-            await this.chkQry({ userid: userid, chanid: chanid })
+            const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delBlob')
             await this.msgsubRepo.createQueryBuilder()
             .delete()
             .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt ", {
@@ -562,7 +462,8 @@ export class ChanmsgService {
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
             const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
             let fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
-            await this.chkQry({ userid: userid, chanid: chanid })
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>readBlob')
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
             .select(['A.BUFFER'])
             .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name ", {
