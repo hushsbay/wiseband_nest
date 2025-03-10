@@ -22,13 +22,7 @@ export class MsgMst {
     REPLYTO: string
 
     @Column()
-    REPLYCNT: number
-
-    @Column()
     KIND: string    
-
-    @Column()
-    DEL: string
 
     @Column()
     CDT: string

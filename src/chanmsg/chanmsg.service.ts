@@ -119,8 +119,8 @@ export class ChanmsgService {
             //////////d) S_MSGMST_TBL
             if (msgid) {
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
-                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
-                .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = '' ", { 
+                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
+                .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
                     msgid: msgid, chanid: chanid
                 }).getOne()
                 if (msgmst) {
@@ -238,8 +238,8 @@ export class ChanmsgService {
             //KIND : 아직은 Invite만 존재함
             if (msgid) {
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
-                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
-                .where("A.MSGID = :msgid and A.CHANID = :chanid and A.DEL = '' ", { 
+                .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
+                .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
                     msgid: msgid, chanid: chanid
                 }).getOne()
                 if (msgmst) {
@@ -268,16 +268,16 @@ export class ChanmsgService {
             data.chandtl = rs.data.chandtl
             //////////d) S_MSGMST_TBL (목록 읽어오기. 그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
             const qb = this.msgmstRepo.createQueryBuilder('A')
-            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.REPLYCNT', 'A.KIND', 'A.CDT', 'A.UDT']
+            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
             let msglist: MsgMst[]
             if (firstMsgMstCdt) {
                 msglist = await qb.select(fldArr)
-                .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.DEL = '' and A.REPLYTO = '' ", { 
+                .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
                     chanid: chanid, firstcdt: firstMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').getMany()
             } else {
                 msglist = await qb.select(fldArr)
-                .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.DEL = '' and A.REPLYTO = '' ", { 
+                .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
                     chanid: chanid, lastcdt: lastMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
             }
@@ -311,13 +311,13 @@ export class ChanmsgService {
                 }
                 //d-3) S_MSGMST_TBL (댓글-스레드)
                 // const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
-                // .where("A.CHANID = :chanid and A.REPLYTO = :msgid and A.DEL = '' ", { 
+                // .where("A.CHANID = :chanid and A.REPLYTO = :msgid ", { 
                 //     chanid: chanid, msgid: item.MSGID 
                 // }).orderBy('DT', 'DESC').getRawMany()
                 //const reply = await qb.select(['A.AUTHORID', 'A.AUTHORNM']) //3) 댓글
                 const reply = await qb.select('AUTHORID').addSelect('AUTHORNM') //3) 댓글
                 .distinct(true)
-                .where("CHANID = :chanid and REPLYTO = :msgid and DEL = '' ", { 
+                .where("CHANID = :chanid and REPLYTO = :msgid ", { 
                     chanid: chanid, msgid: item.MSGID 
                 }).groupBy('AUTHORID').addGroupBy('AUTHORNM')
                 .orderBy('AUTHORNM', 'ASC').limit(hush.cons.replyCntLimit).getRawMany()
@@ -434,6 +434,49 @@ export class ChanmsgService {
             hush.throwCatchedEx(ex, this.req)
         }
     }
+
+    @Transactional({ propagation: Propagation.REQUIRED })
+    async delMsg(dto: Record<string, any>): Promise<any> {        
+        try { //메시지 마스터를 삭제하면 거기에 딸려 있는 서브와 디테일 테이블 정보는 소용없으므로 모두 삭제함 (~DEL_TBL로 이동시킴)
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { msgid, chanid } = dto
+            await this.chkQry({ userid: userid, chanid: chanid, msgid: msgid })
+            let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT) "
+            sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT "
+            sql += "     FROM S_MSGMST_TBL "
+            sql += "    WHERE MSGID = ? AND CHANID = ? AND AUTHORID = ? "
+            await this.dataSource.query(sql, [msgid, chanid, userid])
+            sql = " INSERT INTO S_MSGSUBDEL_TBL (MSGID, CHANID, KIND, BODY, BUFFER, FILESIZE, CDT, UDT) "
+            sql += "SELECT MSGID, CHANID, KIND, BODY, BUFFER, FILESIZE, CDT, UDT "
+            sql += "     FROM S_MSGSUB_TBL "
+            sql += "    WHERE MSGID = ? AND CHANID = ? "
+            await this.dataSource.query(sql, [msgid, chanid])
+            sql = " INSERT INTO S_MSGDTLDEL_TBL (MSGID, CHANID, USERID, USERNM, KIND, BODY, CDT, UDT) "
+            sql += "SELECT MSGID, CHANID, USERID, USERNM, KIND, BODY, CDT, UDT "
+            sql += "     FROM S_MSGDTL_TBL "
+            sql += "    WHERE MSGID = ? AND CHANID = ? "
+            await this.dataSource.query(sql, [msgid, chanid])
+            await this.msgmstRepo.createQueryBuilder()
+            .delete()
+            .where("MSGID = :msgid and CHANID = :chanid ", {
+                msgid: msgid, chanid: chanid
+            }).execute()
+            await this.msgsubRepo.createQueryBuilder()
+            .delete()
+            .where("MSGID = :msgid and CHANID = :chanid ", {
+                msgid: msgid, chanid: chanid
+            }).execute()
+            await this.msgdtlRepo.createQueryBuilder()
+            .delete()
+            .where("MSGID = :msgid and CHANID = :chanid ", {
+                msgid: msgid, chanid: chanid
+            }).execute()
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
     
     async toggleAction(dto: Record<string, any>): Promise<any> { //TX 필요없음
         try {            
@@ -484,7 +527,7 @@ export class ChanmsgService {
             //임시 코딩 - 사진 넣기 시작
             if (kind == 'I') {
                 console.log(userid, chanid, kind, body, filesize, "@@@@@@")
-                let sql = "UPDATE jay.s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
+                let sql = "UPDATE S_USER_TBL set PICTURE = ? WHERE USER_ID = ? "
                 await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
             }
             //임시 코딩 - 사진 넣기 끝
@@ -494,7 +537,7 @@ export class ChanmsgService {
         }
     }
 
-    async delBlob(dto: Record<string, any>): Promise<any> {        
+    async delBlob(dto: Record<string, any>): Promise<any> { //temp일 상태와 msgid가 있는 상태 모두 여기서 처리하는 것임        
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -540,7 +583,7 @@ export class ChanmsgService {
 /*
 (1)은 아래 RAW SQL과 동일 : 아래 SQL말고 다른 SQL은 JOIN보다 테이블별로 QUERY 분리해서 짜는 것이 효율적임
 SELECT A.GR_NM
-  FROM JAY.S_GRMST_TBL A 
- INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID
+  FROM S_GRMST_TBL A 
+ INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID
  WHERE A.GR_ID = '20250120084532918913033423' AND A.INUSE = 'Y' AND B.USERID = 'oldclock'
 */
