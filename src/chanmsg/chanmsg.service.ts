@@ -283,14 +283,19 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const usernm = this.req['user'].usernm
-            const { crud, chanid, body, num_file, num_image, num_link } = dto //cud는 C or U만 처리 
+            const { crud, chanid, body, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, body, num_file, num_image)
             let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image, num_link], 'msgid/chanid/crud/num_file/num_image/num_link')
             if (crud == 'C' || crud == 'U') {
                 if (!chanid || !body) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
                 }
-                const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                let rs: ResJson
+                if (crud == 'C') {
+                    rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                } else {
+                    rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
+                }
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveMsg')
             } else {
                 return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
@@ -324,7 +329,16 @@ export class ChanmsgService {
                     }
                 }
                 resJson.data.msgid = msgid
-            } //수정저장시엔 권한 체크 필요 (미리 있는지 체크)
+            } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음음)
+                const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
+                await qbMsgMst
+                .update()
+                .set({ BODY: body, UDT: curdtObj.DT })
+                .where("MSGID = :msgid and CHANID = :chanid ", {
+                    msgid: msgid, chanid: chanid
+                }).execute()
+                resJson.data.udt = curdtObj.DT
+            }
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
