@@ -15,6 +15,12 @@ export class ChanmsgController {
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgService.qry(dto) }
 
+    @Post('qryMsg')
+    qryMsg(@Body() dto: Record<string, any>) { return this.chanmsgService.qryMsg(dto) }
+
+    @Post('qryAction')
+    qryAction(@Body() dto: Record<string, any>) { return this.chanmsgService.qryAction(dto) }
+
     @Post('saveMsg')
     saveMsg(@Body() dto: Record<string, any>) { return this.chanmsgService.saveMsg(dto) }
 

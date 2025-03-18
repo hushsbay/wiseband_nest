@@ -2,7 +2,7 @@ import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, DataSource } from 'typeorm'
+import { Repository, DataSource, SelectQueryBuilder } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
 
 import * as hush from 'src/common/common'
@@ -148,6 +148,64 @@ export class ChanmsgService {
         }
     }
 
+    async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
+        const msgdtl = await qb
+        .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
+        .where("B.MSGID = :msgid and B.CHANID = :chanid ", { 
+            msgid: msgid, chanid: chanid
+        }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
+        return (msgdtl.length > 0) ? msgdtl : []
+    }
+
+    async qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any> { //d-2) S_MSGSUB_TBL
+        const msgsub = await qb
+        .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
+        .where("C.MSGID = :msgid and C.CHANID = :chanid ", { 
+            msgid: msgid, chanid: chanid
+        }).orderBy('C.KIND', 'ASC').addOrderBy('C.CDT', 'ASC').getMany()
+        if (msgsub.length > 0) {
+            const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
+            const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
+            const msglink = msgsub.filter((val) => val.KIND == 'L')
+            return { msgfile: msgfile, msgimg: msgimg, msglink: msglink }
+        } else {
+            return { msgfile: [], msgimg: [], msglink: [] }
+        }
+    }
+
+    async qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any> { //d-3) S_MSGMST_TBL
+        // const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
+        // .where("A.CHANID = :chanid and A.REPLYTO = :msgid ", { 
+        //     chanid: chanid, msgid: item.MSGID 
+        // }).orderBy('DT', 'DESC').getRawMany()
+        const reply = await qb
+        .select('AUTHORID').addSelect('AUTHORNM')
+        .distinct(true)
+        .where("CHANID = :chanid and REPLYTO = :msgid ", { 
+            chanid: chanid, msgid: msgid
+        }).groupBy('AUTHORID').addGroupBy('AUTHORNM')
+        .orderBy('AUTHORNM', 'ASC').limit(hush.cons.replyCntLimit).getRawMany()
+        return (reply.length > 0) ? reply : []
+    }
+
+    async qryReplyInfo(msgid: string, chanid: string): Promise<any> { //d-4) S_MSGMST_TBL
+        let sql = "SELECT SUM(CNT) CNT_BY_USER, "
+        sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
+        sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
+        sql += "     FROM (SELECT 1 CNT "
+        sql += "             FROM S_MSGMST_TBL "
+        sql += "            WHERE CHANID = ? AND REPLYTO = ? "
+        sql += "            GROUP BY AUTHORID) Z "
+        const replyInfo = await this.dataSource.query(sql, [chanid, msgid, chanid, msgid, chanid, msgid])
+        // if (replyInfo.length == 0) { //함수 밖에서 체크해야 하나 일단 막음
+        //     let fv = hush.addFieldValue([chanid, item.MSGID], 'chanid/item.MSGID')
+        //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>replyInfo')
+        // }
+        return replyInfo
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
+
     async qry(dto: Record<string, any>): Promise<any> {
         try {
             let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [] }
@@ -161,8 +219,10 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
-            //////////d) S_MSGMST_TBL (목록 읽어오기. 그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)
             const qb = this.msgmstRepo.createQueryBuilder('A')
+            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const qbSub = this.msgsubRepo.createQueryBuilder('C')
+            ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어오기. 그 안에 S_MSGDTL_TBL, S_MSGSUB_TBL 포함. 댓글도 포함)            
             const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
             let msglist: MsgMst[]
             if (firstMsgMstCdt) {
@@ -179,86 +239,25 @@ export class ChanmsgService {
             if (msglist.length > 0) data.msglist = msglist
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
-                //d-1) S_MSGDTL_TBL
-                const msgdtl = await this.msgdtlRepo.createQueryBuilder('B') //1) S_MSGDTL_TBL(각종 이모티콘)
-                .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
-                .where("B.CHANID = :chanid and B.MSGID = :msgid ", { 
-                    chanid: chanid, msgid: item.MSGID 
-                }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
+                const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
-                //d-2) S_MSGSUB_TBL
-                const msgsub = await this.msgsubRepo.createQueryBuilder('C') //2) S_MSGSUB_TBL(파일, 이미지, 링크 등)
-                .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
-                .where("C.CHANID = :chanid and C.MSGID = :msgid ", { 
-                    chanid: chanid, msgid: item.MSGID 
-                }).orderBy('C.KIND', 'ASC').addOrderBy('C.CDT', 'ASC').getMany()
-                if (msgsub.length > 0) {
-                    const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
-                    const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
-                    const msglink = msgsub.filter((val) => val.KIND == 'L')
-                    item.msgfile = msgfile
-                    item.msgimg = msgimg
-                    item.msglink = msglink
-                } else {
-                    item.msgfile = []
-                    item.msgimg = []
-                    item.msglink = []
-                }
-                //d-3) S_MSGMST_TBL (댓글-스레드)
-                // const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
-                // .where("A.CHANID = :chanid and A.REPLYTO = :msgid ", { 
-                //     chanid: chanid, msgid: item.MSGID 
-                // }).orderBy('DT', 'DESC').getRawMany()
-                //const reply = await qb.select(['A.AUTHORID', 'A.AUTHORNM']) //3) 댓글
-                const reply = await qb.select('AUTHORID').addSelect('AUTHORNM') //3) 댓글
-                .distinct(true)
-                .where("CHANID = :chanid and REPLYTO = :msgid ", { 
-                    chanid: chanid, msgid: item.MSGID 
-                }).groupBy('AUTHORID').addGroupBy('AUTHORNM')
-                .orderBy('AUTHORNM', 'ASC').limit(hush.cons.replyCntLimit).getRawMany()
+                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
+                item.msgfile = msgsub.msgfile
+                item.msgimg = msgsub.msgimg
+                item.msglink = msgsub.msglink
+                const reply = await this.qryReply(qb, item.MSGID, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
                 item.reply = (reply.length > 0) ? reply : []
-                let sql = "SELECT SUM(CNT) CNT_BY_USER, "
-                sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
-                sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
-                sql += "     FROM (SELECT 1 CNT "
-                sql += "             FROM S_MSGMST_TBL "
-                sql += "            WHERE CHANID = ? AND REPLYTO = ? "
-                sql += "            GROUP BY AUTHORID) Z "
-                const replyInfo = await this.dataSource.query(sql, [chanid, item.MSGID, chanid, item.MSGID, chanid, item.MSGID])
-                if (replyInfo.length == 0) {
-                    let fv = hush.addFieldValue([chanid, item.MSGID], 'chanid/item.MSGID')
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>replyInfo')
-                }
+                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid) //d-4) S_MSGMST_TBL (댓글-스레드)
                 item.replyinfo = replyInfo
             }
-            //////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
-            // const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
-            // const msgsub1 = await qbMsgsub //파일
-            // .select(['A.CDT', 'A.BODY', 'A.FILESIZE'])
-            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'F' ", { 
-            //     userid: userid, chanid: chanid
-            // }).orderBy('A.CDT', 'ASC').getMany()
-            // if (msgsub1.length > 0) data.tempfilelist = msgsub1
-            // const msgsub2 = await qbMsgsub //이미지
-            // .select(['A.CDT', 'A.BUFFER'])
-            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'I' ", { 
-            //     userid: userid, chanid: chanid
-            // }).orderBy('A.CDT', 'ASC').getMany()
-            // if (msgsub2.length > 0) data.tempimagelist = msgsub2
-            // const msgsub3 = await qbMsgsub //링크
-            // .select(['A.CDT', 'A.BODY'])
-            // .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = 'L' ", { 
-            //     userid: userid, chanid: chanid
-            // }).orderBy('A.CDT', 'ASC').getMany()
-            // if (msgsub3.length > 0) data.templinklist = msgsub3
+            ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             const arr = ['F', 'I', 'L'] //파일,이미지,링크
-            const qbMsgsub = this.msgsubRepo.createQueryBuilder('A')
             for (let i = 0; i < arr.length; i++) {
-                const msgsub = await qbMsgsub
-                .select(['A.CDT', 'A.BODY', 'A.BUFFER', 'A.FILESIZE'])
-                .where("A.MSGID = :userid and A.CHANID = :chanid and KIND = :kind ", { 
+                const msgsub = await qbSub
+                .select(['C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
+                .where("C.MSGID = :userid and C.CHANID = :chanid and C.KIND = :kind ", { 
                     userid: userid, chanid: chanid, kind: arr[i]
-                }).orderBy('A.CDT', 'ASC').getMany()
+                }).orderBy('C.CDT', 'ASC').getMany()
                 if (msgsub.length > 0) {
                     if (i == 0) { //console.log(arr[i], JSON.stringify(msgsub))
                         data.tempfilelist = msgsub
@@ -269,8 +268,56 @@ export class ChanmsgService {
                     }
                 }
             }            
-            //////////END
             resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryMsg(dto: Record<string, any>): Promise<any> {
+        try {
+            let data = { msgmst: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null }
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, msgid } = dto //let fv = hush.addFieldValue([chanid, msgid], 'chanid/msgid')
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryMsg')
+            const qb = this.msgmstRepo.createQueryBuilder('A')
+            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const qbSub = this.msgsubRepo.createQueryBuilder('C')
+            ///////////////////////////////////////////////////////////d) S_MSGMST_TBL
+            const msgmst = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'])
+            .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
+                msgid: msgid, chanid: chanid
+            }).getOne()
+            data.msgmst = msgmst
+            ////////////////////////////////////////////////////////////////////////////////////////////
+            const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
+            data.msgdtl = (msgdtl.length > 0) ? msgdtl : []
+            const msgsub = await this.qryMsgSub(qbSub, msgid, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
+            data.msgfile = msgsub.msgfile
+            data.msgimg = msgsub.msgimg
+            data.msglink = msgsub.msglink
+            const reply = await this.qryReply(qb, msgid, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
+            data.reply = (reply.length > 0) ? reply : []
+            const replyInfo = await this.qryReplyInfo(msgid, chanid) //d-4) S_MSGMST_TBL (댓글-스레드)
+            data.replyinfo = replyInfo
+            ////////////////////////////////////////////////////////////////////////////////////////////
+            resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryAction(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const { chanid, msgid } = dto
+            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
+            resJson.data = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -337,7 +384,7 @@ export class ChanmsgService {
                 .where("MSGID = :msgid and CHANID = :chanid ", {
                     msgid: msgid, chanid: chanid
                 }).execute()
-                resJson.data.udt = curdtObj.DT
+                //resJson.data.udt = curdtObj.DT //qryMsg로 대체 - 지워도 됨
             }
             return resJson
         } catch (ex) {
