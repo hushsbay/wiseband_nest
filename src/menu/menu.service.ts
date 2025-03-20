@@ -1,9 +1,9 @@
 import { Inject, Injectable, Scope } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
+import { DataSource } from 'typeorm'
 //import { InjectRepository } from '@nestjs/typeorm'
 //import { DataSource, Repository } from 'typeorm'
-import { DataSource } from 'typeorm'
 
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
@@ -20,27 +20,24 @@ export class MenuService {
     ) {}
 
     async qry(dto: Record<string, any>): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const kind = dto.kind
-        let fv = hush.addFieldValue(kind, 'kind')
         try {
-            if (!kind) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'menu>qry')
-            }
-            //여기서는 아래 sql처럼 menu중에 특정user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const kind = dto.kind
+            let fv = hush.addFieldValue(kind, 'kind')
+            //여기서는 아래 sql처럼 menu중에 특정 user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
-            //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나
+            //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나..
             //typeorm으로 leftjoin내의 subquery 구현을 제대로 해내지 못해 결국 포기하고 일단 아래 raw sql로 얻고자 함
             let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USER_ID "
-            sql += "     FROM s_menu_tbl A "
-            sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM s_menuper_tbl WHERE USER_ID = ? AND KIND = 'side') B "
+            sql += "     FROM S_MENU_TBL A "
+            sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM S_MENUPER_TBL WHERE USER_ID = ? AND KIND = ?) B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
-            sql += "    WHERE A.KIND = 'side' "
+            sql += "    WHERE A.KIND = ? "
             sql += "      AND A.INUSE = 'Y' "
             sql += "    ORDER BY A.SEQ "
-            const list = await this.dataSource.query(sql, [userid])
-            if (!list) {
+            const list = await this.dataSource.query(sql, [userid, kind, kind]) //console.log(typeof list, list.length)
+            if (list.length == 0) {                
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry')
             }
             resJson.list = list
@@ -51,48 +48,51 @@ export class MenuService {
     }
 
     async qryChan(dto: Record<string, any>): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        const kind = dto.kind
-        let fv = hush.addFieldValue(kind, 'kind')
         try {
-            if (!kind) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'menu>qryChan')
-            }
-            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
-            sql += "     FROM JAY.S_GRMST_TBL A "
-            sql += "    INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const kind = dto.kind
+            let fv = hush.addFieldValue(kind, 'kind')
+            //let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
+            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
+            sql += "     FROM S_GRMST_TBL A "
+            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE A.INUSE = 'Y' "
             sql += "      AND B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
-            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, 0, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.MEMCNT CHAN_MEMCNT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
+            //sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, 0, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.MEMCNT CHAN_MEMCNT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
+            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM "
-            sql += "             FROM JAY.S_GRMST_TBL A "
-            sql += "            INNER JOIN JAY.S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "             FROM S_GRMST_TBL A "
+            sql += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "            WHERE A.INUSE = 'Y' "
             sql += "              AND B.USERID = '" + userid + "') X "
             if (kind == 'my') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
-                sql += "                    FROM JAY.S_CHANMST_TBL A "
-                sql += "                   INNER JOIN JAY.S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += "                    FROM S_CHANMST_TBL A "
+                sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
             } else if (kind == 'other') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
-                sql += "                    FROM JAY.S_CHANMST_TBL A "
+                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM JAY.S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
-            } else { //all = my + other
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
-                sql += "                    FROM JAY.S_CHANMST_TBL A "
-                sql += "                   INNER JOIN JAY.S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
+            } else { //all=my+other
+                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += "                    FROM S_CHANMST_TBL A "
+                sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
-                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
-                sql += "                    FROM JAY.S_CHANMST_TBL A "
+                //sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM JAY.S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
+                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
@@ -122,8 +122,8 @@ const list = await this.menuperRepo.createQueryBuilder('menuper')
 }).orderBy('menu.SEQ', 'ASC').getMany() 
 =>
 SELECT B.USER_ID, A.ID, A.NM, A.SEQ, A.IMG
-  FROM jay.s_menu_tbl A
-  LEFT OUTER JOIN jay.s_menuper_tbl B ON A.KIND = B.KIND AND A.ID = B.ID
+  FROM s_menu_tbl A
+  LEFT OUTER JOIN s_menuper_tbl B ON A.KIND = B.KIND AND A.ID = B.ID
  WHERE B.USER_ID = 'oldclock'
    AND B.KIND = 'side' 
    AND A.INUSE = 'Y'
@@ -137,7 +137,7 @@ const data = await this.menuRepo.createQueryBuilder('menu')
 }).getRawOne()
 =>
 SELECT count(*)
-  FROM jay.s_menu_tbl
+  FROM s_menu_tbl
  WHERE KIND = 'side' 
    AND INUSE = 'Y'
 */
