@@ -310,7 +310,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryAction(dto: Record<string, any>): Promise<any> {
+    async qryAction(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
         try {
             const resJson = new ResJson()
             const { chanid, msgid } = dto
@@ -375,7 +375,7 @@ export class ChanmsgService {
                     }
                 }
                 resJson.data.msgid = msgid
-            } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음음)
+            } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
                 const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
                 await qbMsgMst
                 .update()
@@ -484,11 +484,11 @@ export class ChanmsgService {
             }).execute()
             resJson.data.cdt = curdtObj.DT
             //임시 코딩 - 사진 넣기 시작
-            if (kind == 'I') {
-                console.log(userid, chanid, kind, body, filesize, "@@@@@@")
-                let sql = "UPDATE S_USER_TBL set PICTURE = ? WHERE USER_ID = ? "
-                await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
-            }
+            // if (kind == 'I') {
+            //     console.log(userid, chanid, kind, body, filesize, "@@@@@@")
+            //     let sql = "UPDATE S_USER_TBL set PICTURE = ? WHERE USER_ID = ? "
+            //     await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
+            // }
             //임시 코딩 - 사진 넣기 끝
             return resJson
         } catch (ex) {
