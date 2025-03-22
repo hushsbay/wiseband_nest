@@ -219,17 +219,17 @@ export class ChanmsgService {
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
             const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
             let msglist: MsgMst[]
-            if (firstMsgMstCdt) {
+            if (firstMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') {
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, firstcdt: firstMsgMstCdt
-                    }).orderBy('A.CDT', 'DESC').getMany()
+                    }).orderBy('A.CDT', 'ASC').getMany()
                 } else {
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, firstcdt: firstMsgMstCdt
-                    }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
+                    }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
                 }
                 console.log("firstMsgMstCdt", firstMsgMstCdt, msglist.length)
             } else if (lastMsgMstCdt) {
