@@ -18,6 +18,9 @@ export class ChanmsgController {
     @Post('qryMsg')
     qryMsg(@Body() dto: Record<string, any>) { return this.chanmsgService.qryMsg(dto) }
 
+    @Post('qryActionForUser')
+    qryActionForUser(@Body() dto: Record<string, any>) { return this.chanmsgService.qryActionForUser(dto) }
+
     @Post('qryAction')
     qryAction(@Body() dto: Record<string, any>) { return this.chanmsgService.qryAction(dto) }
 
@@ -29,6 +32,9 @@ export class ChanmsgController {
 
     @Post('toggleAction')
     toggleAction(@Body() dto: Record<string, any>) { return this.chanmsgService.toggleAction(dto) }
+
+    @Post('changeAction')
+    changeAction(@Body() dto: Record<string, any>) { return this.chanmsgService.changeAction(dto) }
 
     @Post('uploadBlob')
     @UseInterceptors(FileInterceptor('file'))

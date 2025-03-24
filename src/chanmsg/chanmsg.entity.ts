@@ -76,6 +76,9 @@ export class MsgDtl {
     @PrimaryColumn()
     KIND: string    
 
+    @Column()
+    TYP: string    
+
     @PrimaryColumn()
     CDT: string    
 

@@ -145,10 +145,32 @@ export class ChanmsgService {
         }
     }
 
+    async qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any> { //d-0) S_MSGDTL_TBL
+        const retObj = { act_later: null, act_fixed: null }
+        const msgdtlforuser = await qb //예) "later","stored","finished"는 한몸으로서 해당 사용자만 조회해 보여줘야 하는 데이터임. 필요할 경우 CASE WHEN으로 추가해 관리해야 함
+        .select([
+            'B.KIND KIND', 
+            'CASE WHEN KIND in ("later","stored","finished") THEN "act_later" ' +
+                 'WHEN KIND in ("fixed") THEN "act_fixed" ' +
+                 'else "" end KIND_ACTION'
+        ])
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.USERID = :userid and B.TYP = 'user' ", { 
+            msgid: msgid, chanid: chanid, userid: userid
+        }).getRawMany()
+        for (let j = 0; j < msgdtlforuser.length; j++) {
+            if (msgdtlforuser[j].KIND_ACTION == 'act_later') {
+                retObj.act_later = msgdtlforuser[j].KIND //later or stored or finished
+            } else if (msgdtlforuser[j].KIND_ACTION == 'act_fixed') {
+                retObj.act_fixed = msgdtlforuser[j].KIND //현재는 fixed 한개임
+            }
+        }
+        return retObj
+    }
+
     async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
-        .where("B.MSGID = :msgid and B.CHANID = :chanid ", { 
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' ", { 
             msgid: msgid, chanid: chanid
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
         return (msgdtl.length > 0) ? msgdtl : []
@@ -265,6 +287,9 @@ export class ChanmsgService {
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
+                const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+                item.act_later = msgdtlforuser.act_later
+                item.act_fixed = msgdtlforuser.act_fixed
                 const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
                 const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
@@ -303,7 +328,7 @@ export class ChanmsgService {
 
     async qryMsg(dto: Record<string, any>): Promise<any> {
         try {
-            let data = { msgmst: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null }
+            let data = { msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid, msgid } = dto //let fv = hush.addFieldValue([chanid, msgid], 'chanid/msgid')
@@ -319,6 +344,9 @@ export class ChanmsgService {
             }).getOne()
             data.msgmst = msgmst
             ////////////////////////////////////////////////////////////////////////////////////////////
+            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+            data.act_later = msgdtlforuser.act_later
+            data.act_fixed = msgdtlforuser.act_fixed
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
             data.msgdtl = (msgdtl.length > 0) ? msgdtl : []
             const msgsub = await this.qryMsgSub(qbSub, msgid, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
@@ -331,6 +359,20 @@ export class ChanmsgService {
             data.replyinfo = replyInfo
             ////////////////////////////////////////////////////////////////////////////////////////////
             resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryActionForUser(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, msgid } = dto
+            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+            resJson.data = msgdtlforuser //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -488,6 +530,68 @@ export class ChanmsgService {
                 .insert().values({ 
                     MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm
                 }).execute()
+            }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async changeAction(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const usernm = this.req['user'].usernm
+            const { msgid, chanid, kind, job } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>changeAction')
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            if (kind == 'later' || kind == 'stored' || kind == 'finished') {
+                const msgdtlforuser = await qbMsgDtl
+                .select("KIND")
+                .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND in ('later', 'stored', 'finished') ", {
+                    msgid: msgid, chanid: chanid, userid: userid
+                }).getRawOne() //console.log(msgdtl.length, "@@@@@@@@@@")
+                if (!msgdtlforuser) {
+                    await qbMsgDtl
+                    .insert().values({ 
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
+                    }).execute()
+                } else {
+                    if (job == 'delete') {
+                        await qbMsgDtl
+                        .delete()
+                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                            msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                        }).execute()
+                    } else { //update
+                        await qbMsgDtl
+                        .update()
+                        .set({ KIND: job })
+                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind and TYP = 'user' ", {
+                            msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                        }).execute()
+                    }
+                }
+            } else if (kind == 'fixed') {
+                const msgdtlforuser = await qbMsgDtl
+                .select("KIND")
+                .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                    msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                }).getRawOne() //console.log(msgdtl.length, "@@@@@@@@@@")
+                if (!msgdtlforuser) {
+                    await qbMsgDtl
+                    .insert().values({ 
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
+                    }).execute()
+                } else {
+                    await qbMsgDtl
+                    .delete()
+                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                        msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                    }).execute()
+                }
             }
             return resJson
         } catch (ex) {
