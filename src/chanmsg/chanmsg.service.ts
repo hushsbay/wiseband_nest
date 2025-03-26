@@ -231,7 +231,7 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto 
-            console.log("qry", chanid, lastMsgMstCdt)
+            console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, grid: grid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -262,26 +262,38 @@ export class ChanmsgService {
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
                 console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
             } else if (msgid && kind == 'atHome') {
-                const fields = fldArr.join(", ").replace(/A\./g, "") + " " //console.log(fields, "####")
+                const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 const where = "WHERE CHANID = '" + chanid + "' AND REPLYTO = '' "
                 const cnt = Math.floor(hush.cons.rowsCnt / 2)
                 let sql = "SELECT " + fields
                 sql += "     FROM ((SELECT " + fields + tbl + where
-                sql += "             AND MSGID < ? "
-                sql += "           ORDER BY CDT DESC LIMIT " + cnt + ") "
-                sql += "           UNION ALL "
-                sql += "          (SELECT " + fields + tbl + where
-                sql += "             AND MSGID = ?) "
-                sql += "           UNION ALL "
-                sql += "          (SELECT " + fields + tbl + where
-                sql += "             AND MSGID > ? "
-                sql += "           ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
-                sql += "           ORDER BY CDT DESC " //console.log(sql, "####")
+                sql += "               AND MSGID < ? "
+                sql += "             ORDER BY CDT DESC LIMIT " + cnt + ") "
+                sql += "             UNION ALL "
+                sql += "           (SELECT " + fields + tbl + where
+                sql += "               AND MSGID = ?) "
+                sql += "             UNION ALL "
+                sql += "           (SELECT " + fields + tbl + where
+                sql += "               AND MSGID > ? "
+                sql += "             ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
+                sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgid, msgid, msgid])
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
                     let fv = hush.addFieldValue([grid, chanid, msgid, kind], 'grid/chanid/msgid/kind')
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>atHome')
+                }
+            } else if (msgid && kind == 'withReply') { //ASC임을 유의
+                const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
+                const tbl = "FROM S_MSGMST_TBL "
+                let sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
+                sql += "    UNION ALL "
+                sql += "   SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? "    
+                sql += "    ORDER BY CDT ASC "
+                msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
+                if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
+                    let fv = hush.addFieldValue([grid, chanid, msgid, kind], 'grid/chanid/msgid/kind')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                 }
             }
             if (msglist.length > 0) data.msglist = msglist
