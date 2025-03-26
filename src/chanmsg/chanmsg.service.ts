@@ -231,6 +231,7 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto 
+            console.log("qry", chanid, lastMsgMstCdt)
             const rs = await this.chkAcl({ userid: userid, grid: grid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
