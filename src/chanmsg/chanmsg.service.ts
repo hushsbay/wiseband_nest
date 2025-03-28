@@ -411,16 +411,20 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const usernm = this.req['user'].usernm
-            const { crud, chanid, body, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
-            let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, body, num_file, num_image)
-            let fv = hush.addFieldValue([msgid, chanid, crud, num_file, num_image, num_link], 'msgid/chanid/crud/num_file/num_image/num_link')
-            if (crud == 'C' || crud == 'U') {
+            const { crud, chanid, replyto, body, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
+            let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
+            let fv = hush.addFieldValue([msgid, chanid, replyto, crud, num_file, num_image, num_link], 'msgid/chanid/replyto/crud/num_file/num_image/num_link')
+            if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
                 if (!chanid || !body) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
                 }
                 let rs: ResJson
                 if (crud == 'C') {
-                    rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                    if (replyto) { //부모메시지 존재 여부만 체크
+                        rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: replyto })    
+                    } else {
+                        rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                    }
                 } else {
                     rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
                 }
@@ -434,7 +438,7 @@ export class ChanmsgService {
                 msgid = unidObj.ID
                 await qbMsgMst
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, BODY: body, CDT: unidObj.DT
+                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, CDT: unidObj.DT
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
                 let arr = []
@@ -541,7 +545,7 @@ export class ChanmsgService {
             } else {                
                 await qbMsgDtl
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm
+                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm, TYP: ''
                 }).execute()
             }
             return resJson
