@@ -674,8 +674,8 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>readBlob')
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
             .select(['A.BUFFER'])
-            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt and BODY = :name ", {
-                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt, name: name //name은 없어도 될 것이나 더 정확한 조회 목적임
+            .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt ", { //and BODY = :name ", { //Image도 조회해야 해서 name은 막음
+                msgid: msgid, chanid: chanid, kind: kind, cdt: cdt //, name: name //name은 없어도 될 것이나 더 정확한 조회 목적임
             }).getOne()
             if (!msgsub) {                
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>readBlob')
