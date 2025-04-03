@@ -107,6 +107,25 @@ export class MenuService {
         }
     }
 
+    async qryLater(): Promise<any> { //나중에
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODY, A.KIND, A.CDT, A.UDT, B.CHANNM, B.STATE, D.KIND "
+            sql += "     FROM S_MSGMST_TBL A "
+            sql += "    INNER JOIN JAY.S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            sql += "     LEFT OUTER JOIN JAY.S_MSGDTL_tbl D ON A.MSGID = D.MSGID "
+            sql += "    WHERE D.USERID = ? "
+            sql += "      AND D.KIND IN ('later', 'stored', 'finished') "
+            sql += "    ORDER BY A.CDT DESC "
+            const list = await this.dataSource.query(sql, [userid])
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
 }
 
 /*

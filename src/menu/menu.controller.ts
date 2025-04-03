@@ -13,4 +13,7 @@ export class MenuController {
     @Post('qryChan')
     qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qryChan(dto) }
 
+    @Post('qryLater')
+    qryLater() { return this.menuSvc.qryLater() }
+
 }
