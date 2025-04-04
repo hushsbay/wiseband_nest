@@ -19,6 +19,9 @@ export class MsgMst {
     BODY: string
 
     @Column()
+    BODYTEXT: string
+
+    @Column()
     REPLYTO: string
 
     @Column()
@@ -84,7 +87,7 @@ export class MsgDtl {
 
     @Column()
     BODY: string
-
+    
     @Column()
     UDT: string
 

@@ -411,11 +411,11 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const usernm = this.req['user'].usernm
-            const { crud, chanid, replyto, body, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
+            const { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
             let fv = hush.addFieldValue([msgid, chanid, replyto, crud, num_file, num_image, num_link], 'msgid/chanid/replyto/crud/num_file/num_image/num_link')
             if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
-                if (!chanid || !body) {
+                if (!chanid || (!body && num_file == 0 && num_image == 0 && num_link == 0)) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
                 }
                 let rs: ResJson
@@ -438,7 +438,7 @@ export class ChanmsgService {
                 msgid = unidObj.ID
                 await qbMsgMst
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, CDT: unidObj.DT
+                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, BODYTEXT: bodytext, CDT: unidObj.DT
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
                 let arr = []
@@ -465,11 +465,10 @@ export class ChanmsgService {
                 const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
                 await qbMsgMst
                 .update()
-                .set({ BODY: body, UDT: curdtObj.DT })
+                .set({ BODY: body, BODYTEXT: bodytext, UDT: curdtObj.DT })
                 .where("MSGID = :msgid and CHANID = :chanid ", {
                     msgid: msgid, chanid: chanid
                 }).execute()
-                //resJson.data.udt = curdtObj.DT //qryMsg로 대체 - 지워도 됨
             }
             return resJson
         } catch (ex) {

@@ -14,6 +14,6 @@ export class MenuController {
     qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qryChan(dto) }
 
     @Post('qryLater')
-    qryLater() { return this.menuSvc.qryLater() }
+    qryLater(@Body() dto: Record<string, any>) { return this.menuSvc.qryLater(dto) }
 
 }
