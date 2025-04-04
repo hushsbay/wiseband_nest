@@ -111,15 +111,16 @@ export class MenuService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const kind = dto.kind //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind, lastMsgMstCdt } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sql += "     LEFT OUTER JOIN S_MSGDTL_tbl D ON A.MSGID = D.MSGID "
             sql += "     LEFT JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
-            sql += "    WHERE D.USERID = ? AND D.KIND = ? "
+            sql += "    WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < ? "
             sql += "    ORDER BY A.CDT DESC "
-            const list = await this.dataSource.query(sql, [userid, kind])
+            sql += "    LIMIT " + hush.cons.rowsCnt
+            const list = await this.dataSource.query(sql, [userid, kind, lastMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
