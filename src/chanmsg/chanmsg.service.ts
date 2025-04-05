@@ -261,7 +261,17 @@ export class ChanmsgService {
                     chanid: chanid, lastcdt: lastMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
                 console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
-            } else if (msgid && kind == 'atHome') {
+            } else if (msgid && kind == 'atHome') { //댓글에 나중에가 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기
+                let msgmst = await this.msgmstRepo.createQueryBuilder('A')
+                .select(['A.REPLYTO'])
+                .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
+                    msgid: msgid, chanid: chanid
+                }).getOne()
+                if (!msgmst) {
+                    let fv = hush.addFieldValue([userid, chanid, msgid], 'userid/chanid/msgid')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>atHome>MsgMst')
+                }
+                const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 const where = "WHERE CHANID = '" + chanid + "' AND REPLYTO = '' "
@@ -278,10 +288,10 @@ export class ChanmsgService {
                 sql += "               AND MSGID > ? "
                 sql += "             ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
-                msglist = await this.dataSource.query(sql, [msgid, msgid, msgid])
+                msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
-                    let fv = hush.addFieldValue([grid, chanid, msgid, kind], 'grid/chanid/msgid/kind')
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>atHome')
+                    let fv = hush.addFieldValue([grid, chanid, msgid, msgidParent, kind], 'grid/chanid/msgid/msgidParent/kind')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 }
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
