@@ -227,7 +227,10 @@ export class ChanmsgService {
 
     async qry(dto: Record<string, any>): Promise<any> {
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
-            let data = { chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [] }
+            let data = { 
+                chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
+                msgidParent: '', msgidChild: '' 
+            }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { grid, chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto 
@@ -261,7 +264,8 @@ export class ChanmsgService {
                     chanid: chanid, lastcdt: lastMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
                 console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
-            } else if (msgid && kind == 'atHome') { //댓글에 나중에가 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기
+            } else if (msgid && kind == 'atHome') { 
+                //댓글에 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기. 클라이언트에서 넘어와도 되지만 복잡해서 서버에서 처리함
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.REPLYTO'])
                 .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
@@ -270,7 +274,7 @@ export class ChanmsgService {
                 if (!msgmst) {
                     let fv = hush.addFieldValue([userid, chanid, msgid], 'userid/chanid/msgid')
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>atHome>MsgMst')
-                }
+                } 
                 const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
@@ -292,7 +296,9 @@ export class ChanmsgService {
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
                     let fv = hush.addFieldValue([grid, chanid, msgid, msgidParent, kind], 'grid/chanid/msgid/msgidParent/kind')
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
-                }
+                } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
+                data.msgidParent = msgidParent //HomeBody.vue의 getList()에서 사용
+                data.msgidChild = msgid //HomeBody.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
