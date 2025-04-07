@@ -107,7 +107,7 @@ export class MenuService {
         }
     }
 
-    async qryLater(dto: Record<string, any>): Promise<any> { //나중에
+    async qryLater(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -116,12 +116,29 @@ export class MenuService {
             sql += "          B.CHANID, B.GR_ID, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
-            sql += "     LEFT OUTER JOIN S_MSGDTL_tbl D ON A.MSGID = D.MSGID "
+            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID "
             sql += "     LEFT JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
             sql += "    WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < ? "
             sql += "    ORDER BY A.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
             const list = await this.dataSource.query(sql, [userid, kind, lastMsgMstCdt])
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryLaterCount(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { kind } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
+            let sql = "SELECT COUNT(*) CNT "
+            sql += "     FROM S_MSGMST_TBL A "
+            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+            sql += "    WHERE B.USERID = ? AND B.KIND = ? "
+            const list = await this.dataSource.query(sql, [userid, kind])
             resJson.list = list
             return resJson
         } catch (ex) {
