@@ -590,6 +590,7 @@ export class ChanmsgService {
                     .insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
                     }).execute()
+                    resJson.data.work = "create"
                 } else {
                     if (job == 'delete') {
                         await qbMsgDtl
@@ -605,6 +606,7 @@ export class ChanmsgService {
                             msgid: msgid, chanid: chanid, userid: userid, kind: kind
                         }).execute()
                     }
+                    resJson.data.work = "delete" //'나중에' 패널에 보이는 행을 제거하기
                 }
             } else if (kind == 'fixed') {
                 const msgdtlforuser = await qbMsgDtl
@@ -617,12 +619,14 @@ export class ChanmsgService {
                     .insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
                     }).execute()
+                    resJson.data.work = "create"
                 } else {
                     await qbMsgDtl
                     .delete()
                     .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: kind
                     }).execute()
+                    resJson.data.work = "delete"
                 }
             }
             return resJson
