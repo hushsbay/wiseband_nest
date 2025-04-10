@@ -31,7 +31,7 @@ export enum Msg {
     JWT_NEEDED = '인증토큰이 필요합니다.',
     JWT_MISMATCH = '인증토큰이 일치하지 않습니다.', //필요시 위변조 가능성도 체크
     JWT_EXPIRED = '인증토큰이 만료되었습니다.',
-    //JWT_ETC는 없음 = ex.message 사용
+    JWT_ETC = '토큰 오류입니다.', //(ex.message가 아예 없을 수도 있으나) ex.message를 추가로 사용할 필요있음
     PWD_MISMATCH = '비번이 다릅니다.',
     NOT_AUTHORIZED = '권한이 없습니다.',
 }
