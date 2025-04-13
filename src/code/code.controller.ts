@@ -1,5 +1,6 @@
-import { Controller, HttpCode, HttpStatus, Post, Body } from '@nestjs/common'
+import { Controller, HttpCode, HttpStatus, Post, Body, Get, Query } from '@nestjs/common'
 
+import { Unauth } from 'src/common/unauth.decorator'
 import { CodeService } from 'src/code/code.service'
 
 @Controller('code')
@@ -7,8 +8,12 @@ export class CodeController {
 
     constructor(private readonly codeSvc: CodeService) {}
 
-    @HttpCode(HttpStatus.OK)
-    @Post('qry')
-    qry(@Body() dto: Record<string, any>) { return this.codeSvc.qry(dto) }
+    @Unauth()
+    @Get('qryCode')
+    qryCode(@Query() dto: Record<string, any>) { return this.codeSvc.qryCode(dto) }
+
+    @Unauth()
+    @Get('qryDealer')
+    qryDealer(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealer(dto) }
 
 }

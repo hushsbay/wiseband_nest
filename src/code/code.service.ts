@@ -6,19 +6,23 @@ import { Repository } from 'typeorm'
 
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
-import { Code } from 'src/code/code.entity'
+import { Code, Dealer } from 'src/code/code.entity'
+
 
 @Injectable({ scope: Scope.REQUEST })
 export class CodeService {
     
-    constructor(@InjectRepository(Code) private codeRepo: Repository<Code>, @Inject(REQUEST) private readonly req: Request) {}
+    constructor(
+        @InjectRepository(Code) private codeRepo: Repository<Code>, 
+        @InjectRepository(Dealer) private dealerRepo: Repository<Dealer>, 
+        @Inject(REQUEST) private readonly req: Request
+    ) {}
 
-    async qry(dto: Record<string, any>): Promise<any> {
+    async qryCode(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const kind = dto.kind
         const detailInfo = hush.addDetailInfo(kind, 'kind')
         try {
-            if (!kind) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
             const list = await this.codeRepo.find({ where: { KIND: kind }, order: { ID: 'ASC' }})
             if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
             resJson.list = list
@@ -26,6 +30,23 @@ export class CodeService {
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
         }            
+    }
+
+    async qryDealer(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const ern = dto.ern
+            const list = await this.dealerRepo.createQueryBuilder('B')
+            .select(['B.ERN', 'B.TAX_TYP', 'B.DEAL_CO_NM', 'B.RPST_NM'])
+            .where("ERN LIKE :ern ", { 
+                ern: `${ern}%`
+            })
+            .orderBy('B.DEAL_CO_NM', 'ASC').getMany()
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
     }
 
 }
