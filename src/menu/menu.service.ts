@@ -53,14 +53,12 @@ export class MenuService {
             const userid = this.req['user'].userid
             const kind = dto.kind
             let fv = hush.addFieldValue(kind, 'kind')
-            //let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.MEMCNT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, 0 CHAN_MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE A.INUSE = 'Y' "
             sql += "      AND B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
-            //sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, 0, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.MEMCNT CHAN_MEMCNT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM "
             sql += "             FROM S_GRMST_TBL A "
@@ -68,27 +66,23 @@ export class MenuService {
             sql += "            WHERE A.INUSE = 'Y' "
             sql += "              AND B.USERID = '" + userid + "') X "
             if (kind == 'my') {
-                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
             } else if (kind == 'other') {
-                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             } else { //all=my+other
-                //sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.INUSE = 'Y' "
                 sql += "                     AND B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
-                //sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.MEMCNT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
@@ -108,6 +102,59 @@ export class MenuService {
         }
     }
 
+    async qryDm(dto: Record<string, any>): Promise<any> {
+        try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { kind, lastMsgMstCdt } = dto //all //let fv = hush.addFieldValue(kind, 'kind')
+            let sql = "SELECT Z.CHANID, Z.CHANNM, Z.LASTMSGDT "
+            sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
+            sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
+            sql += "             FROM S_CHANDTL_TBL A "
+            sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            sql += "            WHERE A.USERID = ? AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
+            sql += "    WHERE Z.LASTMSGDT < ? "
+            sql += "    ORDER BY Z.LASTMSGDT DESC "
+            const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
+            for (let i = 0; i < list.length; i++) {
+                const row = list[i]
+                sql = "SELECT MSGID, BODYTEXT FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 "
+                const listMst = await this.dataSource.query(sql, [row.CHANID])
+                if (listMst.length == 0) {
+                    row.MSGID = ''
+                    row.BODYTEXT = ''
+                } else {
+                    row.MSGID = listMst[0].MSGID
+                    row.BODYTEXT = listMst[0].BODYTEXT
+                }
+                sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
+                sql += " FROM S_CHANDTL_TBL A "
+                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+                sql += "WHERE A.CHANID = ? AND A.USERID <> ? ORDER BY A.USERNM "
+                const listChan = await this.dataSource.query(sql, [row.CHANID, userid])
+                const arr = [], brr = [], crr = [], drr = []
+                let j = 0
+                for (j = 0; j < listChan.length; j++) {
+                    arr.push(listChan[j].USERNM)
+                    brr.push(listChan[j].USERID)
+                    crr.push(listChan[j].PICTURE)
+                    drr.push('')
+                    if (j >= 3) break //4명까지만 사진 등 보여주기
+                }
+                row.memcnt = listChan.length + 1 //본인 포함
+                row.memnmcnt = j + 1
+                row.memnm = arr
+                row.memid = brr
+                row.picture = crr
+                row.url = drr //url은 로컬에서 변환
+            }
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async qryLater(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
@@ -118,7 +165,7 @@ export class MenuService {
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID "
-            sql += "     LEFT JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
+            sql += "     LEFT OUTER JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
             } else {
