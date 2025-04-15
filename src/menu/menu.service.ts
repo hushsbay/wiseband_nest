@@ -112,7 +112,7 @@ export class MenuService {
             sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
             sql += "             FROM S_CHANDTL_TBL A "
             sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
-            sql += "            WHERE A.USERID = ? AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
+            sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
             sql += "    WHERE Z.LASTMSGDT < ? "
             sql += "    ORDER BY Z.LASTMSGDT DESC "
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
@@ -130,7 +130,7 @@ export class MenuService {
                 sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
                 sql += " FROM S_CHANDTL_TBL A "
                 sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-                sql += "WHERE A.CHANID = ? ORDER BY A.USERNM "
+                sql += "WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
                 const listChan = await this.dataSource.query(sql, [row.CHANID])
                 const arr = [], brr = [], crr = [], drr = []
                 let picCnt = 0, me = null
