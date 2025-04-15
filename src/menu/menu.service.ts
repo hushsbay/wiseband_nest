@@ -107,7 +107,7 @@ export class MenuService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { kind, lastMsgMstCdt } = dto //all //let fv = hush.addFieldValue(kind, 'kind')
-            let sql = "SELECT Z.CHANID, Z.CHANNM, Z.LASTMSGDT "
+            let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT "
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
             sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
             sql += "             FROM S_CHANDTL_TBL A "
