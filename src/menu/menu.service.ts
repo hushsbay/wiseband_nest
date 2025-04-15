@@ -130,19 +130,32 @@ export class MenuService {
                 sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
                 sql += " FROM S_CHANDTL_TBL A "
                 sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-                sql += "WHERE A.CHANID = ? AND A.USERID <> ? ORDER BY A.USERNM "
-                const listChan = await this.dataSource.query(sql, [row.CHANID, userid])
+                sql += "WHERE A.CHANID = ? ORDER BY A.USERNM "
+                const listChan = await this.dataSource.query(sql, [row.CHANID])
                 const arr = [], brr = [], crr = [], drr = []
-                let j = 0
-                for (j = 0; j < listChan.length; j++) {
+                let picCnt = 0, me = null
+                for (let j = 0; j < listChan.length; j++) {
+                    if (listChan[j].USERID == userid) {
+                        me = listChan[j]
+                        continue
+                    }
                     arr.push(listChan[j].USERNM)
                     brr.push(listChan[j].USERID)
                     crr.push(listChan[j].PICTURE)
                     drr.push('')
-                    if (j >= 3) break //4명까지만 사진 등 보여주기
+                    picCnt += 1
+                    console.log(listChan[j].USERNM, picCnt)
+                    if (picCnt >= hush.cons.picCnt) break //picCnt명까지만 사진 등 보여주기
                 }
-                row.memcnt = listChan.length + 1 //본인 포함
-                row.memnmcnt = j + 1
+                if (picCnt == 0 && me) { //나만의 대화인 채널 (me는 반드시 존재할 것이나 한번 더 체크)
+                    arr.push(me.USERNM)
+                    brr.push(me.USERID)
+                    crr.push(me.PICTURE)
+                    drr.push('')
+                    picCnt = 1
+                }
+                row.memcnt = listChan.length //전체 멤버수
+                row.memnmcnt = picCnt //사진 보여주는 max 멤버수
                 row.memnm = arr
                 row.memid = brr
                 row.picture = crr

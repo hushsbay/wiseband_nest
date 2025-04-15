@@ -42,6 +42,7 @@ export const cons = {
     unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     curdtMySqlStr : "DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     tempdir : 'd:/temp/', //파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임
+    picCnt : 4, //picCnt명까지만 사진 등 보여주기 (클라이언트 고려해 4명까지만 가능)
 }
 
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용
