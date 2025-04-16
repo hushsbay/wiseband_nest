@@ -16,4 +16,8 @@ export class CodeController {
     @Get('qryDealer')
     qryDealer(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealer(dto) }
 
+    @Unauth()
+    @Get('qryDealerDetail')
+    qryDealerDetail(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealerDetail(dto) }
+
 }

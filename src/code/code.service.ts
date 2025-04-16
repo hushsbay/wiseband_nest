@@ -49,4 +49,21 @@ export class CodeService {
         }
     }
 
+    async qryDealerDetail(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const ern = dto.ern
+            const data = await this.dealerRepo.createQueryBuilder('B')
+            .select(['B.ERN', 'B.TAX_TYP', 'B.DEAL_CO_NM', 'B.RPST_NM'])
+            .where("ERN = :ern ", { 
+                ern: ern
+            })
+            .getOne()
+            resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
 }
