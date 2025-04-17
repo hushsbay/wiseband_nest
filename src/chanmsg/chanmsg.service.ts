@@ -170,7 +170,7 @@ export class ChanmsgService {
     async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
-        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' ", { 
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' and B.KIND not in ('read', 'unread') ", { //화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
             msgid: msgid, chanid: chanid
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
         return (msgdtl.length > 0) ? msgdtl : []
@@ -234,7 +234,7 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //grid, 
-            console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
+            //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -257,13 +257,13 @@ export class ChanmsgService {
                         chanid: chanid, firstcdt: firstMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
                 }
-                console.log("firstMsgMstCdt", firstMsgMstCdt, msglist.length)
+                //console.log("firstMsgMstCdt", firstMsgMstCdt, msglist.length)
             } else if (lastMsgMstCdt) {
                 msglist = await qb.select(fldArr)
                 .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
                     chanid: chanid, lastcdt: lastMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
-                console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
+                //console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
             } else if (msgid && kind == 'atHome') { 
                 //댓글에 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기. 클라이언트에서 넘어와도 되지만 복잡해서 서버에서 처리함
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
@@ -311,6 +311,15 @@ export class ChanmsgService {
                     let fv = hush.addFieldValue([chanid, msgid, kind], 'chanid/msgid/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                 }
+            } else if (kind == 'notyet' || kind == 'unread') {
+                const fields = fldArr.join(", ") + " " 
+                let sql = "SELECT " + fields
+                sql += "     FROM S_MSGMST_TBL A "
+                sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+                sql += "    WHERE B.CHANID = ? AND B.USERID = ? AND B.KIND = ? "
+                sql += "    ORDER BY A.CDT DESC "
+                sql += "    LIMIT 1000 "
+                msglist = await this.dataSource.query(sql, [chanid, userid, kind])
             }
             if (msglist.length > 0) data.msglist = msglist
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)

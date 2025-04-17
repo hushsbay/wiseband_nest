@@ -22,9 +22,9 @@ export class MenuService {
     async qryMembersWithPic(chanid: string, userid: string, pictureCount: number): Promise<any> {
         const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, picture: null, url: null }
         let sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
-        sql += " FROM S_CHANDTL_TBL A "
-        sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-        sql += "WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
+        sql += "     FROM S_CHANDTL_TBL A "
+        sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+        sql += "    WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
         const listChan = await this.dataSource.query(sql, [chanid])
         const arr = [], brr = [], crr = [], drr = []
         let picCnt = 0, me = null
@@ -54,6 +54,13 @@ export class MenuService {
         retObj.picture = crr        
         retObj.url = drr
         return retObj
+    }
+
+    async qryKindCntForUser(chanid: string, userid: string, kind: string): Promise<number> { //주로 notyet(아직안읽은메시지) 갯수 읽을 때 사용
+        let sql = "SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE CHANID = ? AND USERID = ? AND KIND = ? "
+        const list = await this.dataSource.query(sql, [chanid, userid, kind])
+        //console.log(list[0].CNT, JSON.stringify(list[0]))
+        return list[0].CNT
     }
     
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
@@ -129,10 +136,12 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
-            console.log(sql)
             const list = await this.dataSource.query(sql, null)
             if (!list) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
+            }
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].DEPTH == 2) list[i].notyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
             }
             resJson.list = list
             return resJson
@@ -173,6 +182,7 @@ export class MenuService {
                 row.picCnt = obj.picCnt
                 row.picture = obj.picture
                 row.url = obj.url //url은 로컬에서 사용
+                row.notyetCnt = await this.qryKindCntForUser(row.CHANID, userid, 'notyet')
             }
             resJson.list = list
             return resJson
@@ -190,7 +200,7 @@ export class MenuService {
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
-            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID "
+            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
             sql += "     LEFT OUTER JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
@@ -226,7 +236,7 @@ export class MenuService {
             const { kind } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
             let sql = "SELECT COUNT(*) CNT "
             sql += "     FROM S_MSGMST_TBL A "
-            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "    WHERE B.USERID = ? AND B.KIND = ? "
             const list = await this.dataSource.query(sql, [userid, kind])
             resJson.list = list
