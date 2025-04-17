@@ -19,6 +19,45 @@ export class MenuService {
         @Inject(REQUEST) private readonly req: Request
     ) {}
 
+    async qryMembersWithPic(chanid: string, userid: string, pictureCount: number): Promise<any> {
+        const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, picture: null, url: null }
+        let sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
+        sql += " FROM S_CHANDTL_TBL A "
+        sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+        sql += "WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
+        const listChan = await this.dataSource.query(sql, [chanid])
+        const arr = [], brr = [], crr = [], drr = []
+        let picCnt = 0, me = null
+        for (let j = 0; j < listChan.length; j++) {
+            if (listChan[j].USERID == userid) {
+                me = listChan[j]
+                continue
+            }
+            arr.push(listChan[j].USERNM)
+            brr.push(listChan[j].USERID)
+            crr.push(listChan[j].PICTURE)
+            drr.push('')
+            picCnt += 1
+            if (pictureCount > -1 && picCnt >= pictureCount) break //picCnt명까지만 사진 등 보여주기
+        }
+        if (picCnt == 0 && me) { //나만의 대화인 채널 (me는 반드시 존재할 것이나 한번 더 체크)
+            arr.push(me.USERNM)
+            brr.push(me.USERID)
+            crr.push(me.PICTURE)
+            drr.push('')
+            picCnt = 1
+        } //memcnt(전체멤버수), memnm(전체멤버이름-혼자면내이름포함,여러명이면내이름제외), memid(=memnm), picCnt(사진보여주는갯수), picture(사진), url(빈값으로내려서클라이언트에서이용)
+        retObj.memcnt = listChan.length
+        retObj.memnm = arr
+        retObj.memid = brr
+        retObj.picCnt = picCnt
+        retObj.picture = crr        
+        retObj.url = drr
+        return retObj
+    }
+    
+    ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
+
     async qry(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
@@ -127,39 +166,13 @@ export class MenuService {
                     row.MSGID = listMst[0].MSGID
                     row.BODYTEXT = listMst[0].BODYTEXT
                 }
-                sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
-                sql += " FROM S_CHANDTL_TBL A "
-                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-                sql += "WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
-                const listChan = await this.dataSource.query(sql, [row.CHANID])
-                const arr = [], brr = [], crr = [], drr = []
-                let picCnt = 0, me = null
-                for (let j = 0; j < listChan.length; j++) {
-                    if (listChan[j].USERID == userid) {
-                        me = listChan[j]
-                        continue
-                    }
-                    arr.push(listChan[j].USERNM)
-                    brr.push(listChan[j].USERID)
-                    crr.push(listChan[j].PICTURE)
-                    drr.push('')
-                    picCnt += 1
-                    console.log(listChan[j].USERNM, picCnt)
-                    if (picCnt >= hush.cons.picCnt) break //picCnt명까지만 사진 등 보여주기
-                }
-                if (picCnt == 0 && me) { //나만의 대화인 채널 (me는 반드시 존재할 것이나 한번 더 체크)
-                    arr.push(me.USERNM)
-                    brr.push(me.USERID)
-                    crr.push(me.PICTURE)
-                    drr.push('')
-                    picCnt = 1
-                }
-                row.memcnt = listChan.length //전체 멤버수
-                row.memnmcnt = picCnt //사진 보여주는 max 멤버수
-                row.memnm = arr
-                row.memid = brr
-                row.picture = crr
-                row.url = drr //url은 로컬에서 변환
+                const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt)
+                row.memcnt = obj.memcnt
+                row.memnm = obj.memnm
+                row.memid = obj.memid
+                row.picCnt = obj.picCnt
+                row.picture = obj.picture
+                row.url = obj.url //url은 로컬에서 사용
             }
             resJson.list = list
             return resJson
@@ -174,7 +187,7 @@ export class MenuService {
             const userid = this.req['user'].userid
             const { kind, lastMsgMstCdt, msgid } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
-            sql += "          B.CHANID, B.GR_ID, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
+            sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID "
@@ -187,6 +200,18 @@ export class MenuService {
             sql += "    ORDER BY A.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
             const list = await this.dataSource.query(sql, [userid, kind, lastMsgMstCdt])
+            for (let i = 0; i < list.length; i++) {
+                const row = list[i]
+                if (row.TYP == 'GS') { //DM은 GS, 채널은 WS(슬랙의 워크스페이스)
+                    const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt)
+                    row.memcnt = obj.memcnt
+                    row.memnm = obj.memnm
+                    row.memid = obj.memid
+                    row.picCnt = obj.picCnt
+                    row.picture = obj.picture
+                    row.url = obj.url //url은 로컬에서 사용
+                }
+            }
             resJson.list = list
             return resJson
         } catch (ex) {
