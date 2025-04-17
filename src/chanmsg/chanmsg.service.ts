@@ -28,9 +28,9 @@ export class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const resJson = new ResJson()
-            const { userid, grid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함
-            console.log('chkAcl', userid, grid, chanid, msgid, includeBlob, chkAuthor)
-            let fv = hush.addFieldValue([userid, grid, chanid, msgid, includeBlob, chkAuthor], 'userid/grid/chanid/msgid/includeBlob/chkAuthor')
+            const { userid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함 //grid, 
+            console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor) //grid, 
+            let fv = hush.addFieldValue([userid, chanid, msgid, includeBlob, chkAuthor], 'userid/chanid/msgid/includeBlob/chkAuthor') //grid, grid/
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE', 'A.RMKS'])
@@ -44,11 +44,11 @@ export class ChanmsgService {
             if (chanmst.TYP == 'GS') {
                 //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
             } else {
-                if (grid) {
-                    if (grid != chanmst.GR_ID) {
-                        return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
-                    }
-                }
+                // if (grid) {
+                //     if (grid != chanmst.GR_ID) {
+                //         return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
+                //     }
+                // }
                 const gr = await this.grmstRepo.createQueryBuilder('A')
                 .select(['A.GR_NM'])
                 .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
@@ -233,9 +233,9 @@ export class ChanmsgService {
             }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { grid, chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto 
+            const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //grid, 
             console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
-            const rs = await this.chkAcl({ userid: userid, grid: grid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
@@ -294,7 +294,7 @@ export class ChanmsgService {
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
-                    let fv = hush.addFieldValue([grid, chanid, msgid, msgidParent, kind], 'grid/chanid/msgid/msgidParent/kind')
+                    let fv = hush.addFieldValue([chanid, msgid, msgidParent, kind], 'chanid/msgid/msgidParent/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
                 data.msgidParent = msgidParent //HomeBody.vue의 getList()에서 사용
@@ -308,7 +308,7 @@ export class ChanmsgService {
                 sql += "    ORDER BY CDT ASC "
                 msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
                 if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
-                    let fv = hush.addFieldValue([grid, chanid, msgid, kind], 'grid/chanid/msgid/kind')
+                    let fv = hush.addFieldValue([chanid, msgid, kind], 'chanid/msgid/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                 }
             }
