@@ -485,6 +485,19 @@ export class ChanmsgService {
                         }).execute()
                     }
                 }
+                const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+                const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+                .select(['A.USERID', 'A.USERNM'])
+                .where("A.CHANID = :chanid and A.STATE in ('', 'M') ", { 
+                    chanid: chanid
+                }).getMany()
+                chandtl.forEach(async (item) => {
+                    const strKind = (item.USERID == userid) ? 'read' : 'notyet'
+                    await qbMsgDtl
+                    .insert().values({ 
+                        MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, USERNM: item.USERNM
+                    }).execute()
+                })
                 resJson.data.msgid = msgid
             } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
                 const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
