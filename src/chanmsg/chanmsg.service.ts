@@ -169,8 +169,8 @@ export class ChanmsgService {
 
     async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
         const msgdtl = await qb
-        .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM'])
-        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' and B.KIND not in ('read', 'unread') ", { //화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
+        .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM', 'GROUP_CONCAT(B.USERID ORDER BY B.USERID SEPARATOR ", ") ID'])
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
             msgid: msgid, chanid: chanid
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
         return (msgdtl.length > 0) ? msgdtl : []
@@ -551,6 +551,27 @@ export class ChanmsgService {
             .delete()
             .where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
+            }).execute()
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { msgid, chanid, oldKind, newKind } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            await qbMsgDtl
+            .update()
+            .set({ KIND: newKind, UDT: curdtObj.DT })
+            .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
             }).execute()
             return resJson
         } catch (ex) {

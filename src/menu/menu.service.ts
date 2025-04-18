@@ -150,6 +150,19 @@ export class MenuService {
         }
     }
 
+    async qryKindCnt(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, kind } = dto
+            const notyetCnt = await this.qryKindCntForUser(chanid, userid, kind)
+            resJson.data.notyetCnt = notyetCnt
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async qryDm(dto: Record<string, any>): Promise<any> {
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
             const resJson = new ResJson()
