@@ -207,7 +207,7 @@ export class ChanmsgService {
         return (reply.length > 0) ? reply : []
     }
 
-    async qryReplyInfo(msgid: string, chanid: string): Promise<any> { //d-4) S_MSGMST_TBL
+    async qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any> { //d-4) S_MSGMST_TBL
         let sql = "SELECT SUM(CNT) CNT_BY_USER, "
         sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
         sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
@@ -220,6 +220,12 @@ export class ChanmsgService {
         //     let fv = hush.addFieldValue([chanid, item.MSGID], 'chanid/item.MSGID')
         //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>replyInfo')
         // }
+        sql = "SELECT COUNT(*) MYNOTYETCNT " //내가 아직 안읽은 댓글 갯수가 스레드를 열지 않으면 안보이므로 표시하도록 함
+        sql += " FROM S_MSGDTL_TBL "
+        sql += "WHERE MSGID IN (SELECT MSGID FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) "
+        sql += "  AND CHANID = ? AND USERID = ? AND KIND = 'notyet'  "
+        const replyUnread = await this.dataSource.query(sql, [chanid, msgid, chanid, userid])
+        replyInfo.MYNOTYETCNT = replyUnread[0].MYNOTYETCNT
         return replyInfo
     }
 
