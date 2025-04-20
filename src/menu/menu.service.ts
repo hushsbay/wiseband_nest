@@ -141,7 +141,7 @@ export class MenuService {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
             }
             for (let i = 0; i < list.length; i++) {
-                if (list[i].DEPTH == 2) list[i].notyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
+                if (list[i].DEPTH == 2) list[i].mynotyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
             }
             resJson.list = list
             return resJson
@@ -155,8 +155,8 @@ export class MenuService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid, kind } = dto
-            const notyetCnt = await this.qryKindCntForUser(chanid, userid, kind)
-            resJson.data.notyetCnt = notyetCnt
+            const mynotyetCnt = await this.qryKindCntForUser(chanid, userid, kind)
+            resJson.data.mynotyetCnt = mynotyetCnt
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -195,7 +195,7 @@ export class MenuService {
                 row.picCnt = obj.picCnt
                 row.picture = obj.picture
                 row.url = obj.url //url은 로컬에서 사용
-                row.notyetCnt = await this.qryKindCntForUser(row.CHANID, userid, 'notyet')
+                row.mynotyetCnt = await this.qryKindCntForUser(row.CHANID, userid, 'notyet')
             }
             resJson.list = list
             return resJson

@@ -225,7 +225,7 @@ export class ChanmsgService {
         sql += "WHERE MSGID IN (SELECT MSGID FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) "
         sql += "  AND CHANID = ? AND USERID = ? AND KIND = 'notyet'  "
         const replyUnread = await this.dataSource.query(sql, [chanid, msgid, chanid, userid])
-        replyInfo.MYNOTYETCNT = replyUnread[0].MYNOTYETCNT
+        replyInfo[0].MYNOTYETCNT = replyUnread[0].MYNOTYETCNT
         return replyInfo
     }
 
@@ -324,7 +324,7 @@ export class ChanmsgService {
                 sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
                 sql += "    WHERE B.CHANID = ? AND B.USERID = ? AND B.KIND = ? "
                 sql += "    ORDER BY A.CDT DESC "
-                sql += "    LIMIT 1000 "
+                sql += "    LIMIT 1000 " //나중에 1년치(또는 6개월?!)만 조회하는 것으로 하기
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind])
             }
             if (msglist.length > 0) data.msglist = msglist
@@ -342,7 +342,7 @@ export class ChanmsgService {
                 item.msglink = msgsub.msglink
                 const reply = await this.qryReply(qb, item.MSGID, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
                 item.reply = (reply.length > 0) ? reply : []
-                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid) //d-4) S_MSGMST_TBL (댓글-스레드)
+                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드)
                 item.replyinfo = replyInfo
             }
             ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
@@ -399,7 +399,7 @@ export class ChanmsgService {
             data.msglink = msgsub.msglink
             const reply = await this.qryReply(qb, msgid, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
             data.reply = (reply.length > 0) ? reply : []
-            const replyInfo = await this.qryReplyInfo(msgid, chanid) //d-4) S_MSGMST_TBL (댓글-스레드)
+            const replyInfo = await this.qryReplyInfo(msgid, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드)
             data.replyinfo = replyInfo
             ////////////////////////////////////////////////////////////////////////////////////////////
             resJson.data = data
