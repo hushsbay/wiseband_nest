@@ -37,7 +37,7 @@ export class CodeService {
             const resJson = new ResJson()
             const ern = dto.ern
             const list = await this.dealerRepo.createQueryBuilder('B')
-            .select(['B.ERN', 'B.TAX_TYP', 'B.DEAL_CO_NM', 'B.RPST_NM'])
+            .select(['B.ERN', 'B.DEAL_CO_NM', 'B.RPST_NM'])
             .where("ERN LIKE :ern ", { 
                 ern: `${ern}%`
             })
@@ -60,6 +60,7 @@ export class CodeService {
             })
             .getOne()
             resJson.data = data
+            //console.log(ern, JSON.stringify(data))
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
