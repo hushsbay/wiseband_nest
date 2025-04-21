@@ -317,15 +317,34 @@ export class ChanmsgService {
                     let fv = hush.addFieldValue([chanid, msgid, kind], 'chanid/msgid/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                 }
-            } else if (kind == 'notyet' || kind == 'unread') {
+            } else if (kind == 'notyet' || kind == 'unread') { //안읽은 댓글의 경우, 댓글이 아닌 부모글을 보여줘야 하는데 부모글도 댓글도 모두 안읽은 경우는 한개만 보여줘야 함
+                const curDt = new Date()
+                const dtMinus = new Date(curDt.getFullYear() - 1, curDt.getMonth(), curDt.getDate())
+                const dtMinusStr = hush.getDateTimeStr(dtMinus, true, false)
                 const fields = fldArr.join(", ") + " " 
-                let sql = "SELECT " + fields
-                sql += "     FROM S_MSGMST_TBL A "
-                sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
-                sql += "    WHERE B.CHANID = ? AND B.USERID = ? AND B.KIND = ? "
-                sql += "    ORDER BY A.CDT DESC "
-                sql += "    LIMIT 1000 " //나중에 1년치(또는 6개월?!)만 조회하는 것으로 하기
-                msglist = await this.dataSource.query(sql, [chanid, userid, kind])
+                const fieldz = fldArr.join(", ").replace(/A\./g, "Z.") + " " 
+                // let sql = "SELECT " + fields
+                // sql += "     FROM S_MSGMST_TBL A "
+                // sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+                // sql += "    WHERE B.CHANID = ? AND B.USERID = ? AND B.KIND = ? "
+                // sql += "    ORDER BY A.CDT DESC "
+                // sql += "    LIMIT 1000 " //나중에 1년치(또는 6개월?!)만 조회하는 것으로 하기
+                let sql = "SELECT DISTINCT " + fieldz
+                sql += "     FROM (SELECT " + fields
+                sql += "             FROM S_MSGMST_TBL A "
+                sql += "             LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+                sql += "            WHERE A.CHANID = ? AND A.REPLYTO = '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ? "
+                sql += "            UNION ALL "
+                sql += "           SELECT " + fields
+                sql += "             FROM S_MSGMST_TBL A "
+                sql += "            WHERE A.MSGID IN (SELECT A.REPLYTO "
+                sql += "                                FROM S_MSGMST_TBL A "
+                sql += "                                LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+                sql += "                               WHERE A.CHANID = ? AND A.REPLYTO <> '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ?) "
+                sql += "              AND A.CHANID = ?) Z "
+                sql += "    ORDER BY Z.CDT DESC "
+                sql += "    LIMIT 10000 " //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정
+                msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
             if (msglist.length > 0) data.msglist = msglist
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)

@@ -202,3 +202,18 @@ export function decrypt(text: string, key: string) {
     decrypted = Buffer.concat([decrypted, decipher.final()])
     return decrypted.toString()
 }
+
+export function getDateTimeStr(dt: Date, deli: boolean, millisec: boolean) {
+    let ret:string, dot: string
+    if (deli) {
+        ret = dt.getFullYear().toString() + "-" + (dt.getMonth() + 1).toString().padStart(2, "0") + "-" + dt.getDate().toString().padStart(2, "0") + " " + 
+              dt.getHours().toString().padStart(2, "0") + ":" + dt.getMinutes().toString().padStart(2, "0") + ":" + dt.getSeconds().toString().padStart(2, "0")
+        dot = "."      
+    } else {
+        ret = dt.getFullYear().toString() + (dt.getMonth() + 1).toString().padStart(2, "0") + dt.getDate().toString().padStart(2, "0") + 
+              dt.getHours().toString().padStart(2, "0") + dt.getMinutes().toString().padStart(2, "0") + dt.getSeconds().toString().padStart(2, "0")
+        dot = ""
+    }
+    if (millisec) ret += dot + dt.getMilliseconds().toString().padEnd(6, "0")
+    return ret
+}
