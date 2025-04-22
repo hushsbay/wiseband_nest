@@ -170,9 +170,23 @@ export class ChanmsgService {
     async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM', 'GROUP_CONCAT(B.USERID ORDER BY B.USERID SEPARATOR ", ") ID'])
-        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = '' ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP in ('') ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
             msgid: msgid, chanid: chanid
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
+        return (msgdtl.length > 0) ? msgdtl : []
+    }
+
+    async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
+        // const msgdtl = await qb
+        // .select(['B.MSGID', 'B.KIND', 'B.USERID', 'B.USERNM'])
+        // .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = 'touser' ", {
+        //     msgid: msgid, chanid: chanid
+        // }).orderBy('B.USERNM', 'ASC').getMany() //계속 GROUP BY 관련 오류가 나오는데 원인 못밝혀 아래 방식대로 바꿈
+        let sql = "SELECT USERID, USERNM "
+        sql += "     FROM S_MSGDTL_TBL "
+        sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' "
+        sql += "    ORDER BY USERNM "
+        const msgdtl = await this.dataSource.query(sql, [msgid, chanid])
         return (msgdtl.length > 0) ? msgdtl : []
     }
 
@@ -354,7 +368,9 @@ export class ChanmsgService {
                 item.act_later = msgdtlforuser.act_later
                 item.act_fixed = msgdtlforuser.act_fixed
                 const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
-                item.msgdtl = (msgdtl.length > 0) ? msgdtl : []
+                item.msgdtl = (msgdtl.length > 0) ? msgdtl : []                
+                const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (멘션)
+                item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
                 const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
