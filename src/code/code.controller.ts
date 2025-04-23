@@ -17,6 +17,10 @@ export class CodeController {
     qryDealer(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealer(dto) }
 
     @Unauth()
+    @Get('qryDealerWithPage')
+    qryDealerWithPage(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealerWithPage(dto) }
+
+    @Unauth()
     @Get('qryDealerDetail')
     qryDealerDetail(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealerDetail(dto) }
 

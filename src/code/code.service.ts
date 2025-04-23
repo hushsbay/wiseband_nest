@@ -49,6 +49,23 @@ export class CodeService {
         }
     }
 
+    async qryDealerWithPage(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const perPage = dto.perPage
+            const page = dto.page
+            const mPos = (page - 1) * perPage
+            console.log(perPage, page, mPos, "=====================")
+            const list = await this.dealerRepo.createQueryBuilder('B')
+            .select(['B.ERN', 'B.DEAL_CO_NM', 'B.RPST_NM'])
+            .orderBy('B.DEAL_CO_NM', 'ASC').offset(mPos).limit(perPage).getMany()
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async qryDealerDetail(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
