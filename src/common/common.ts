@@ -151,6 +151,13 @@ export function procDownloadFailure(res: Response) { //임시폴더에 다운로
     })
 }
 
+export function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void {
+    resJson.offsetPos = (curPage - 1) * perPage //offsetPos를 resJson에 넣은 것은 별도 객체 안 만들고 resJson으로 한번에 이용하려는 단순한 목적임
+    resJson.totalCnt = totalCnt
+    resJson.totalPage = Math.ceil(totalCnt / perPage)
+    console.log(perPage, curPage, resJson.offsetPos, "=====================", resJson.offsetPos, resJson.totalCnt, resJson.totalPage)
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //아래는 nest.js와는 무관하게 사용 가능한 일반적인 메소드임
 

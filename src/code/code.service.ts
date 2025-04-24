@@ -52,13 +52,14 @@ export class CodeService {
     async qryDealerWithPage(dto: Record<string, any>): Promise<any> {
         try { //InfiniteQuery=EndlessScroll에도 동일하게 사용 가능함 (with useInfiniteQuery - tanstack react query)
             const resJson = new ResJson()
-            const perPage = dto.perPage
-            const page = dto.page
-            const mPos = (page - 1) * perPage
-            console.log(perPage, page, mPos, "=====================")
-            const list = await this.dealerRepo.createQueryBuilder('B')
+            const { perPage, curPage } = dto
+            const qb = this.dealerRepo.createQueryBuilder('B')
+            const data = await qb
+            .select("COUNT(*) CNT").getRawOne()
+            hush.setPageInfo(perPage, curPage, data.CNT, resJson)
+            const list = await qb
             .select(['B.ERN', 'B.DEAL_CO_NM', 'B.RPST_NM'])
-            .orderBy('B.DEAL_CO_NM', 'ASC').offset(mPos).limit(perPage).getMany()
+            .orderBy('B.DEAL_CO_NM', 'ASC').offset(resJson.offsetPos).limit(perPage).getMany()
             resJson.list = list
             return resJson
         } catch (ex) {
