@@ -24,4 +24,8 @@ export class CodeController {
     @Get('qryDealerDetail')
     qryDealerDetail(@Query() dto: Record<string, any>) { return this.codeSvc.qryDealerDetail(dto) }
 
+    @Unauth()
+    @Post('updateDealer')
+    updateDealer(@Body() dto: Record<string, any>) { return this.codeSvc.updateDealer(dto) }
+
 }

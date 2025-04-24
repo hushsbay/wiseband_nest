@@ -85,4 +85,22 @@ export class CodeService {
         }
     }
 
+    async updateDealer(dto: Record<string, any>): Promise<any> {
+        try {            
+            const resJson = new ResJson()
+            const { ern, dealernm, personnm } = dto
+            console.log(ern, dealernm, personnm)
+            const qb = this.dealerRepo.createQueryBuilder('B')
+            await qb
+            .update()
+            .set({ DEAL_CO_NM: dealernm, RPST_NM: personnm })
+            .where("ERN = :ern ", {
+                ern: ern
+            }).execute()
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
 }
