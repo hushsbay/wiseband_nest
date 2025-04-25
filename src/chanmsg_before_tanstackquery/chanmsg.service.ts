@@ -243,105 +243,43 @@ export class ChanmsgService {
         return replyInfo
     }
 
-    /////////////////////////////
-    fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
-
-    setInitData() {
-        let data = { 
-            chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
-            msgidParent: '', msgidChild: '' 
-        }
-        return data
-    }
-
-    async getAclAndChanData(userid: string, chanid: string, data: any) {
-        const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
-        if (rs.code != hush.Code.OK) return rs
-        data.chanmst = rs.data.chanmst
-        data.chandtl = rs.data.chandtl
-        return rs
-    }
-
-    async procMsgListItems(
-        qb: SelectQueryBuilder<MsgMst>, qbDtl: SelectQueryBuilder<MsgDtl>, qbSub: SelectQueryBuilder<MsgSub>,
-        userid: string, chanid: string, msglist: any[], data: any
-    ): Promise<void> {
-        for (let i = 0; i < msglist.length; i++) {
-            const item = msglist[i]
-            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
-            item.act_later = msgdtlforuser.act_later
-            item.act_fixed = msgdtlforuser.act_fixed
-            const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
-            item.msgdtl = (msgdtl.length > 0) ? msgdtl : []                
-            const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (멘션)
-            item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
-            const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
-            item.msgfile = msgsub.msgfile
-            item.msgimg = msgsub.msgimg
-            item.msglink = msgsub.msglink
-            const reply = await this.qryReply(qb, item.MSGID, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
-            item.reply = (reply.length > 0) ? reply : []
-            const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드)
-            item.replyinfo = replyInfo
-        }
-        const arr = ['F', 'I', 'L'] //파일,이미지,링크
-        for (let i = 0; i < arr.length; i++) {
-            const msgsub = await qbSub
-            .select(['C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
-            .where("C.MSGID = :userid and C.CHANID = :chanid and C.KIND = :kind ", { 
-                userid: userid, chanid: chanid, kind: arr[i]
-            }).orderBy('C.CDT', 'ASC').getMany()
-            if (msgsub.length > 0) {
-                if (i == 0) { //console.log(arr[i], JSON.stringify(msgsub))
-                    data.tempfilelist = msgsub
-                } else if (i == 1) {
-                    data.tempimagelist = msgsub
-                } else {
-                    data.templinklist = msgsub
-                }
-            }
-        }
-    }
-
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> {
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
-            // let data = { 
-            //     chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
-            //     msgidParent: '', msgidChild: '' 
-            // }
-            let data = this.setInitData()
+            let data = { 
+                chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
+                msgidParent: '', msgidChild: '' 
+            }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //grid, 
-            // const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
-            // if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
-            // data.chanmst = rs.data.chanmst
-            // data.chandtl = rs.data.chandtl
-            const rs = await this.getAclAndChanData(userid, chanid, data)
+            //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
+            data.chanmst = rs.data.chanmst
+            data.chandtl = rs.data.chandtl
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
-            //const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
+            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
             let msglist: MsgMst[]
             if (firstMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') {
-                    msglist = await qb.select(this.fldArr)
+                    msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, firstcdt: firstMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').getMany()
                 } else {
-                    msglist = await qb.select(this.fldArr)
+                    msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, firstcdt: firstMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
                 }
                 //console.log("firstMsgMstCdt", firstMsgMstCdt, msglist.length)
             } else if (lastMsgMstCdt) {
-                msglist = await qb.select(this.fldArr)
+                msglist = await qb.select(fldArr)
                 .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
                     chanid: chanid, lastcdt: lastMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
@@ -358,7 +296,7 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>atHome>MsgMst')
                 } 
                 const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
-                const fields = this.fldArr.join(", ").replace(/A\./g, "") + " " 
+                const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 const where = "WHERE CHANID = '" + chanid + "' AND REPLYTO = '' "
                 const cnt = Math.floor(hush.cons.rowsCnt / 2)
@@ -382,7 +320,7 @@ export class ChanmsgService {
                 data.msgidParent = msgidParent //HomeBody.vue의 getList()에서 사용
                 data.msgidChild = msgid //HomeBody.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
-                const fields = this.fldArr.join(", ").replace(/A\./g, "") + " " 
+                const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 let sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
                 sql += "    UNION ALL "
@@ -397,8 +335,8 @@ export class ChanmsgService {
                 const curDt = new Date()
                 const dtMinus = new Date(curDt.getFullYear() - 1, curDt.getMonth(), curDt.getDate())
                 const dtMinusStr = hush.getDateTimeStr(dtMinus, true, false)
-                const fields = this.fldArr.join(", ") + " " 
-                const fieldz = this.fldArr.join(", ").replace(/A\./g, "Z.") + " " 
+                const fields = fldArr.join(", ") + " " 
+                const fieldz = fldArr.join(", ").replace(/A\./g, "Z.") + " " 
                 // let sql = "SELECT " + fields
                 // sql += "     FROM S_MSGMST_TBL A "
                 // sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
@@ -424,7 +362,7 @@ export class ChanmsgService {
             }
             if (msglist.length > 0) data.msglist = msglist
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)
-/*          for (let i = 0; i < data.msglist.length; i++) {
+            for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
                 item.act_later = msgdtlforuser.act_later
@@ -459,47 +397,7 @@ export class ChanmsgService {
                         data.templinklist = msgsub
                     }
                 }
-            }*/
-            await this.procMsgListItems(qb, qbDtl, qbSub, userid, chanid, msglist, data)            
-            resJson.data = data
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
-        }
-    }
-
-    async getMsgList(dto: Record<string, any>): Promise<any> {
-        try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
-            let data = this.setInitData()
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, firstMsgMstCdt, kind } = dto
-            const rs = await this.getAclAndChanData(userid, chanid, data)
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
-            const qb = this.msgmstRepo.createQueryBuilder('A')
-            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
-            const qbSub = this.msgsubRepo.createQueryBuilder('C')
-            let msglist: MsgMst[]
-            if (firstMsgMstCdt) { //ASC임을 유의
-                if (kind == 'scrollToBottom') {
-                    msglist = await qb.select(this.fldArr)
-                    .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: firstMsgMstCdt
-                    }).orderBy('A.CDT', 'ASC').getMany()
-                } else {
-                    msglist = await qb.select(this.fldArr)
-                    .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: firstMsgMstCdt
-                    }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
-                }
-            } else if (lastMsgMstCdt) {
-                msglist = await qb.select(this.fldArr)
-                .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
-                    chanid: chanid, lastcdt: lastMsgMstCdt
-                }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
-            }
-            if (msglist.length > 0) data.msglist = msglist
-            await this.procMsgListItems(qb, qbDtl, qbSub, userid, chanid, msglist, data)            
+            }            
             resJson.data = data
             return resJson
         } catch (ex) {
