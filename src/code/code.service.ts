@@ -77,8 +77,7 @@ export class CodeService {
                 ern: ern
             })
             .getOne()
-            resJson.data = data
-            //console.log(ern, JSON.stringify(data))
+            resJson.data = data //console.log(ern, JSON.stringify(data))
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -97,8 +96,8 @@ export class CodeService {
             .where("ERN = :ern ", {
                 ern: ern
             }).execute()
-            return await this.qryDealerDetail({ern}) //굳이 줄 필요없었음 tanstack query의 setQueryData() 관련임
-            //return resJson
+            //return await this.qryDealerDetail({ern}) //굳이 줄 필요없었음 tanstack query의 setQueryData() 관련임
+            return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
         }
