@@ -72,7 +72,7 @@ export class CodeService {
             const resJson = new ResJson()
             const ern = dto.ern
             const data = await this.dealerRepo.createQueryBuilder('B')
-            .select(['B.ERN', 'B.TAX_TYP', 'B.DEAL_CO_NM', 'B.RPST_NM'])
+            .select(['B.ERN', 'B.DEAL_CO_NM', 'B.RPST_NM']) //'B.TAX_TYP', 
             .where("ERN = :ern ", { 
                 ern: ern
             })
@@ -97,7 +97,8 @@ export class CodeService {
             .where("ERN = :ern ", {
                 ern: ern
             }).execute()
-            return resJson
+            return await this.qryDealerDetail({ern}) //굳이 줄 필요없었음 tanstack query의 setQueryData() 관련임
+            //return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
         }
