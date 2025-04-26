@@ -49,6 +49,7 @@ export class CodeService {
         }
     }
 
+    //tanstack query 테스트용임
     async qryDealerWithPage(dto: Record<string, any>): Promise<any> {
         try { //InfiniteQuery=EndlessScroll에도 동일하게 사용 가능함 (with useInfiniteQuery - tanstack react query)
             const resJson = new ResJson()

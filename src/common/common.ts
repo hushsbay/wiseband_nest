@@ -151,6 +151,7 @@ export function procDownloadFailure(res: Response) { //임시폴더에 다운로
     })
 }
 
+//tanstack query 테스트용임 (code.service.ts 참조)
 export function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void {
     resJson.offsetPos = (curPage - 1) * perPage //offsetPos를 resJson에 넣은 것은 별도 객체 안 만들고 resJson으로 한번에 이용하려는 단순한 목적임
     resJson.totalCnt = totalCnt
