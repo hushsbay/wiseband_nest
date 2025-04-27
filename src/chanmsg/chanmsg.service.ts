@@ -243,7 +243,7 @@ export class ChanmsgService {
         return replyInfo
     }
 
-    /////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
 
     setInitData() {
