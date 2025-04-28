@@ -176,6 +176,7 @@ export class MenuService {
             sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
             sql += "    WHERE Z.LASTMSGDT < ? "
             sql += "    ORDER BY Z.LASTMSGDT DESC "
+            sql += "    LIMIT " + hush.cons.rowsCnt
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
