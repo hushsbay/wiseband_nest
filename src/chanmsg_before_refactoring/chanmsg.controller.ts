@@ -15,9 +15,6 @@ export class ChanmsgController {
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
 
-    //@Get('getMsgList')
-    //getMsgList(@Query() dto: Record<string, any>) { return this.chanmsgSvc.getMsgList(dto) }
-
     @Post('qryMsg')
     qryMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryMsg(dto) }
 
