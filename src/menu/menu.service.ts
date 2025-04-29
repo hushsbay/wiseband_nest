@@ -167,16 +167,23 @@ export class MenuService {
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind, lastMsgMstCdt } = dto //all //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind, lastMsgMstCdt } = dto //all,notyet //let fv = hush.addFieldValue(kind, 'kind')
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT "
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
             sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
             sql += "             FROM S_CHANDTL_TBL A "
             sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            if (kind == 'notyet') {
+                sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
+            }
             sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
-            sql += "    WHERE Z.LASTMSGDT < ? "
-            sql += "    ORDER BY Z.LASTMSGDT DESC "
-            sql += "    LIMIT " + hush.cons.rowsCnt
+            if (kind != 'notyet') { //all
+                sql += "WHERE Z.LASTMSGDT < ? "
+                sql += "ORDER BY Z.LASTMSGDT DESC "
+                sql += "LIMIT " + hush.cons.rowsCnt
+            } else {
+                sql += "ORDER BY Z.LASTMSGDT DESC "
+            }
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
