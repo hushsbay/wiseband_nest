@@ -167,23 +167,26 @@ export class MenuService {
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind, lastMsgMstCdt } = dto //all,notyet //let fv = hush.addFieldValue(kind, 'kind')
-            let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT "
+            const { kind, search, lastMsgMstCdt } = dto //all,notyet //let fv = hush.addFieldValue(kind, 'kind')
+            const memField = search ? ', Z.MEMBERS' : ''
+            let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
             sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
+            if (search) {
+                sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID AND A.STATE IN ('', 'M', 'W')) MEMBERS "
+            }
             sql += "             FROM S_CHANDTL_TBL A "
             sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             if (kind == 'notyet') {
                 sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
             }
             sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
-            if (kind != 'notyet') { //all
-                sql += "WHERE Z.LASTMSGDT < ? "
-                sql += "ORDER BY Z.LASTMSGDT DESC "
-                sql += "LIMIT " + hush.cons.rowsCnt
-            } else {
-                sql += "ORDER BY Z.LASTMSGDT DESC "
+            sql += "    WHERE Z.LASTMSGDT < ? "
+            if (search) {
+                sql += "  AND Z.MEMBERS LIKE '%" + search + "%' "
             }
+            sql += "ORDER BY Z.LASTMSGDT DESC "
+            sql += "LIMIT " + hush.cons.rowsCnt
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
@@ -217,7 +220,6 @@ export class MenuService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { kind, lastMsgMstCdt, msgid } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
-            console.log(kind, lastMsgMstCdt, msgid)
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
