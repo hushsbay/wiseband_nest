@@ -599,6 +599,45 @@ export class ChanmsgService {
         }
     }
 
+    async toggleChanOption(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, kind, job } = dto
+            let fv = hush.addFieldValue([chanid, kind, job], 'chanid/kind/job')
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleChanOption')
+            const qbChanDtl = this.chandtlRepo.createQueryBuilder()
+            const curdtObj = await qbChanDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const chandtl = await qbChanDtl
+            .select("COUNT(*) CNT")
+            .where("CHANID = :chanid and USERID = :userid ", {
+                chanid: chanid, userid: userid
+            }).getRawOne()
+            if (chandtl.CNT == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>toggleChanOption')
+            } else {
+                let obj = { UDT: curdtObj.DT }
+                if (kind == "noti") { //job=X/빈값
+                    Object.assign(obj, { NOTI: job })
+                } else if (kind == "bookmark") { //job=Y/빈값
+                    Object.assign(obj, { BOOKMARK: job })
+                } else {
+                    return hush.setResJson(resJson, 'kind값이 잘못되었습니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>toggleChanOption')
+                }
+                await qbChanDtl
+                .update()
+                .set(obj)
+                .where("CHANID = :chanid and USERID = :userid ", {
+                    chanid: chanid, userid: userid
+                }).execute()
+            }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
         try {            
             const resJson = new ResJson()
@@ -690,7 +729,7 @@ export class ChanmsgService {
                             msgid: msgid, chanid: chanid, userid: userid, kind: kind
                         }).execute()
                     }
-                    resJson.data.work = "delete" //'나중에' 패널에 보이는 행을 제거하기
+                    resJson.data.work = "delete" //LaterPanel 탭에 보이는 행을 제거하기
                 }
             } else if (kind == 'fixed') {
                 const msgdtlforuser = await qbMsgDtl

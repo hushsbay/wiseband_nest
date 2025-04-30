@@ -30,6 +30,9 @@ export class ChanmsgController {
     @Post('delMsg')
     delMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.delMsg(dto) }
 
+    @Post('toggleChanOption')
+    toggleChanOption(@Body() dto: Record<string, any>) { return this.chanmsgSvc.toggleChanOption(dto) }
+
     @Post('updateWithNewKind')
     updateWithNewKind(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateWithNewKind(dto) }
 
