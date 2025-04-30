@@ -337,19 +337,13 @@ export class ChanmsgService {
                 const dtMinusStr = hush.getDateTimeStr(dtMinus, true, false)
                 const fields = fldArr.join(", ") + " " 
                 const fieldz = fldArr.join(", ").replace(/A\./g, "Z.") + " " 
-                // let sql = "SELECT " + fields
-                // sql += "     FROM S_MSGMST_TBL A "
-                // sql += "     LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
-                // sql += "    WHERE B.CHANID = ? AND B.USERID = ? AND B.KIND = ? "
-                // sql += "    ORDER BY A.CDT DESC "
-                // sql += "    LIMIT 1000 " //나중에 1년치(또는 6개월?!)만 조회하는 것으로 하기
                 let sql = "SELECT DISTINCT " + fieldz
                 sql += "     FROM (SELECT " + fields
                 sql += "             FROM S_MSGMST_TBL A "
                 sql += "             LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
                 sql += "            WHERE A.CHANID = ? AND A.REPLYTO = '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ? "
                 sql += "            UNION ALL "
-                sql += "           SELECT " + fields
+                sql += "           SELECT " + fields //아직안읽은 자식댓글은 부모글을 찾아서 보여주기
                 sql += "             FROM S_MSGMST_TBL A "
                 sql += "            WHERE A.MSGID IN (SELECT A.REPLYTO "
                 sql += "                                FROM S_MSGMST_TBL A "
@@ -357,7 +351,7 @@ export class ChanmsgService {
                 sql += "                               WHERE A.CHANID = ? AND A.REPLYTO <> '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ?) "
                 sql += "              AND A.CHANID = ?) Z "
                 sql += "    ORDER BY Z.CDT DESC "
-                sql += "    LIMIT 10000 " //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정
+                sql += "    LIMIT 1000 " //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정 (처음 못읽은 것은 두번째 클릭하면 읽힘)
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
             if (msglist.length > 0) data.msglist = msglist
@@ -652,6 +646,27 @@ export class ChanmsgService {
             .set({ KIND: newKind, UDT: curdtObj.DT })
             .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                 msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
+            }).execute()
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async updateAllWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, oldKind, newKind } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateAllWithNewKind')
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            await qbMsgDtl
+            .update()
+            .set({ KIND: newKind, UDT: curdtObj.DT })
+            .where("CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                chanid: chanid, userid: userid, kind: oldKind
             }).execute()
             return resJson
         } catch (ex) {

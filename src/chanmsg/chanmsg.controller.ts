@@ -36,6 +36,9 @@ export class ChanmsgController {
     @Post('updateWithNewKind')
     updateWithNewKind(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateWithNewKind(dto) }
 
+    @Post('updateAllWithNewKind')
+    updateAllWithNewKind(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateAllWithNewKind(dto) }
+
     @Post('toggleAction')
     toggleAction(@Body() dto: Record<string, any>) { return this.chanmsgSvc.toggleAction(dto) }
 
