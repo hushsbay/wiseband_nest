@@ -403,9 +403,10 @@ export class ChanmsgService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, kind } = dto
+            const { chanid, lastMsgMstCdt, kind, fileName, frYm, toYm, authorNm, bodyText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
             console.log("searchMedia", chanid, lastMsgMstCdt, kindStr)
+            console.log("searchMedia", fileName, frYm, toYm, authorNm, bodyText)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
             const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
@@ -415,7 +416,17 @@ export class ChanmsgService {
             sql += "    WHERE A.CHANID = ? "
             sql += "      AND A.KIND = ? "
             sql += "      AND A.CDT < ? "
+            if (fileName != '') sql += " AND A.BODY LIKE '%" + fileName + "%' "
+            if (frYm.length == 6 && toYm.length == 6) {
+                const frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
+                const toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
+                sql += " AND A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
+            }
+            if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
+            if (bodyText != '') sql += " AND B.BODYTEXT LIKE '%" + bodyText + "%' "
             sql += "    ORDER BY A.CDT DESC "
+            sql += "    LIMIT " + hush.cons.rowsCnt
+            console.log(sql)
             const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
             resJson.list = list
             return resJson
