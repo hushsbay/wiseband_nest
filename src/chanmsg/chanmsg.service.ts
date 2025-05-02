@@ -399,6 +399,31 @@ export class ChanmsgService {
         }
     }
 
+    async searchMedia(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, lastMsgMstCdt, kind } = dto
+            const kindStr = kind.substr(0, 1).toUpperCase()
+            console.log("searchMedia", chanid, lastMsgMstCdt, kindStr)
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
+            const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
+            let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, A.CDT, A.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.BODYTEXT " + bufferField
+            sql += "     FROM S_MSGSUB_TBL A "
+            sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "    WHERE A.CHANID = ? "
+            sql += "      AND A.KIND = ? "
+            sql += "      AND A.CDT < ? "
+            sql += "    ORDER BY A.CDT DESC "
+            const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async qryMsg(dto: Record<string, any>): Promise<any> {
         try {
             let data = { msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null }
