@@ -400,17 +400,18 @@ export class ChanmsgService {
     }
 
     async qryOneMsgNotYet(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
-        try {
+        try { //채널 열 때 내가 아직 읽지 않은 최초의 메시지를 볼 수 있도록 함 (댓글이 최초라면 그 댓글의 부모글을 보여줘야 함)
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid } = dto
-            const msgdtl = await this.msgdtlRepo.createQueryBuilder('B')
-            .select(['B.MSGID'])
-            .where("B.CHANID = :chanid and B.USERID = :userid and B.KIND = 'notyet' ", {
-                chanid: chanid, userid: userid
-            }).orderBy('B.CDT', 'ASC').getOne()
-            console.log(JSON.stringify(msgdtl), "###########")
-            resJson.data = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
+            let sql = "SELECT CASE WHEN B.REPLYTO <> '' THEN B.REPLYTO ELSE A.MSGID END MSGID "
+            sql += "     FROM S_MSGDTL_TBL A "
+            sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "    WHERE A.CHANID = ? AND A.USERID = ? AND A.KIND = 'notyet' "
+            sql += "    ORDER BY MSGID ASC " //CDT가 아님을 유의 (제일 오래된 메시지)
+            sql += "    LIMIT 1 "
+            const list = await this.dataSource.query(sql, [chanid, userid])
+            resJson.list = list
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
