@@ -15,6 +15,9 @@ export class ChanmsgController {
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
 
+    @Post('qryOneMsgNotYet')
+    qryOneMsgNotYet(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryOneMsgNotYet(dto) }
+
     @Post('qryMsg')
     qryMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryMsg(dto) }
 

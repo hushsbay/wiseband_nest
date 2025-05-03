@@ -399,6 +399,24 @@ export class ChanmsgService {
         }
     }
 
+    async qryOneMsgNotYet(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid } = dto
+            const msgdtl = await this.msgdtlRepo.createQueryBuilder('B')
+            .select(['B.MSGID'])
+            .where("B.CHANID = :chanid and B.USERID = :userid and B.KIND = 'notyet' ", {
+                chanid: chanid, userid: userid
+            }).orderBy('B.CDT', 'ASC').getOne()
+            console.log(JSON.stringify(msgdtl), "###########")
+            resJson.data = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async searchMedia(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
