@@ -317,8 +317,9 @@ export class ChanmsgService {
                     let fv = hush.addFieldValue([chanid, msgid, msgidParent, kind], 'chanid/msgid/msgidParent/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
-                data.msgidParent = msgidParent //HomeBody.vue의 getList()에서 사용
-                data.msgidChild = msgid //HomeBody.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
+                data.msgidParent = msgidParent //MsgList.vue의 getList()에서 사용
+                data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
+                console.log(msgidParent, msgid, "$$$$$$$")
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
@@ -404,12 +405,12 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid } = dto
-            let sql = "SELECT CASE WHEN B.REPLYTO <> '' THEN B.REPLYTO ELSE A.MSGID END MSGID "
+            let sql = "SELECT A.MSGID, CASE WHEN B.REPLYTO <> '' THEN B.REPLYTO ELSE A.MSGID END MSGIDOLD "
             sql += "     FROM S_MSGDTL_TBL A "
             sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "    WHERE A.CHANID = ? AND A.USERID = ? AND A.KIND = 'notyet' "
-            sql += "    ORDER BY MSGID ASC " //CDT가 아님을 유의 (제일 오래된 메시지)
-            sql += "    LIMIT 1 "
+            sql += "    ORDER BY MSGIDOLD ASC " //CDT가 아님 (제일 오래된 메시지). MSGIDOLD는 소팅에만 관여하고 내려받는 것은 MSGID
+            sql += "    LIMIT 1 " //결국, MSGID는 댓글의 MSGID일 수도 있으며 실제 쓰이는 곳에서는 MSGID의 부모 아이디를 구해서 처리됨
             const list = await this.dataSource.query(sql, [chanid, userid])
             resJson.list = list
             return resJson
