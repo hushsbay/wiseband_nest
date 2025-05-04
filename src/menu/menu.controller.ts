@@ -13,8 +13,8 @@ export class MenuController {
     @Post('qryChan')
     qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qryChan(dto) }
 
-    @Post('qryLater')
-    qryLater(@Body() dto: Record<string, any>) { return this.menuSvc.qryLater(dto) }
+    @Post('qryPanel')
+    qryPanel(@Body() dto: Record<string, any>) { return this.menuSvc.qryPanel(dto) }
 
     @Post('qryKindCnt')
     qryKindCnt(@Body() dto: Record<string, any>) { return this.menuSvc.qryKindCnt(dto) }    
@@ -22,7 +22,7 @@ export class MenuController {
     @Post('qryDm')
     qryDm(@Body() dto: Record<string, any>) { return this.menuSvc.qryDm(dto) }
 
-    @Post('qryLaterCount')
-    qryLaterCount(@Body() dto: Record<string, any>) { return this.menuSvc.qryLaterCount(dto) }
+    @Post('qryPanelCount')
+    qryPanelCount(@Body() dto: Record<string, any>) { return this.menuSvc.qryPanelCount(dto) }
 
 }

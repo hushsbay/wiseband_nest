@@ -56,10 +56,9 @@ export class MenuService {
         return retObj
     }
 
-    async qryKindCntForUser(chanid: string, userid: string, kind: string): Promise<number> { //주로 notyet(아직안읽은메시지) 갯수 읽을 때 사용
+    async qryKindCntForUser(chanid: string, userid: string, kind: string): Promise<number> { //해당 채널 + 해당 사용자의 kindCnt 조회
         let sql = "SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE CHANID = ? AND USERID = ? AND KIND = ? "
         const list = await this.dataSource.query(sql, [chanid, userid, kind])
-        //console.log(list[0].CNT, JSON.stringify(list[0]))
         return list[0].CNT
     }
     
@@ -150,13 +149,12 @@ export class MenuService {
         }
     }
 
-    async qryKindCnt(dto: Record<string, any>): Promise<any> {
+    async qryKindCnt(dto: Record<string, any>): Promise<any> { //해당 채널 + 해당 사용자의 kindCnt 조회
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const { chanid, kind } = dto
-            const mynotyetCnt = await this.qryKindCntForUser(chanid, userid, kind)
-            resJson.data.mynotyetCnt = mynotyetCnt
+            resJson.data.kindCnt = await this.qryKindCntForUser(chanid, userid, kind)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -215,7 +213,7 @@ export class MenuService {
         }
     }
 
-    async qryLater(dto: Record<string, any>): Promise<any> {
+    async qryPanel(dto: Record<string, any>): Promise<any> {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -253,11 +251,11 @@ export class MenuService {
         }
     }
 
-    async qryLaterCount(dto: Record<string, any>): Promise<any> {
+    async qryPanelCount(dto: Record<string, any>): Promise<any> { //(특정 채널이 아닌) 해당 사용자의 kindCnt
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind } = dto //later, stored, finished, fixed //let fv = hush.addFieldValue(kind, 'kind')
             let sql = "SELECT COUNT(*) CNT "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
