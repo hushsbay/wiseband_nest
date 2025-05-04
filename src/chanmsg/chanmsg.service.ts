@@ -777,7 +777,7 @@ export class ChanmsgService {
                 .select("KIND")
                 .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND in ('later', 'stored', 'finished') ", {
                     msgid: msgid, chanid: chanid, userid: userid
-                }).getRawOne() //console.log(msgdtl.length, "@@@@@@@@@@")
+                }).getRawOne()
                 if (!msgdtlforuser) {
                     await qbMsgDtl
                     .insert().values({ 

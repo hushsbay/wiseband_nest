@@ -219,7 +219,7 @@ export class MenuService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind, lastMsgMstCdt, msgid } = dto //later, stored, finished //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind, lastMsgMstCdt, msgid } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
