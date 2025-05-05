@@ -13,14 +13,17 @@ export class MenuController {
     @Post('qryChan')
     qryChan(@Body() dto: Record<string, any>) { return this.menuSvc.qryChan(dto) }
 
+    @Post('qryDm')
+    qryDm(@Body() dto: Record<string, any>) { return this.menuSvc.qryDm(dto) }
+
+    @Post('qryActivity')
+    qryActivity(@Body() dto: Record<string, any>) { return this.menuSvc.qryActivity(dto) }
+
     @Post('qryPanel')
     qryPanel(@Body() dto: Record<string, any>) { return this.menuSvc.qryPanel(dto) }
 
     @Post('qryKindCnt')
     qryKindCnt(@Body() dto: Record<string, any>) { return this.menuSvc.qryKindCnt(dto) }    
-
-    @Post('qryDm')
-    qryDm(@Body() dto: Record<string, any>) { return this.menuSvc.qryDm(dto) }
 
     @Post('qryPanelCount')
     qryPanelCount(@Body() dto: Record<string, any>) { return this.menuSvc.qryPanelCount(dto) }

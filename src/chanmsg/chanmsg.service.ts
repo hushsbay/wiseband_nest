@@ -170,7 +170,7 @@ export class ChanmsgService {
     async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM', 'GROUP_CONCAT(B.USERID ORDER BY B.USERID SEPARATOR ", ") ID'])
-        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP in ('') ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
+        .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP in ('', 'react') ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
             msgid: msgid, chanid: chanid
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany()
         return (msgdtl.length > 0) ? msgdtl : []
@@ -243,9 +243,9 @@ export class ChanmsgService {
         return replyInfo
     }
 
-    async qryVipList(grid: string, userid: string): Promise<any> {
-        let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE GR_ID = ? AND KIND = 'vip' AND USERID = ? "
-        return await this.dataSource.query(sql, [grid, userid])
+    async qryVipList(userid: string): Promise<any> {
+        let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
+        return await this.dataSource.query(sql, [userid])
     }
 
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
@@ -264,7 +264,7 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
-            const viplist = await this.qryVipList(data.chanmst.GR_ID, userid)
+            const viplist = await this.qryVipList(userid)
             data.vipStr = viplist[0].UID
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
@@ -738,7 +738,7 @@ export class ChanmsgService {
         }
     }
     
-    async toggleAction(dto: Record<string, any>): Promise<any> { //TX 필요없음
+    async toggleAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : checked, done, watching
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -762,7 +762,7 @@ export class ChanmsgService {
             } else {                
                 await qbMsgDtl
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm, TYP: ''
+                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm, TYP: 'react'
                 }).execute()
             }
             return resJson
@@ -771,7 +771,7 @@ export class ChanmsgService {
         }
     }
 
-    async changeAction(dto: Record<string, any>): Promise<any> { //TX 필요없음
+    async changeAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : later, stored, finished, fixed
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid
