@@ -243,13 +243,18 @@ export class ChanmsgService {
         return replyInfo
     }
 
+    async qryVipList(grid: string, userid: string): Promise<any> {
+        let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE GR_ID = ? AND KIND = 'vip' AND USERID = ? "
+        return await this.dataSource.query(sql, [grid, userid])
+    }
+
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> {
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
             let data = { 
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
-                msgidParent: '', msgidChild: '' 
+                msgidParent: '', msgidChild: '', vipStr: null 
             }
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -259,6 +264,8 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
+            const viplist = await this.qryVipList(data.chanmst.GR_ID, userid)
+            data.vipStr = viplist[0].UID
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
@@ -359,6 +366,7 @@ export class ChanmsgService {
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i]
+                //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
                 item.act_later = msgdtlforuser.act_later
                 item.act_fixed = msgdtlforuser.act_fixed
