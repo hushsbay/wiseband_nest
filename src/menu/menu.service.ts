@@ -272,8 +272,7 @@ export class MenuService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind, lastMsgMstCdt, msgid } = dto
-            console.log(kind, lastMsgMstCdt, msgid)
+            const { kind, notyet, lastMsgMstCdt, msgid } = dto //console.log(kind, notyet, lastMsgMstCdt, msgid)
             //공통 sql
             let sqlSelect = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, "
             let sqlFrom = "FROM S_MSGMST_TBL A "
@@ -329,10 +328,15 @@ export class MenuService {
             }
             let sql = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE, E.PICTURE "
             sql += "     FROM ( " + sqlMain + ") Z "
+            if (notyet == 'Y') {
+                sql += "INNER JOIN (SELECT DISTINCT CHANID, MSGID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') X "
+                sql += "   ON Z.MSGID = X.MSGID AND Z.CHANID = X.CHANID "
+            }
             sql += "     LEFT OUTER JOIN S_USER_TBL E ON Z.AUTHORID = E.USER_ID "
             sql += "    WHERE Z.CDT < ? "
             sql += "    ORDER BY Z.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
+            //console.log(sql)
             const list = await this.dataSource.query(sql, [lastMsgMstCdt])
             resJson.list = list
             return resJson
