@@ -272,7 +272,8 @@ export class MenuService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind, lastMsgMstCdt } = dto
+            const { kind, lastMsgMstCdt, msgid } = dto
+            console.log(kind, lastMsgMstCdt, msgid)
             //공통 sql
             let sqlSelect = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, "
             let sqlFrom = "FROM S_MSGMST_TBL A "
@@ -281,28 +282,33 @@ export class MenuService {
             let sqlLeft = "LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
             let sqlWhere = "WHERE B.TYP = 'WS' AND C.USERID = 'oldclock' AND C.STATE IN ('', 'M') "
             //mention
-            let sqlMention = sqlSelect + "'' KIND, D.USERNM PARENT_BODY, 'mention' TITLE "
+            let sqlMention = sqlSelect + "'' KIND, 0 CNT, D.USERNM PARENT_BODY, 'mention' TITLE "
             sqlMention += (sqlFrom + sqlLeft + sqlWhere)
             sqlMention += "AND D.USERID = '" + userid + "' AND D.KIND = 'mention' "
+            if (msgid) sqlMention += "AND A.MSGID = '" + msgid + "' "
             //vip
             let sqlVip = sqlSelect + "'' KIND, 0 CNT, '' PARENT_BODY, 'vip' TITLE "
             sqlVip += (sqlFrom + sqlWhere)
             sqlVip += "AND A.AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') "
+            if (msgid) sqlVip += "AND A.MSGID = '" + msgid + "' "
             //thread
-            let sqlThread = sqlSelect + "'' KIND, "
+            let sqlThread = sqlSelect + "'' KIND, " //현재 부모글은 내려주고 있으나 클라이언트에서 자리부족으로 표시하고 있지는 않음
             sqlThread += "(SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.REPLYTO AND CHANID = A.CHANID) CNT, "
             sqlThread += "(SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = A.REPLYTO AND CHANID = A.CHANID) PARENT_BODY, 'thread' TITLE "
             sqlThread += (sqlFrom + sqlWhere)
             sqlThread += "AND A.AUTHORID = '" + userid + "' AND A.REPLYTO <> '' "
+            if (msgid) sqlThread += "AND A.MSGID = '" + msgid + "' "
             //myreact
             let sqlMyreact = sqlSelect + "D.KIND, 0 CNT, D.USERNM PARENT_BODY, 'myreact' TITLE "
             sqlMyreact += (sqlFrom + sqlLeft + sqlWhere)
             sqlMyreact += "AND D.USERID = '" + userid + "' AND D.TYP = 'react' "
+            if (msgid) sqlMyreact += "AND A.MSGID = '" + msgid + "' "
             //otherreact
             let sqlOtherreact = sqlSelect + "D.KIND, COUNT(*) CNT, GROUP_CONCAT(D.USERNM) PARENT_BODY, 'otherreact' TITLE "
             sqlOtherreact += (sqlFrom + sqlLeft + sqlWhere)
             sqlOtherreact += "AND A.AUTHORID = '" + userid + "' AND D.USERID <> '" + userid + "' AND D.TYP = 'react' "
             sqlOtherreact += "GROUP BY A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, D.KIND "
+            if (msgid) sqlOtherreact += "AND A.MSGID = '" + msgid + "' "
             //아래에서 전체조회도 구성
             let sqlMain = ''
             if (kind == 'mention') {
@@ -328,9 +334,6 @@ export class MenuService {
             sql += "    ORDER BY Z.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
             const list = await this.dataSource.query(sql, [lastMsgMstCdt])
-            // for (let i = 0; i < list.length; i++) {
-            //     const row = list[i]
-            // }
             resJson.list = list
             return resJson
         } catch (ex) {
