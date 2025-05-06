@@ -57,6 +57,9 @@ export class MsgSub {
     FILESIZE: number
 
     @Column()
+    FILEEXT: string    
+
+    @Column()
     BUFFER: Buffer
 
     @Column()

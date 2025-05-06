@@ -431,31 +431,53 @@ export class ChanmsgService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, kind, fileName, frYm, toYm, authorNm, bodyText } = dto
+            const { chanid, lastMsgMstCdt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
-            console.log("searchMedia", chanid, lastMsgMstCdt, kindStr)
-            console.log("searchMedia", fileName, frYm, toYm, authorNm, bodyText)
+            console.log("searchMedia", chanid, lastMsgMstCdt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
             const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
-            let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, A.CDT, A.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.BODYTEXT " + bufferField
-            sql += "     FROM S_MSGSUB_TBL A "
+            let frDash = '0000-00-00', toDash = '9999-99-99'
+            if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
+            if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
+            let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT " + bufferField
+            sql += "     FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
             sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "    WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
             sql += "    WHERE A.CHANID = ? "
             sql += "      AND A.KIND = ? "
+            if (fileExt != '') sql += " AND A.FILEEXT = '" + fileExt + "' "
             sql += "      AND A.CDT < ? "
             if (fileName != '') sql += " AND A.BODY LIKE '%" + fileName + "%' "
-            if (frYm.length == 6 && toYm.length == 6) {
-                const frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
-                const toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
-                sql += " AND A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
-            }
             if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
             if (bodyText != '') sql += " AND B.BODYTEXT LIKE '%" + bodyText + "%' "
             sql += "    ORDER BY A.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
-            console.log(sql)
             const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async searchMsg(dto: Record<string, any>): Promise<any> { //아래 sql에서 권한있는 채널만 필터링함
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { chanid, lastMsgMstCdt, kind, frYm, toYm, authorNm, searchText } = dto
+            console.log("searchMsg", chanid, lastMsgMstCdt, kind, frYm, toYm, authorNm, searchText)
+            let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT "
+            sql += "     FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
+            sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "    WHERE A.CHANID = ? "
+            sql += "      AND A.KIND = ? "
+            sql += "      AND A.CDT < ? "
+            if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
+            if (searchText != '') sql += " AND B.BODYTEXT LIKE '%" + searchText + "%' "
+            sql += "    ORDER BY A.CDT DESC "
+            sql += "    LIMIT " + hush.cons.rowsCnt
+            const list = await this.dataSource.query(sql, [chanid, lastMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
@@ -845,10 +867,15 @@ export class ChanmsgService {
             console.log(userid, msgid, chanid, kind, body, filesize)
             const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>uploadBlob')
+            let fileExt = '' //파일 검색에서 사용됨
+            if (kind == 'F') {
+                const arr = body.split('.')
+                if (arr.length > 1) fileExt = arr[arr.length - 1].toLowerCase()
+            }                
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
-                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, CDT: curdtObj.DT, 
+                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, FILEEXT: fileExt, CDT: curdtObj.DT, 
                 BUFFER: (kind != 'L') ? Buffer.from(new Uint8Array(file.buffer)) : null 
             }).execute()
             resJson.data.cdt = curdtObj.DT

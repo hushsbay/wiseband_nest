@@ -92,7 +92,7 @@ export class MenuService {
         }
     }
 
-    async qryChan(dto: Record<string, any>): Promise<any> {
+    async qryChan(dto: Record<string, any>): Promise<any> { //내가 권한이 있는 채널들만 보여야 함 (사용자그룹에서 제거 되었으면 그 채널은 권한이 없어짐)
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
@@ -135,6 +135,7 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
+            console.log(kind, sql)
             const list = await this.dataSource.query(sql, null)
             if (!list) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
