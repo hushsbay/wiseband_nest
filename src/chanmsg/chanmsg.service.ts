@@ -468,47 +468,67 @@ export class ChanmsgService {
             const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
             console.log("searchMsg", chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
+            let sqlWs = "      SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
+            sqlWs += "           FROM (SELECT A.GR_ID, A.GR_NM "
+            sqlWs += "                   FROM S_GRMST_TBL A "
+            sqlWs += "                  INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
+            sqlWs += "                  WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
+            sqlWs += "                   LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
+            sqlWs += "                                      FROM S_CHANMST_TBL A "
+            sqlWs += "                                     INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+            sqlWs += "                                     WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
+            sqlWs += "                                     UNION ALL "
+            sqlWs += "                                    SELECT A.CHANID, A.CHANNM, A.GR_ID "
+            sqlWs += "                                      FROM S_CHANMST_TBL A "
+            sqlWs += "                                     WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
+            sqlWs += "                                       AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+            sqlWs += "                ) Y ON X.GR_ID = Y.GR_ID "
+            let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
+            sqlGs += "           FROM S_CHANMST_TBL A "
+            sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+            sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' AND A.INUSE = 'Y' "
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
-            let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT, R.CDT, R.UDT "
-            sql += "     FROM (SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
-            sql += "             FROM (SELECT A.GR_ID, A.GR_NM "
-            sql += "                     FROM S_GRMST_TBL A "
-            sql += "                    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
-            sql += "                     WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
-            sql += "                      LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
-            sql += "                                         FROM S_CHANMST_TBL A "
-            sql += "                                        INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-            sql += "                                        WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
-            sql += "                                        UNION ALL "
-            sql += "                                       SELECT A.CHANID, A.CHANNM, A.GR_ID "
-            sql += "                                         FROM S_CHANMST_TBL A "
-            sql += "                                        WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
-            sql += "                                          AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
-            sql += "                        ON X.GR_ID = Y.GR_ID "
-            sql += "            UNION ALL " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 아래처럼 가져옴
-            sql += "           SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM "
-            sql += "             FROM S_CHANMST_TBL A "
-            sql += "            INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-            sql += "            WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' AND A.INUSE = 'Y') P "
-            sql += "     INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
-            sql += "    SELECT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, CDT, UDT "
-            sql += "      FROM (SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT, A.UDT "
-            sql += "              FROM S_MSGMST_TBL A "
-            sql += "             INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
-            sql += "              LEFT OUTER JOIN S_MSGSUB_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
-            sql += "             WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
-            if (chanid) sql += "   AND A.CHANID = '" + chanid + "' "
-            sql += "               AND C.TYP = 'WS' "
+            let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT, R.CDT, R.UDT, R.TYP, R.STATE "
+            sql += "     FROM ( "
+            if (rdoOpt == 'chan') {
+                sql += sqlWs
+            } else if (rdoOpt == 'dm') {
+                sql += sqlGs
+            } else {
+                sql += sqlWs + " UNION ALL " + sqlGs
+            }
+            sql += "           ) P "
+            sql += "    INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
+            sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, CDT, UDT, TYP, STATE "
+            sql += "     FROM (SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT, A.UDT, C.TYP, C.STATE "
+            sql += "             FROM S_MSGMST_TBL A "
+            sql += "            INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
+            sql += "             LEFT OUTER JOIN S_MSGSUB_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "            WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
+            if (chanid) sql += "  AND A.CHANID = '" + chanid + "' "
+            if (rdoOpt == 'chan') {
+                sql += "          AND C.TYP = 'WS' "
+            } else if (rdoOpt == 'dm') {
+                sql += "          AND C.TYP = 'GS' "
+            }
             if (authorNm != '') sql += " AND A.AUTHORNM LIKE '%" + authorNm + "%' "
             if (searchText != '') sql += " AND (A.BODYTEXT LIKE '%" + searchText + "%' OR B.BODY LIKE '%" + searchText + "%') "
             sql += "    ) Q ) R ON P.CHANID = R.CHANID "
-            sql += "   WHERE R.CDT < ? " //무한 스크롤
-            sql += "   ORDER BY R.CDT DESC "
-            sql += "   LIMIT " + hush.cons.rowsCnt
+            sql += " WHERE R.CDT < ? " //무한 스크롤
+            sql += " ORDER BY R.CDT DESC "
+            sql += " LIMIT " + hush.cons.rowsCnt
             console.log(sql)
             const list = await this.dataSource.query(sql, [lastMsgMstCdt])
+            const qbSub = this.msgsubRepo.createQueryBuilder('C')
+            for (let i = 0; i < list.length; i++) {
+                const item = list[i]
+                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
+                item.msgfile = msgsub.msgfile
+                item.msgimg = msgsub.msgimg
+                item.msglink = msgsub.msglink
+            }
             resJson.list = list
             return resJson
         } catch (ex) {
