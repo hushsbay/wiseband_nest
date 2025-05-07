@@ -24,6 +24,9 @@ export class ChanmsgController {
     @Post('searchMedia')
     searchMedia(@Body() dto: Record<string, any>) { return this.chanmsgSvc.searchMedia(dto) }
 
+    @Post('searchMsg')
+    searchMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.searchMsg(dto) }
+
     @Post('qryActionForUser')
     qryActionForUser(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryActionForUser(dto) }
 
