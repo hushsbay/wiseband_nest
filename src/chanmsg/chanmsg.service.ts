@@ -248,6 +248,33 @@ export class ChanmsgService {
         return await this.dataSource.query(sql, [userid])
     }
 
+    getSqlWs(userid: string): string {
+        let sqlWs = "      SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
+        sqlWs += "           FROM (SELECT A.GR_ID, A.GR_NM "
+        sqlWs += "                   FROM S_GRMST_TBL A "
+        sqlWs += "                  INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
+        sqlWs += "                  WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
+        sqlWs += "                   LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
+        sqlWs += "                                      FROM S_CHANMST_TBL A "
+        sqlWs += "                                     INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+        sqlWs += "                                     WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
+        sqlWs += "                                     UNION ALL "
+        sqlWs += "                                    SELECT A.CHANID, A.CHANNM, A.GR_ID "
+        sqlWs += "                                      FROM S_CHANMST_TBL A "
+        sqlWs += "                                     WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
+        sqlWs += "                                       AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+        sqlWs += "                ) Y ON X.GR_ID = Y.GR_ID "
+        return sqlWs
+    }
+
+    getSqlGs(userid: string): string {
+        let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
+        sqlGs += "           FROM S_CHANMST_TBL A "
+        sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+        sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' AND A.INUSE = 'Y' "
+        return sqlGs
+    }
+
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> {
@@ -427,34 +454,90 @@ export class ChanmsgService {
         }
     }
 
-    async searchMedia(dto: Record<string, any>): Promise<any> {
+    // async searchMedia(dto: Record<string, any>): Promise<any> { //원본
+    //     try {
+    //         const resJson = new ResJson()
+    //         const userid = this.req['user'].userid
+    //         const { chanid, lastMsgMstCdt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
+    //         const kindStr = kind.substr(0, 1).toUpperCase()
+    //         console.log("searchMedia", chanid, lastMsgMstCdt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
+    //         const rs = await this.chkAcl({ userid: userid, chanid: chanid })
+    //         if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
+    //         const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
+    //         let frDash = '0000-00-00', toDash = '9999-99-99'
+    //         if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
+    //         if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
+    //         let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT " + bufferField
+    //         sql += "     FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
+    //         sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+    //         sql += "    WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
+    //         sql += "      AND A.CHANID = ? "
+    //         sql += "      AND A.KIND = ? "
+    //         if (kindStr == 'F' && fileExt != '') sql += " AND A.FILEEXT = '" + fileExt + "' "
+    //         sql += "      AND A.CDT < ? "
+    //         if (kindStr == 'F' && fileName != '') sql += " AND A.BODY LIKE '%" + fileName + "%' "
+    //         if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
+    //         if (bodyText != '') sql += " AND B.BODYTEXT LIKE '%" + bodyText + "%' "
+    //         sql += "    ORDER BY A.CDT DESC "
+    //         sql += "    LIMIT " + hush.cons.rowsCnt
+    //         console.log(sql)
+    //         const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
+    //         resJson.list = list
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req)
+    //     }
+    // }
+
+    async searchMedia(dto: Record<string, any>): Promise<any> { //아래 sql에서 먼저 권한있는 채널만 필터링됨
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
+            const { chanid, lastMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
-            console.log("searchMedia", chanid, lastMsgMstCdt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
-            const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
+            console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
-            let sql = "SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT " + bufferField
-            sql += "     FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
-            sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
-            sql += "    WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
-            sql += "      AND A.CHANID = ? "
-            sql += "      AND A.KIND = ? "
+            const bufferFieldA = kind == 'image' ? ', A.BUFFER ' : ''
+            const bufferField = kind == 'image' ? ', BUFFER ' : ''
+            const bufferFieldR = kind == 'image' ? ', R.BUFFER ' : ''
+            const sqlWs = this.getSqlWs(userid)
+            const sqlGs = this.getSqlGs(userid)
+            let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.CHANID, R.KIND, R.BODY, R.CDT, R.UDT, R.FILESIZE, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT " + bufferFieldR
+            sql += "     FROM ( "
+            if (rdoOpt == 'chan') {
+                sql += sqlWs
+            } else if (rdoOpt == 'dm') {
+                sql += sqlGs
+            } else {
+                sql += sqlWs + " UNION ALL " + sqlGs
+            }
+            sql += "           ) P "
+            sql += "    INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
+            sql += "   SELECT MSGID, CHANID, KIND, BODY, CDT, UDT, FILESIZE, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT " + bufferField
+            sql += "     FROM (SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT " + bufferFieldA
+            sql += "             FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
+            sql += "            INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "            INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
+            sql += "            WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
+            if (chanid) sql += "  AND A.CHANID = '" + chanid + "' "
+            if (rdoOpt == 'chan') {
+                sql += "          AND C.TYP = 'WS' "
+            } else if (rdoOpt == 'dm') {
+                sql += "          AND C.TYP = 'GS' "
+            }
+            sql += "              AND A.KIND = '" + kindStr + "' "
             if (kindStr == 'F' && fileExt != '') sql += " AND A.FILEEXT = '" + fileExt + "' "
-            sql += "      AND A.CDT < ? "
             if (kindStr == 'F' && fileName != '') sql += " AND A.BODY LIKE '%" + fileName + "%' "
             if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
             if (bodyText != '') sql += " AND B.BODYTEXT LIKE '%" + bodyText + "%' "
-            sql += "    ORDER BY A.CDT DESC "
+            sql += "    ) Q ) R ON P.CHANID = R.CHANID "
+            sql += "    WHERE R.CDT < ? "
+            sql += "    ORDER BY R.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
             console.log(sql)
-            const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [lastMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
@@ -468,28 +551,11 @@ export class ChanmsgService {
             const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
             console.log("searchMsg", chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
-            let sqlWs = "      SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
-            sqlWs += "           FROM (SELECT A.GR_ID, A.GR_NM "
-            sqlWs += "                   FROM S_GRMST_TBL A "
-            sqlWs += "                  INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
-            sqlWs += "                  WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
-            sqlWs += "                   LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
-            sqlWs += "                                      FROM S_CHANMST_TBL A "
-            sqlWs += "                                     INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-            sqlWs += "                                     WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
-            sqlWs += "                                     UNION ALL "
-            sqlWs += "                                    SELECT A.CHANID, A.CHANNM, A.GR_ID "
-            sqlWs += "                                      FROM S_CHANMST_TBL A "
-            sqlWs += "                                     WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
-            sqlWs += "                                       AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
-            sqlWs += "                ) Y ON X.GR_ID = Y.GR_ID "
-            let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
-            sqlGs += "           FROM S_CHANMST_TBL A "
-            sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-            sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' AND A.INUSE = 'Y' "
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
+            const sqlWs = this.getSqlWs(userid)
+            const sqlGs = this.getSqlGs(userid)
             let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT, R.CDT, R.UDT, R.TYP, R.STATE "
             sql += "     FROM ( "
             if (rdoOpt == 'chan') {
