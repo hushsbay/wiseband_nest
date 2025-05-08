@@ -182,7 +182,7 @@ export class MenuService {
             sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
             sql += "    WHERE Z.LASTMSGDT < ? "
             if (search) {
-                sql += "  AND Z.MEMBERS LIKE '%" + search + "%' "
+                sql += "  AND LOWER(Z.MEMBERS) LIKE '%" + search.toLowerCase() + "%' "
             }
             sql += "ORDER BY Z.LASTMSGDT DESC "
             sql += "LIMIT " + hush.cons.rowsCnt

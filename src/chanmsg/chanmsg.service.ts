@@ -493,9 +493,9 @@ export class ChanmsgService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
+            const { chanid, lastMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, searchText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
-            console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
+            console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
@@ -504,7 +504,7 @@ export class ChanmsgService {
             const bufferFieldR = kind == 'image' ? ', R.BUFFER ' : ''
             const sqlWs = this.getSqlWs(userid)
             const sqlGs = this.getSqlGs(userid)
-            let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.CHANID, R.KIND, R.BODY, R.CDT, R.UDT, R.FILESIZE, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT " + bufferFieldR
+            let sql = "SELECT P.GR_ID, P.GR_NM, P.CHANID, P.CHANNM, R.MSGID, R.CHANID, R.KIND, R.CDTSUB, R.BODY, R.CDT, R.UDT, R.FILESIZE, R.AUTHORID, R.AUTHORNM, R.REPLYTO, R.BODYTEXT, R.TYP, R.STATE " + bufferFieldR
             sql += "     FROM ( "
             if (rdoOpt == 'chan') {
                 sql += sqlWs
@@ -515,13 +515,13 @@ export class ChanmsgService {
             }
             sql += "           ) P "
             sql += "    INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
-            sql += "   SELECT MSGID, CHANID, KIND, BODY, CDT, UDT, FILESIZE, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT " + bufferField
-            sql += "     FROM (SELECT A.MSGID, A.CHANID, A.KIND, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT " + bufferFieldA
+            sql += "   SELECT MSGID, CHANID, KIND, CDTSUB, BODY, CDT, UDT, FILESIZE, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, TYP, STATE " + bufferField
+            sql += "     FROM (SELECT A.MSGID, B.CHANID, A.KIND, A.CDT CDTSUB, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT, C.TYP, C.STATE " + bufferFieldA
             sql += "             FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
             sql += "            INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "            INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
-            sql += "            WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
-            if (chanid) sql += "  AND A.CHANID = '" + chanid + "' "
+            sql += "            WHERE B.CDT >= '" + frDash + "' AND B.CDT <= '" + toDash + "' "
+            if (chanid) sql += "  AND B.CHANID = '" + chanid + "' "
             if (rdoOpt == 'chan') {
                 sql += "          AND C.TYP = 'WS' "
             } else if (rdoOpt == 'dm') {
@@ -529,9 +529,10 @@ export class ChanmsgService {
             }
             sql += "              AND A.KIND = '" + kindStr + "' "
             if (kindStr == 'F' && fileExt != '') sql += " AND A.FILEEXT = '" + fileExt + "' "
-            if (kindStr == 'F' && fileName != '') sql += " AND A.BODY LIKE '%" + fileName + "%' "
-            if (authorNm != '') sql += " AND B.AUTHORNM LIKE '%" + authorNm + "%' "
-            if (bodyText != '') sql += " AND B.BODYTEXT LIKE '%" + bodyText + "%' "
+            //if (kindStr == 'F' && fileName != '') sql += " AND LOWER(A.BODY) LIKE '%" + fileName.toLowerCase() + "%' "
+            if (authorNm != '') sql += " AND LOWER(B.AUTHORNM) LIKE '%" + authorNm.toLowerCase() + "%' "
+            //if (bodyText != '') sql += " AND LOWER(B.BODYTEXT) LIKE '%" + bodyText.toLowerCase() + "%' "
+            if (searchText != '') sql += " AND (LOWER(B.BODYTEXT) LIKE '%" + searchText + "%' OR LOWER(A.BODY) LIKE '%" + searchText.toLowerCase() + "%') "
             sql += "    ) Q ) R ON P.CHANID = R.CHANID "
             sql += "    WHERE R.CDT < ? "
             sql += "    ORDER BY R.CDT DESC "
@@ -579,8 +580,8 @@ export class ChanmsgService {
             } else if (rdoOpt == 'dm') {
                 sql += "          AND C.TYP = 'GS' "
             }
-            if (authorNm != '') sql += " AND A.AUTHORNM LIKE '%" + authorNm + "%' "
-            if (searchText != '') sql += " AND (A.BODYTEXT LIKE '%" + searchText + "%' OR B.BODY LIKE '%" + searchText + "%') "
+            if (authorNm != '') sql += " AND LOWER(A.AUTHORNM) LIKE '%" + authorNm.toLowerCase() + "%' "
+            if (searchText != '') sql += " AND (LOWER(A.BODYTEXT) LIKE '%" + searchText + "%' OR LOWER(B.BODY) LIKE '%" + searchText.toLowerCase() + "%') "
             sql += "    ) Q ) R ON P.CHANID = R.CHANID "
             sql += " WHERE R.CDT < ? " //무한 스크롤
             sql += " ORDER BY R.CDT DESC "
@@ -590,7 +591,7 @@ export class ChanmsgService {
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             for (let i = 0; i < list.length; i++) {
                 const item = list[i]
-                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
+                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, item.CHANID) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
                 item.msglink = msgsub.msglink
@@ -1033,7 +1034,8 @@ export class ChanmsgService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
-            const { chanid, kind, cdt, name } = dto //console.log(userid, msgid, chanid, kind, cdt, name)
+            const { chanid, kind, cdt, name } = dto 
+            console.log('readBlob', userid, msgid, chanid, kind, cdt, name)
             let fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>readBlob')
