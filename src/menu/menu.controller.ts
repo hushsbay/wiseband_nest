@@ -28,4 +28,7 @@ export class MenuController {
     @Post('qryPanelCount')
     qryPanelCount(@Body() dto: Record<string, any>) { return this.menuSvc.qryPanelCount(dto) }
 
+    @Post('qryGroup')
+    qryGroup(@Body() dto: Record<string, any>) { return this.menuSvc.qryGroup(dto) }
+
 }

@@ -7,7 +7,7 @@ export class UserController {
 
     constructor(private readonly userSvc: UserService) {}
 
-    // @Post('qry')
-    // qry(@Body() dto: Record<string, any>) { return this.userSvc.qry(dto) }
+    @Post('qryGroupDetail')
+    qryGroupDetail(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupDetail(dto) }
 
 }

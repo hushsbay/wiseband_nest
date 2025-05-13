@@ -346,6 +346,34 @@ export class MenuService {
         }
     }
 
+    async qryGroup(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const kind = dto.kind
+            let fv = hush.addFieldValue(kind, 'kind')
+            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.TYP, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
+            sql += "     FROM S_GRMST_TBL A "
+            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "    WHERE A.INUSE = 'Y' "
+            sql += "      AND B.USERID = '" + userid + "' "
+            if (kind == 'my') {
+                sql += "  AND A.MASTERID = '" + userid + "' "
+            } else if (kind == 'other') {
+                sql += "  AND A.MASTERID <> '" + userid + "' "
+            }
+            sql += "    ORDER BY GR_NM, GR_ID "
+            const list = await this.dataSource.query(sql, [userid])
+            if (!list) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
+            }
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req) 
+        }
+    }
+
 }
 
 /*

@@ -8,12 +8,15 @@ import appConfig from 'src/app.config'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { User } from 'src/user/user.entity'
+import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 
 @Injectable({ scope: Scope.REQUEST })
 export class UserService {
     
     constructor(
         @InjectRepository(User) private userRepo: Repository<User>, 
+        @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
+        @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         @Inject(REQUEST) private readonly req: Request) {}
 
     async login(uid: string, pwd: string): Promise<ResJson> {
@@ -34,53 +37,36 @@ export class UserService {
         }
     }
 
-    // async qry(dto: Record<string, any>): Promise<any> { //test
-    //     const resJson = new ResJson()
-    //     try {
-    //         //const list = await this.userRepo.find({ relations: { profiles: true }}) 
-    //         //아래 1번째 arg인 u는 테이블 Alias, 2번째는 테이블명 또는 Alias (u.가 없으면 join없이 select됨)
-    //         //아래 2번째 arg는 다른 테이블명이 아닌 무의미한 값이 들어가도 innerjoin 제대로 됨 (다른 테이블명 들어가면 안됨) : 따라서, 같은 이름으로 넣기로 함 u.profile, profile
-    //         //아래 Join은 user기준으로 (user가 마스터) 나오는 것이므로 profiles 있는 것은 user.profiles로 2개 이상 붙어서 나올 수 있음
-    //         const list = await this.userRepo.createQueryBuilder('u').innerJoinAndSelect("u.profiles", 'profile').getMany()            
-    //         //const list = await this.userRepo.createQueryBuilder('u').leftJoinAndSelect("u.profiles", 'profile').getMany()
-    //         console.log(JSON.stringify(list))
-    //         if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND, hush.Code.NOT_FOUND, this.req)
-    //         resJson.list = list
-
-    //         // const photo = new Photo()
-    //         // photo.ID = "c"
-    //         // photo.NM = "ccc"
-
-    //         // const metadata = new PhotoMeta()
-    //         // metadata.ID = '333'
-    //         // metadata.COMMENT = '333'
-    //         // metadata.photo = photo
-
-    //         // await this.photoRepo.save(photo)
-    //         // await this.photometaRepo.save(metadata)
-
-    //         // const photo1 = new Profile()
-    //         // photo1.ID = "hbcho1"
-    //         // photo1.NM = '조현빈'
-    //         // photo1.USER_ID = "hbcho"
-    //         // await this.profileRepo.save(photo1)
-
-    //         // const photo2 = new Profile()
-    //         // photo2.ID = "hbcho2"
-    //         // photo2.NM = '조현빈'
-    //         // photo2.USER_ID = "hbcho"
-    //         // await this.profileRepo.save(photo2)
-
-    //         // const user = new User()
-    //         // user.USER_ID = "hbcho"
-    //         // user.USER_NM = '조현빈'
-    //         // user.profiles = [photo1, photo2]
-    //         // await this.userRepo.save(user)
-
-    //         return resJson
-    //     } catch (ex) {
-    //         hush.throwCatchedEx(ex, this.req)
-    //     }            
-    // }
+    async qryGroupDetail(dto: Record<string, any>): Promise<any> {
+        try {
+            let data = { grmst: null, grdtl: [] }
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { grid } = dto
+            let fv = hush.addFieldValue([userid, grid], 'userid/grid')
+            const grmst = await this.grmstRepo.createQueryBuilder('A')
+            .select(['A.GR_NM', 'A.MASTERID', 'A.MASTERNM'])
+            .where("A.GR_ID = :grid and A.INUSE = 'Y' ", { 
+                grid: grid
+            }).getOne()
+            if (!grmst) {
+                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grmst')
+            }
+            data.grmst = grmst
+            const grdtl = await this.grdtlRepo.createQueryBuilder('B')
+            .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.TYP'])
+            .where("B.GR_ID = :grid ", { 
+                grid: grid
+            }).getMany()
+            if (!grdtl) {
+                return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grdtl')
+            }
+            data.grdtl = grdtl
+            resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
 
 }

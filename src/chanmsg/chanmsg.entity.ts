@@ -195,9 +195,6 @@ export class GrMst {
     INUSE: string
 
     @Column()
-    MEMCNT: number
-
-    @Column()
     RMKS: string
 
     @Column()
@@ -222,6 +219,12 @@ export class GrDtl {
 
     @Column()
     USERNM: string
+
+    @Column()
+    KIND: string
+
+    @Column()
+    TYP: string
 
     @Column()
     CDT: string
