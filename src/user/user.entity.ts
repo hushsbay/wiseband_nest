@@ -57,8 +57,8 @@ export class User {
     @Column()
     MODDT: string
 
-    @Column()
-    LVL: number
+    // @Column()
+    // LVL: number
 
 }
 

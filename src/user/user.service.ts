@@ -97,7 +97,6 @@ export class UserService {
                     return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree>orgcd')
                 }
                 item.userlist = userlist
-                console.log(JSON.stringify(userlist))
             }
             resJson.list = listOrg
             return resJson
