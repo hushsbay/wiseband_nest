@@ -224,7 +224,19 @@ export class GrDtl {
     KIND: string
 
     @Column()
-    TYP: string
+    JOB: string
+
+    @Column()
+    EMAIL: string
+
+    @Column()
+    TELNO: string
+
+    @Column()
+    RMKS: string
+
+    @Column()
+    IS_SYNC: string
 
     @Column()
     CDT: string

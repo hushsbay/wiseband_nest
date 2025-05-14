@@ -352,7 +352,7 @@ export class MenuService {
             const userid = this.req['user'].userid
             const kind = dto.kind
             let fv = hush.addFieldValue(kind, 'kind')
-            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.TYP, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
+            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.IS_SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE A.INUSE = 'Y' "

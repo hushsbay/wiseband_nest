@@ -29,18 +29,21 @@ export class User {
 
     @Column()
     TOP_ORG_NM: string
-
-    @Column()
-    TEL_NO: string
-
-    @Column()
-    MAIL_ADDR: string
-
+    
     @Column()
     PICTURE: Buffer
 
     @Column()
     MIMETYPE: string
+
+    @Column()
+    JOB: string
+
+    @Column()
+    EMAIL: string
+
+    @Column()
+    TELNO: string
 
     @Column()
     IS_SYNC: string
@@ -56,9 +59,6 @@ export class User {
 
     @Column()
     MODDT: string
-
-    // @Column()
-    // LVL: number
 
 }
 

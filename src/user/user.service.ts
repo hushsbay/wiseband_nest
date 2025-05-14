@@ -55,7 +55,7 @@ export class UserService {
             }
             data.grmst = grmst
             const grdtl = await this.grdtlRepo.createQueryBuilder('B')
-            .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.TYP'])
+            .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.IS_SYNC'])
             .where("B.GR_ID = :grid ", { 
                 grid: grid
             }).getMany()
@@ -74,8 +74,6 @@ export class UserService {
         try {
             let listOrg = []
             const resJson = new ResJson()
-            //const userid = this.req['user'].userid
-            //let fv = hush.addFieldValue([userid], 'userid')
             const orglist = await this.orgRepo.createQueryBuilder('A')
             .select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
             .orderBy('A.SEQ', 'ASC').getMany()
@@ -89,7 +87,7 @@ export class UserService {
                 const orgcd = item.ORG_CD
                 const lvl = item.LVL + 1
                 const userlist = await qb
-                .select(['USER_ID', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'TEL_NO', 'MAIL_ADDR', lvl.toString() + ' LVL'])
+                .select(['USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL'])
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
                 }).orderBy('SEQ', 'ASC').getRawMany() //order by 이름
