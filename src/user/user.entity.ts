@@ -16,6 +16,9 @@ export class User {
     USER_NM: string
 
     @Column()
+    SEQ: string
+
+    @Column()
     ORG_CD: string
 
     @Column()
@@ -26,6 +29,12 @@ export class User {
 
     @Column()
     TOP_ORG_NM: string
+
+    @Column()
+    TEL_NO: string
+
+    @Column()
+    MAIL_ADDR: string
 
     @Column()
     PICTURE: Buffer
@@ -47,5 +56,25 @@ export class User {
 
     @Column()
     MODDT: string
+
+    @Column()
+    LVL: number
+
+}
+
+@Entity({ name: 'S_ORG_TBL'})
+export class Org {
+
+    @PrimaryColumn()
+    ORG_CD: string
+
+    @Column()
+    ORG_NM: string
+
+    @Column()
+    SEQ: string
+
+    @Column()
+    LVL: number
 
 }

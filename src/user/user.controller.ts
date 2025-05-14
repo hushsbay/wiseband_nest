@@ -10,4 +10,7 @@ export class UserController {
     @Post('qryGroupDetail')
     qryGroupDetail(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupDetail(dto) }
 
+    @Post('orgTree')
+    orgTree(@Body() dto: Record<string, any>) { return this.userSvc.orgTree(dto) }
+
 }

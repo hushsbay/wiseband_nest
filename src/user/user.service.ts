@@ -7,7 +7,7 @@ import { Repository } from 'typeorm'
 import appConfig from 'src/app.config'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
-import { User } from 'src/user/user.entity'
+import { User, Org } from 'src/user/user.entity'
 import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 
 @Injectable({ scope: Scope.REQUEST })
@@ -15,6 +15,7 @@ export class UserService {
     
     constructor(
         @InjectRepository(User) private userRepo: Repository<User>, 
+        @InjectRepository(Org) private orgRepo: Repository<Org>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         @Inject(REQUEST) private readonly req: Request) {}
@@ -63,6 +64,42 @@ export class UserService {
             }
             data.grdtl = grdtl
             resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async orgTree(dto: Record<string, any>): Promise<any> {
+        try {
+            let listOrg = []
+            const resJson = new ResJson()
+            //const userid = this.req['user'].userid
+            //let fv = hush.addFieldValue([userid], 'userid')
+            const orglist = await this.orgRepo.createQueryBuilder('A')
+            .select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
+            .orderBy('A.SEQ', 'ASC').getMany()
+            if (!orglist) {
+                return hush.setResJson(resJson, '조직이 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
+            }
+            listOrg = orglist
+            const qb = this.userRepo.createQueryBuilder()
+            for (let i = 0; i < listOrg.length; i++) {
+                const item = listOrg[i]
+                const orgcd = item.ORG_CD
+                const lvl = item.LVL + 1
+                const userlist = await qb
+                .select(['USER_ID', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'TEL_NO', 'MAIL_ADDR', lvl.toString() + ' LVL'])
+                .where("ORG_CD = :orgcd ", { 
+                    orgcd: orgcd
+                }).orderBy('SEQ', 'ASC').getRawMany() //order by 이름
+                if (!userlist) {
+                    return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree>orgcd')
+                }
+                item.userlist = userlist
+                console.log(JSON.stringify(userlist))
+            }
+            resJson.list = listOrg
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
