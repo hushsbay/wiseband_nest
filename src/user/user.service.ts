@@ -72,7 +72,7 @@ export class UserService {
 
     async orgTree(dto: Record<string, any>): Promise<any> {
         try {
-            let listOrg = []
+            let listOrg = [], maxLevel = -1
             const resJson = new ResJson()
             const orglist = await this.orgRepo.createQueryBuilder('A')
             .select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
@@ -87,7 +87,7 @@ export class UserService {
                 const orgcd = item.ORG_CD
                 const lvl = item.LVL + 1
                 const userlist = await qb
-                .select(['USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL'])
+                .select(['USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'PICTURE'])
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
                 }).orderBy('SEQ', 'ASC').getRawMany() //order by 이름
@@ -95,8 +95,10 @@ export class UserService {
                     return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree>orgcd')
                 }
                 item.userlist = userlist
+                if (lvl > maxLevel) maxLevel = lvl
             }
             resJson.list = listOrg
+            resJson.data.maxLevel = maxLevel
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
