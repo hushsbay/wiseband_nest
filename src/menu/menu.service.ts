@@ -365,7 +365,7 @@ export class MenuService {
             sql += "    ORDER BY GR_NM, GR_ID "
             const list = await this.dataSource.query(sql, [userid])
             if (!list) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryGroup')
             }
             resJson.list = list
             return resJson

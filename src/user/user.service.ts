@@ -15,13 +15,20 @@ import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 export class UserService {
     
     constructor(
-        @InjectRepository(Org) private orgRepo: Repository<Org>, 
         @InjectRepository(User) private userRepo: Repository<User>, 
         @InjectRepository(UserCode) private usercodeRepo: Repository<UserCode>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         private dataSource : DataSource,
         @Inject(REQUEST) private readonly req: Request) {}
+
+    async getVipList(userid: string): Promise<any> {
+        let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
+        const vipList = await this.dataSource.query(sql, [userid])
+        return vipList //데이터 없으면 vipList[0].VIP = null로 나옴
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async login(uid: string, pwd: string): Promise<ResJson> {
         const resJson = new ResJson()
@@ -78,20 +85,18 @@ export class UserService {
             let listOrg = [], maxLevel = -1
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            //const orglist = await this.orgRepo.createQueryBuilder('A')
             const orglist = await this.dataSource.createQueryBuilder()
-            //.select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
             .select('A.ORG_CD', 'ORG_CD')
             .addSelect('A.ORG_NM', 'ORG_NM')
             .addSelect('A.SEQ', 'SEQ')
             .addSelect('A.LVL', 'LVL')
             .addSelect((subQuery) => {
-                return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = ORG_CD ")
+                return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")
             }, 'CNT')
             .from(Org, 'A')
             .orderBy('A.SEQ', 'ASC').getRawMany()
             if (orglist.length == 0) {
-                return hush.setResJson(resJson, '조직이 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
+                return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
             }
             listOrg = orglist
             const qb = this.userRepo.createQueryBuilder()
@@ -106,21 +111,79 @@ export class UserService {
                 ])
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
-                }).orderBy('SEQ', 'ASC').getRawMany() //order by 이름
+                }).orderBy('SEQ', 'ASC').getRawMany()
                 if (!userlist) {
                     return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree>orgcd')
                 }
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
             }
-            let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
-            const vipList = await this.dataSource.query(sql, [userid])
             resJson.list = listOrg
+            const vipList = await this.getVipList(userid)
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             resJson.data.maxLevel = maxLevel            
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async procOrgSearch(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const searchText = dto.searchText
+            const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+            .select(['A.USER_ID', 'A.USER_NM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
+            .where("A.USER_NM LIKE :usernm ", { usernm: `%${searchText}%` })
+            .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
+            .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
+            .orderBy('A.USER_NM', 'ASC').getMany()
+            resJson.list = userlist
+            const vipList = await this.getVipList(userid)
+            resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryMyGroup(dto: Record<string, any>): Promise<any> {
+        try {
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
+            sql += "     FROM S_GRMST_TBL A "
+            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "    WHERE A.INUSE = 'Y' "
+            sql += "      AND B.USERID = '" + userid + "' "
+            sql += "      AND A.MASTERID = '" + userid + "' "
+            sql += "    ORDER BY GR_NM, GR_ID "
+            const list = await this.dataSource.query(sql, null)
+            if (!list) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND, hush.Code.NOT_FOUND, this.req, 'menu>qryMyGroup')
+            }
+            for (let i = 0; i < list.length; i++) {
+                const row = list[i]
+                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.PICTURE ELSE null END PICTURE "
+                sql += " FROM S_GRDTL_TBL A "
+                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+                sql += "WHERE GR_ID = ? "
+                const userlist = await this.dataSource.query(sql, [row.GR_ID])
+                row.userlist = userlist
+            }
+            resJson.list = list
+            const vipList = await this.getVipList(userid)
+            resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
+            resJson.data.maxLevel = 1 //내그룹의 depth가 무조건 2 (starts from 0)
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req) 
         }
     }
 
@@ -137,14 +200,14 @@ export class UserService {
                 const usercode = await qbUserCode
                 .select("COUNT(*) CNT")
                 .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
-                    userid: userid, uid: list[i].USER_ID
+                    userid: userid, uid: list[i].userid
                 }).getRawOne()
                 console.log(list[i].USER_NM, bool, userid, usercode.CNT)
                 if (bool) {
                     if (usercode.CNT == 0) {
                         await qbUserCode
                         .insert().values({ 
-                            KIND: 'vip', USERID: userid, UID: list[i].USER_ID, UNM: list[i].USER_NM
+                            KIND: 'vip', USERID: userid, UID: list[i].userid, UNM: list[i].USER_NM
                         }).execute()
                         retCnt += 1
                     }
@@ -153,7 +216,7 @@ export class UserService {
                         await qbUserCode
                         .delete()
                         .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
-                            userid: userid, uid: list[i].USER_ID
+                            userid: userid, uid: list[i].userid
                         }).execute()
                         retCnt += 1
                         console.log(list[i].USER_NM, retCnt)

@@ -13,6 +13,12 @@ export class UserController {
     @Post('orgTree')
     orgTree(@Body() dto: Record<string, any>) { return this.userSvc.orgTree(dto) }
 
+    @Post('procOrgSearch')
+    procOrgSearch(@Body() dto: Record<string, any>) { return this.userSvc.procOrgSearch(dto) }
+
+    @Post('qryMyGroup')
+    qryMyGroup(@Body() dto: Record<string, any>) { return this.userSvc.qryMyGroup(dto) }
+
     @Post('setVip')
     setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }
 
