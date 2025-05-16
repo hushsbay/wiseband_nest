@@ -78,10 +78,19 @@ export class UserService {
             let listOrg = [], maxLevel = -1
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const orglist = await this.orgRepo.createQueryBuilder('A')
-            .select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
-            .orderBy('A.SEQ', 'ASC').getMany()
-            if (!orglist) {
+            //const orglist = await this.orgRepo.createQueryBuilder('A')
+            const orglist = await this.dataSource.createQueryBuilder()
+            //.select(['A.ORG_CD', 'A.ORG_NM', 'A.SEQ', 'A.LVL'])
+            .select('A.ORG_CD', 'ORG_CD')
+            .addSelect('A.ORG_NM', 'ORG_NM')
+            .addSelect('A.SEQ', 'SEQ')
+            .addSelect('A.LVL', 'LVL')
+            .addSelect((subQuery) => {
+                return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = ORG_CD ")
+            }, 'CNT')
+            .from(Org, 'A')
+            .orderBy('A.SEQ', 'ASC').getRawMany()
+            if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직이 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
             }
             listOrg = orglist
@@ -91,7 +100,10 @@ export class UserService {
                 const orgcd = item.ORG_CD
                 const lvl = item.LVL + 1
                 const userlist = await qb
-                .select(['USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'PICTURE'])
+                .select([
+                    'USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 
+                    'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'PICTURE'
+                ])
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
                 }).orderBy('SEQ', 'ASC').getRawMany() //order by 이름
