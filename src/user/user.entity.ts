@@ -1,5 +1,22 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm'
 
+@Entity({ name: 'S_ORG_TBL'})
+export class Org {
+
+    @PrimaryColumn()
+    ORG_CD: string
+
+    @Column()
+    ORG_NM: string
+
+    @Column()
+    SEQ: string
+
+    @Column()
+    LVL: number
+
+}
+
 @Entity({ name: 'S_USER_TBL'})
 export class User {
 
@@ -62,19 +79,19 @@ export class User {
 
 }
 
-@Entity({ name: 'S_ORG_TBL'})
-export class Org {
+@Entity({ name: 'S_USERCODE_TBL'})
+export class UserCode {
 
     @PrimaryColumn()
-    ORG_CD: string
+    KIND: string
+
+    @PrimaryColumn()
+    USERID: string
+
+    @PrimaryColumn()
+    UID: string
 
     @Column()
-    ORG_NM: string
-
-    @Column()
-    SEQ: string
-
-    @Column()
-    LVL: number
+    UNM: string
 
 }

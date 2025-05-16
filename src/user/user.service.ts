@@ -3,19 +3,21 @@ import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource } from 'typeorm'
+import { Propagation, Transactional } from 'typeorm-transactional'
 
 import appConfig from 'src/app.config'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
-import { User, Org } from 'src/user/user.entity'
+import { Org, User, UserCode } from 'src/user/user.entity'
 import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 
 @Injectable({ scope: Scope.REQUEST })
 export class UserService {
     
     constructor(
-        @InjectRepository(User) private userRepo: Repository<User>, 
         @InjectRepository(Org) private orgRepo: Repository<Org>, 
+        @InjectRepository(User) private userRepo: Repository<User>, 
+        @InjectRepository(UserCode) private usercodeRepo: Repository<UserCode>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         private dataSource : DataSource,
@@ -104,6 +106,49 @@ export class UserService {
             resJson.list = listOrg
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             resJson.data.maxLevel = maxLevel            
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    @Transactional({ propagation: Propagation.REQUIRED })
+    async setVip(dto: Record<string, any>): Promise<any> {
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { list, bool } = dto
+            let retCnt = 0
+            console.log(JSON.stringify(list), bool)
+            const qbUserCode = this.usercodeRepo.createQueryBuilder()
+            for (let i = 0; i < list.length; i++) { //list.forEach(async (item, index) => {            
+                const usercode = await qbUserCode
+                .select("COUNT(*) CNT")
+                .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                    userid: userid, uid: list[i].USER_ID
+                }).getRawOne()
+                console.log(list[i].USER_NM, bool, userid, usercode.CNT)
+                if (bool) {
+                    if (usercode.CNT == 0) {
+                        await qbUserCode
+                        .insert().values({ 
+                            KIND: 'vip', USERID: userid, UID: list[i].USER_ID, UNM: list[i].USER_NM
+                        }).execute()
+                        retCnt += 1
+                    }
+                } else {
+                    if (usercode.CNT > 0) {
+                        await qbUserCode
+                        .delete()
+                        .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                            userid: userid, uid: list[i].USER_ID
+                        }).execute()
+                        retCnt += 1
+                        console.log(list[i].USER_NM, retCnt)
+                    }
+                }
+            }
+            resJson.data.retCnt = retCnt
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

@@ -13,4 +13,7 @@ export class UserController {
     @Post('orgTree')
     orgTree(@Body() dto: Record<string, any>) { return this.userSvc.orgTree(dto) }
 
+    @Post('setVip')
+    setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }
+
 }
