@@ -225,3 +225,9 @@ export function getDateTimeStr(dt: Date, deli: boolean, millisec: boolean) {
     if (millisec) ret += dot + dt.getMilliseconds().toString().padEnd(6, "0")
     return ret
 }
+
+export function getRnd(min?: number, max?: number): number {
+    const minInt = (!min && min != 0) ? 100000 : min
+    const maxInt = (!max && max != 0) ? 999999 : max
+    return Math.floor(Math.random() * (maxInt - minInt)) + minInt //return min(inclusive) ~ max(exclusive) Integer only 
+}

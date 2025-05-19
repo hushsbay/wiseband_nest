@@ -66,6 +66,12 @@ export class User {
     IS_SYNC: string
 
     @Column()
+    OTP_NUM: string
+
+    @Column()
+    OTP_DT: string
+
+    @Column()
     ISUR: string
 
     @Column()

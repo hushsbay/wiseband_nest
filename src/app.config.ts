@@ -1,5 +1,6 @@
 import { registerAs } from '@nestjs/config'
 
+//https://suyeonme.tistory.com/109
 export default registerAs('app', () => ({
     mysql: {
         host: process.env.MYSQL_HOST,
@@ -13,5 +14,5 @@ export default registerAs('app', () => ({
     },
     jwt: {
         key: process.env.JWT_KEY
-    }
+    },
 }))

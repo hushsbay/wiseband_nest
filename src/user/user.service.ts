@@ -48,6 +48,23 @@ export class UserService {
         }
     }
 
+    async setOtp(uid: string): Promise<ResJson> {
+        const resJson = new ResJson()
+        const detailInfo = hush.addDetailInfo(uid, '아이디')
+        try {
+            if (!uid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
+            const user = await this.userRepo.findOneBy({ USER_ID: uid })
+            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            user.OTP_NUM = hush.getRnd().toString()
+            user.OTP_DT = curdtObj.DT
+            this.userRepo.save(user)
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
     async qryGroupDetail(dto: Record<string, any>): Promise<any> {
         try {
             let data = { grmst: null, grdtl: [] }

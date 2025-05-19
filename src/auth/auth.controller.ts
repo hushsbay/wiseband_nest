@@ -9,9 +9,13 @@ export class AuthController {
     constructor(private authSvc: AuthService) {}
 
     @Unauth()
-    @HttpCode(HttpStatus.OK)
+    //@HttpCode(HttpStatus.OK)
     @Post('login')
     login(@Body() dto: Record<string, any>) { return this.authSvc.login(dto) }
+
+    @Unauth()
+    @Post('setOtp')
+    setOtp(@Body() dto: Record<string, any>) { return this.authSvc.setOtp(dto) }
 
     @Unauth()
     @Get('logintest')

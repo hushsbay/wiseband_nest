@@ -8,6 +8,7 @@ import { UserModule } from 'src/user/user.module'
 import { AuthGuard } from 'src/auth/auth.guard'
 import { AuthController } from 'src/auth/auth.controller'
 import { AuthService } from 'src/auth/auth.service'
+import { MailModule } from 'src/mail/mail.module'
 
 @Module({
     imports: [        
@@ -21,7 +22,7 @@ import { AuthService } from 'src/auth/auth.service'
                 }
             }            
         }),
-        UserModule
+        UserModule, MailModule
     ],
     providers: [
         {
@@ -34,6 +35,6 @@ import { AuthService } from 'src/auth/auth.service'
     ],
     controllers: [AuthController],
     exports: [AuthService]
-  })
+})
 
-  export class AuthModule {}
+export class AuthModule {}
