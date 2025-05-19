@@ -18,6 +18,10 @@ export class AuthController {
     setOtp(@Body() dto: Record<string, any>) { return this.authSvc.setOtp(dto) }
 
     @Unauth()
+    @Post('verifyOtp')
+    verifyOtp(@Body() dto: Record<string, any>) { return this.authSvc.verifyOtp(dto) }
+
+    @Unauth()
     @Get('logintest')
     logintest(@Query() dto: Record<string, any>) { return this.authSvc.logintest(dto) }
 

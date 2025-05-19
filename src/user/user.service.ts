@@ -48,17 +48,37 @@ export class UserService {
         }
     }
 
-    async setOtp(uid: string): Promise<ResJson> {
+    async setOtp(uid: string, otpNum: string): Promise<ResJson> {
         const resJson = new ResJson()
         const detailInfo = hush.addDetailInfo(uid, '아이디')
         try {
-            if (!uid) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
+            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
             const user = await this.userRepo.findOneBy({ USER_ID: uid })
             if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            user.OTP_NUM = hush.getRnd().toString()
+            user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
             this.userRepo.save(user)
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async verifyOtp(uid: string, otpNum: string): Promise<ResJson> {
+        const resJson = new ResJson()
+        const detailInfo = hush.addDetailInfo(uid, '아이디')
+        try {
+            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
+            const user = await this.userRepo.findOneBy({ USER_ID: uid })
+            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            console.log(user.OTP_NUM, otpNum, user.OTP_DT, curdtObj.DT)
+            if (otpNum != user.OTP_NUM) return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + detailInfo, hush.Code.OTP_MISMATCH, this.req)
+            const minDiff = hush.getDateTimeDiff(user.OTP_DT, curdtObj.DT, 'M')
+            if (minDiff > hush.cons.otpDiffMax) return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다', hush.Code.OTP_TIMEOVER, this.req)
+            const { PWD, PICTURE, MIMETYPE, ...userFiltered } = user 
+            resJson.data = userFiltered
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

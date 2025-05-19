@@ -19,6 +19,8 @@ export enum Code {
     JWT_EXPIRED = '-803',
     JWT_ETC = '-809',
     PWD_MISMATCH = '-811',
+    OTP_MISMATCH = '-812',
+    OTP_TIMEOVER = '-813',
     NOT_AUTHORIZED = '860',
 }
 
@@ -33,10 +35,14 @@ export enum Msg {
     JWT_EXPIRED = '인증토큰이 만료되었습니다.',
     JWT_ETC = '토큰 오류입니다.', //(ex.message가 아예 없을 수도 있으나) ex.message를 추가로 사용할 필요있음
     PWD_MISMATCH = '비번이 다릅니다.',
+    OTP_MISMATCH = 'OTP 값이 다릅니다.',
+    //OTP_TIMEOVER = 'OTP 체크시간이 지났습니다.',
     NOT_AUTHORIZED = '권한이 없습니다.',
 }
 
 export const cons = {
+    appName : 'WiSEBand',
+    otpDiffMax : 1, //분
     rowsCnt : 10,
     replyCntLimit : 2, //댓글표시할 때 사진 보여주기 Max값
     unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
@@ -230,4 +236,26 @@ export function getRnd(min?: number, max?: number): number {
     const minInt = (!min && min != 0) ? 100000 : min
     const maxInt = (!max && max != 0) ? 999999 : max
     return Math.floor(Math.random() * (maxInt - minInt)) + minInt //return min(inclusive) ~ max(exclusive) Integer only 
+}
+
+export function getDateTimeStamp(str: string): Date | null { //str = 2012-08-02 14:12:04 (일자형식 체크해야 하나 일단 표준대로 들어온다는 전체하에 사용하기로 함)
+    if (str.length < 19) return null
+    const str19 = str.substring(0, 19)
+    const dt: number = Date.parse(str19)
+    return new Date(dt)
+}
+
+export function getDateTimeDiff(prev: string, cur: string, type: string): number | null { //yyyy-mm-dd hh:MM:dd (type:S/M/H/D)
+    const dtPrev: Date = getDateTimeStamp(prev)
+    const dtCur: Date = getDateTimeStamp(cur)
+    const diffMs: number = dtCur.getTime() - dtPrev.getTime()
+    const diffSec: number = Math.floor(diffMs / 1000)
+    if (type == 'S') return diffSec
+    const diffMin: number = Math.floor(diffSec / 60)
+    if (type == 'M') return diffMin
+    const diffHours: number = Math.floor(diffMin / 60)
+    if (type == 'H') return diffHours
+    const diffDays: number = Math.floor(diffHours / 24)
+    if (type == 'D') return diffDays
+    return null
 }
