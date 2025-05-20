@@ -347,7 +347,7 @@ export class MenuService {
     }
 
     async qryGroup(dto: Record<string, any>): Promise<any> {
-        try {
+        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const kind = dto.kind

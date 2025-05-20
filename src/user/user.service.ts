@@ -85,37 +85,37 @@ export class UserService {
         }
     }
 
-    async qryGroupDetail(dto: Record<string, any>): Promise<any> {
-        try {
-            let data = { grmst: null, grdtl: [] }
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { grid } = dto
-            let fv = hush.addFieldValue([userid, grid], 'userid/grid')
-            const grmst = await this.grmstRepo.createQueryBuilder('A')
-            .select(['A.GR_NM', 'A.MASTERID', 'A.MASTERNM'])
-            .where("A.GR_ID = :grid and A.INUSE = 'Y' ", { 
-                grid: grid
-            }).getOne()
-            if (!grmst) {
-                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grmst')
-            }
-            data.grmst = grmst
-            const grdtl = await this.grdtlRepo.createQueryBuilder('B')
-            .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.IS_SYNC'])
-            .where("B.GR_ID = :grid ", { 
-                grid: grid
-            }).getMany()
-            if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grdtl')
-            }
-            data.grdtl = grdtl
-            resJson.data = data
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
-        }
-    }
+    // async qryGroupDetail(dto: Record<string, any>): Promise<any> { //사용하지 말기 : 아래로 대체 qryMyGroup => gryOneGroup으로 변경해서 my, other중에 권한있으면 조회가능하도록 하기
+    //     try {
+    //         let data = { grmst: null, grdtl: [] }
+    //         const resJson = new ResJson()
+    //         const userid = this.req['user'].userid
+    //         const { grid } = dto
+    //         let fv = hush.addFieldValue([userid, grid], 'userid/grid')
+    //         const grmst = await this.grmstRepo.createQueryBuilder('A')
+    //         .select(['A.GR_NM', 'A.MASTERID', 'A.MASTERNM'])
+    //         .where("A.GR_ID = :grid and A.INUSE = 'Y' ", { 
+    //             grid: grid
+    //         }).getOne()
+    //         if (!grmst) {
+    //             return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grmst')
+    //         }
+    //         data.grmst = grmst
+    //         const grdtl = await this.grdtlRepo.createQueryBuilder('B')
+    //         .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.IS_SYNC'])
+    //         .where("B.GR_ID = :grid ", { 
+    //             grid: grid
+    //         }).getMany()
+    //         if (!grdtl) {
+    //             return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>qryGroupDetail>grdtl')
+    //         }
+    //         data.grdtl = grdtl
+    //         resJson.data = data
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req)
+    //     }
+    // }
 
     async orgTree(dto: Record<string, any>): Promise<any> {
         try {
@@ -185,16 +185,20 @@ export class UserService {
         }
     }
 
-    async qryMyGroup(dto: Record<string, any>): Promise<any> {
-        try {
+    async qryInvolvedGroup(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일
+        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
             const resJson = new ResJson()
             const userid = this.req['user'].userid
+            const { grid } = dto
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE A.INUSE = 'Y' "
             sql += "      AND B.USERID = '" + userid + "' "
-            sql += "      AND A.MASTERID = '" + userid + "' "
+            if (grid) {
+                sql += "  AND A.GR_ID = '" + grid + "' "
+            }
+            //sql += "      AND A.MASTERID = '" + userid + "' "
             sql += "    ORDER BY GR_NM, GR_ID "
             const list = await this.dataSource.query(sql, null)
             if (!list) {
@@ -202,8 +206,7 @@ export class UserService {
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS, "
+                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, A.RMKS, B.TOP_ORG_CD, B.TOP_ORG_NM, B.ORG_CD, B.ORG_NM, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
