@@ -22,4 +22,7 @@ export class UserController {
     @Post('setVip')
     setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }
 
+    @Post('saveMember')
+    saveMember(@Body() dto: Record<string, any>) { return this.userSvc.saveMember(dto) }
+
 }

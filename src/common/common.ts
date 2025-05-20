@@ -181,8 +181,9 @@ export function addDetailInfo(val: string, title?: string, newLine?: boolean) { 
     return deli + '[' + valStr + ']'
 }
 
-export function addFieldValue(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
-    const deli = newLine ? '\n' : ' => '
+//export function addFieldValue(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
+export function addFieldValue(val: any, title?: any) { //title은 AA/BB/CC..형식
+    const deli = '\n' //newLine ? '\n' : ' => '
     let valStr = ""
     if (val == '') {
         valStr = ' [없음]'

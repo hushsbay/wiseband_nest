@@ -269,66 +269,42 @@ export class UserService {
         }
     }
 
-    async saveMember(dto: Record<string, any>): Promise<any> {
+    async saveMember(dto: Record<string, any>): Promise<any> { //crud가 C or U만 가능 (D는 별도 서비스 처리)
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { crud, GR_ID, IS_SYNC, USERNM, EMAIL, TELNO, RMKS, KIND } = dto
-            let fv = hush.addFieldValue([crud, GR_ID, IS_SYNC, USERNM, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/IS_SYNC/USERNM/EMAIL/TELNO/RMKS/KIND')
-            if (!GR_ID || IS_SYNC) {
+            const { crud, GR_ID, USERID, USERNM, EMAIL, TELNO, RMKS, KIND } = dto
+            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/USERID/USERNM/EMAIL/TELNO/RMKS/KIND')
+            if (!GR_ID) {
                 return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>saveMember')    
             }
-            //////할차례///////////////////////////////////////////// grmst의 masterid와 grdtl의 admin 계정 체크
-            const qbMsgMst = this.msgmstRepo.createQueryBuilder()
-            if (crud == 'C') {
-                const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
-                msgid = unidObj.ID
-                await qbMsgMst
-                .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, BODYTEXT: bodytext, CDT: unidObj.DT
-                }).execute()
-                const qbMsgSub = this.msgsubRepo.createQueryBuilder()
-                let arr = []
-                if (num_file > 0) arr.push('F')
-                if (num_image > 0) arr.push('I')
-                if (num_link > 0) arr.push('L')
-                for (let i = 0; i < arr.length; i++) {
-                    const msgsub = await qbMsgSub
-                    .select("COUNT(*) CNT")
-                    .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
-                        userid: userid, chanid: chanid, kind: arr[i]
-                    }).getRawOne()
-                    if (msgsub.CNT > 0) {
-                        await qbMsgSub
-                        .update()
-                        .set({ MSGID: msgid })
-                        .where("MSGID = :userid and CHANID = :chanid and KIND = :kind ", {
-                            userid: userid, chanid: chanid, kind: arr[i]
-                        }).execute()
-                    }
+            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+            if (!grmst) {
+                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grmst')
+            }
+            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: userid })
+            if (crud == 'U') {
+                if (!grdtl) {
+                    return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
                 }
-                const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
-                const chandtl = await this.chandtlRepo.createQueryBuilder('A')
-                .select(['A.USERID', 'A.USERNM'])
-                .where("A.CHANID = :chanid and A.STATE in ('', 'M') ", { 
-                    chanid: chanid
-                }).getMany()
-                chandtl.forEach(async (item) => {
-                    const strKind = (item.USERID == userid) ? 'read' : 'notyet'
-                    await qbMsgDtl
-                    .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, USERNM: item.USERNM
-                    }).execute()
-                })
-                resJson.data.msgid = msgid
-            } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
-                const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
-                await qbMsgMst
-                .update()
-                .set({ BODY: body, BODYTEXT: bodytext, UDT: curdtObj.DT })
-                .where("MSGID = :msgid and CHANID = :chanid ", {
-                    msgid: msgid, chanid: chanid
-                }).execute()
+                if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
+                    return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                }
+                grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID })
+                if (!grdtl) {
+                    return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+                }
+                if (KIND != 'admin' && grdtl.KIND == 'admin' && grmst.MASTERID == USERID) {
+                    return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                }
+                if (grdtl.IS_SYNC == 'W') {
+                    grdtl.USERNM = USERNM
+                    grdtl.EMAIL = EMAIL
+                    grdtl.TELNO = TELNO    
+                }
+                grdtl.KIND = KIND
+                grdtl.RMKS = RMKS
+                this.grdtlRepo.save(grdtl)
             }
             return resJson
         } catch (ex) {
