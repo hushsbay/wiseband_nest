@@ -69,7 +69,14 @@ export class MenuService {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
             const kind = dto.kind
-            let fv = hush.addFieldValue(kind, 'kind')
+            //let fv = hush.addFieldValue(kind, 'kind')
+            let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USER_ID = ? AND KIND = ? "
+            const menuList = await this.dataSource.query(sqlChk, [userid, kind])
+            if (menuList[0].CNT == 0) {
+                sqlChk =  "INSERT INTO S_MENUPER_TBL (USER_ID, KIND, ID) "
+                sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
+                await this.dataSource.query(sqlChk, [userid, kind])
+            }
             //여기서는 아래 sql처럼 menu중에 특정 user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
             //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나..
@@ -82,9 +89,9 @@ export class MenuService {
             sql += "      AND A.INUSE = 'Y' "
             sql += "    ORDER BY A.SEQ "
             const list = await this.dataSource.query(sql, [userid, kind, kind]) //console.log(typeof list, list.length)
-            if (list.length == 0) {                
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry')
-            }
+            //if (list.length == 0) {                
+            //    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry')
+            //}
             resJson.list = list
             return resJson
         } catch (ex) {
