@@ -206,14 +206,16 @@ export class UserService {
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, A.RMKS, B.TOP_ORG_CD, B.TOP_ORG_NM, B.ORG_CD, B.ORG_NM, "
+                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, B.PICTURE, "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.PICTURE ELSE null END PICTURE "
+                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS "
                 sql += " FROM S_GRDTL_TBL A "
                 sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
                 sql += "WHERE GR_ID = ? "
+                sql += "ORDER BY A.USERNM, A.USERID "
                 const userlist = await this.dataSource.query(sql, [row.GR_ID])
                 row.userlist = userlist
             }
@@ -273,39 +275,88 @@ export class UserService {
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { crud, GR_ID, USERID, USERNM, EMAIL, TELNO, RMKS, KIND } = dto
-            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/USERID/USERNM/EMAIL/TELNO/RMKS/KIND')
-            if (!GR_ID) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>saveMember')    
-            }
+            const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND } = dto
+            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/KIND')
             const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
             if (!grmst) {
                 return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grmst')
             }
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: userid })
-            if (crud == 'U') {
-                if (!grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
-                }
-                if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
-                    return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
-                }
-                grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID })
+            if (!grdtl) {
+                return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+            }
+            if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
+                return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+            }
+            const curdtObj = await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne() //curdtObj.DT
+            grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID })
+            if (crud == 'U') {                
                 if (!grdtl) {
                     return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
                 }
-                if (KIND != 'admin' && grdtl.KIND == 'admin' && grmst.MASTERID == USERID) {
+                if (KIND != 'admin' && grmst.MASTERID == USERID) {
                     return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
-                if (grdtl.IS_SYNC == 'W') {
+                if (grdtl.IS_SYNC != 'Y') {
                     grdtl.USERNM = USERNM
+                    grdtl.ORG = ORG
+                    grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
                     grdtl.TELNO = TELNO    
                 }
                 grdtl.KIND = KIND
                 grdtl.RMKS = RMKS
-                this.grdtlRepo.save(grdtl)
+                grdtl.UDT = curdtObj.DT
+                await this.grdtlRepo.save(grdtl)
+            } else { //crud=C
+                if (grdtl) {
+                    return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 이미 존재합니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+                }
+                grdtl = this.grdtlRepo.create()                
+                grdtl.GR_ID = GR_ID
+                grdtl.USERID = EMAIL //수동입력의 경우 EMAIL이 USERID가 됨
+                grdtl.USERNM = USERNM
+                grdtl.ORG = ORG
+                grdtl.JOB = JOB
+                grdtl.EMAIL = EMAIL
+                grdtl.TELNO = TELNO    
+                grdtl.KIND = KIND
+                grdtl.RMKS = RMKS
+                grdtl.IS_SYNC = ''
+                grdtl.CDT = curdtObj.DT
+                await this.grdtlRepo.save(grdtl)
             }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async deleteMember(dto: Record<string, any>): Promise<any> {
+        try {            
+            const resJson = new ResJson()
+            const userid = this.req['user'].userid
+            const { GR_ID, USERID } = dto
+            let fv = hush.addFieldValue([GR_ID, USERID], 'GR_ID/USERID')
+            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+            if (!grmst) {
+                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grmst')
+            }
+            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: userid })
+            if (!grdtl) {
+                return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
+            }
+            if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
+                return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
+            }
+            grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID })
+            if (!grdtl) {
+                return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
+            }
+            if (grmst.MASTERID == USERID) {
+                return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
+            }                
+            await this.grdtlRepo.delete(grdtl)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

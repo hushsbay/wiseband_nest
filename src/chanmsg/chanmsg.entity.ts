@@ -224,6 +224,9 @@ export class GrDtl {
     KIND: string
 
     @Column()
+    ORG: string
+
+    @Column()
     JOB: string
 
     @Column()

@@ -25,4 +25,7 @@ export class UserController {
     @Post('saveMember')
     saveMember(@Body() dto: Record<string, any>) { return this.userSvc.saveMember(dto) }
 
+    @Post('deleteMember')
+    deleteMember(@Body() dto: Record<string, any>) { return this.userSvc.deleteMember(dto) }
+
 }
