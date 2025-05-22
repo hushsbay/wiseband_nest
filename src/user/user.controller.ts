@@ -28,4 +28,10 @@ export class UserController {
     @Post('deleteMember')
     deleteMember(@Body() dto: Record<string, any>) { return this.userSvc.deleteMember(dto) }
 
+    @Post('saveGroupMaster')
+    saveGroupMaster(@Body() dto: Record<string, any>) { return this.userSvc.saveGroupMaster(dto) }
+
+    @Post('deleteGroup')
+    deleteGroup(@Body() dto: Record<string, any>) { return this.userSvc.deleteGroup(dto) }
+
 }

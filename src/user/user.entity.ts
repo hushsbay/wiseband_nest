@@ -33,6 +33,9 @@ export class User {
     USER_NM: string
 
     @Column()
+    INUSE: string
+
+    @Column()
     SEQ: string
 
     @Column()

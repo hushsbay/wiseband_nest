@@ -95,6 +95,7 @@ export class ChanmsgService {
             sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
             sql += "    WHERE A.CHANID = ? "
             sql += "      AND A.STATE IN ('', 'M') " //사용중(빈칸)/매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
+            sql += "      AND B.INUSE = 'Y' "
             sql += "    ORDER BY A.USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
             if (chandtl.length == 0) {
