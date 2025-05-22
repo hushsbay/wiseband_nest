@@ -173,6 +173,7 @@ export class UserService {
             const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
             .select(['A.USER_ID', 'A.USER_NM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
             .where("A.INUSE = 'Y' ")
+            .andWhere("A.IS_SYNC = 'Y' ")
             .andWhere(new Brackets(qb => {
                 qb.where("A.USER_NM LIKE :usernm ", { usernm: `%${searchText}%` })
                 .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
@@ -280,7 +281,7 @@ export class UserService {
     async saveMember(dto: Record<string, any>): Promise<any> { //crud가 C or U만 가능 (D는 별도 서비스 처리)
         try {            
             const resJson = new ResJson()
-            const userid = this.req['user'].userid
+            const userid = this.req['user'].userid //내 그룹만 가능해야 함
             const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND } = dto
             let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/KIND')
             const useridToProc = (crud == 'U') ? USERID : EMAIL //수동입력의 경우 EMAIL이 USERID가 됨
@@ -362,7 +363,7 @@ export class UserService {
     async deleteMember(dto: Record<string, any>): Promise<any> {
         try {            
             const resJson = new ResJson()
-            const userid = this.req['user'].userid
+            const userid = this.req['user'].userid //내 그룹만 가능해야 함
             const { GR_ID, USERID } = dto
             let fv = hush.addFieldValue([GR_ID, USERID], 'GR_ID/USERID')
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -400,7 +401,7 @@ export class UserService {
     async saveGroupMaster(dto: Record<string, any>): Promise<any> { //crud가 C or U만 가능 (D는 별도 서비스 처리)
         try {            
             const resJson = new ResJson()
-            const userid = this.req['user'].userid
+            const userid = this.req['user'].userid //W입력은 권한 없어야 함. 내 그룹만 가능해야 함
             const usernm = this.req['user'].usernm
             const { GR_ID, GR_NM } = dto
             let fv = hush.addFieldValue([GR_ID, GR_NM], 'GR_ID/GR_NM')
@@ -443,7 +444,7 @@ export class UserService {
     async deleteGroup(dto: Record<string, any>): Promise<any> {
         try {            
             const resJson = new ResJson()
-            const userid = this.req['user'].userid
+            const userid = this.req['user'].userid //W입력은 권한 없어야 함. 내 그룹만 가능해야 함
             const { GR_ID } = dto
             let fv = hush.addFieldValue([GR_ID], 'GR_ID')
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
