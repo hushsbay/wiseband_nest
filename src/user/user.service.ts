@@ -282,9 +282,9 @@ export class UserService {
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid //내 그룹만 가능해야 함
-            const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND } = dto
-            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/KIND')
-            const useridToProc = (crud == 'U') ? USERID : EMAIL //수동입력의 경우 EMAIL이 USERID가 됨
+            const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, IS_SYNC, KIND } = dto
+            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, IS_SYNC, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/IS_SYNC/KIND')
+            const useridToProc = (crud == 'U') ? USERID : (IS_SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
             const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
             if (!grmst) {
                 return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grmst')
@@ -330,30 +330,32 @@ export class UserService {
                 grdtl.TELNO = TELNO    
                 grdtl.KIND = KIND
                 grdtl.RMKS = RMKS
-                grdtl.IS_SYNC = ''
+                grdtl.IS_SYNC = IS_SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
                 grdtl.CDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
             }
-            let user = await this.userRepo.findOneBy({ USER_ID: useridToProc })
-            if (!user) { //사용자아이디가 없으면 만들기
-                user = this.userRepo.create()
-                user.USER_ID = useridToProc
-                user.INUSE = 'Y'
-                user.ID_KIND = 'U'
-                user.SEQ = 'ZZZZ' //마지막 순서로 잡기
-                user.IS_SYNC = 'W' //S_GRDTL_TBL에는 ''로 입력되는데 S_USER_TBL에는 'W'로 입력됨
-                user.ISUR = userid
-                user.ISUDT = curdtObj.DT
-            } else { //사용자아이디가 있으면 수정하기
-                if (user.INUSE != 'Y') user.INUSE = 'Y'                    
-                user.MODR = userid
-                user.MODDT = curdtObj.DT
+            if (IS_SYNC == '') { //수동입력시
+                let user = await this.userRepo.findOneBy({ USER_ID: useridToProc })
+                if (!user) { //사용자아이디가 없으면 만들기
+                    user = this.userRepo.create()
+                    user.USER_ID = useridToProc
+                    user.INUSE = 'Y'
+                    user.ID_KIND = 'U'
+                    user.SEQ = 'ZZZZ' //마지막 순서로 잡기
+                    user.IS_SYNC = 'W' //S_GRDTL_TBL에는 ''로 입력되는데 S_USER_TBL에는 'W'로 입력됨
+                    user.ISUR = userid
+                    user.ISUDT = curdtObj.DT
+                } else { //사용자아이디가 있으면 수정하기
+                    if (user.INUSE != 'Y') user.INUSE = 'Y'                    
+                    user.MODR = userid
+                    user.MODDT = curdtObj.DT
+                }
+                user.USER_NM = USERNM
+                user.JOB = JOB
+                user.EMAIL = EMAIL
+                user.TELNO = TELNO
+                await this.userRepo.save(user)
             }
-            user.USER_NM = USERNM
-            user.JOB = JOB
-            user.EMAIL = EMAIL
-            user.TELNO = TELNO
-            await this.userRepo.save(user)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -386,11 +388,13 @@ export class UserService {
                 return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
             }                
             await this.grdtlRepo.delete(grdtl)
-            let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
-            const menuList = await this.dataSource.query(sqlChk, [USERID])
-            if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
-                sqlChk =  "UPDATE S_USER_TBL SET INUSE = 'N', UDT = ? WHERE USER_ID = ? AND INUSE = 'Y' "
-                await this.dataSource.query(sqlChk, [curdtObj.DT, userid])
+            if (grdtl.IS_SYNC == '') { //수동입력(W입력)만 추가 처리
+                let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
+                const menuList = await this.dataSource.query(sqlChk, [USERID])
+                if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
+                    sqlChk =  "UPDATE S_USER_TBL SET INUSE = 'N', MODR = ?, MODDT = ? WHERE USER_ID = ? AND INUSE = 'Y' "
+                    await this.dataSource.query(sqlChk, [curdtObj.DT, userid, USERID])
+                }
             }
             return resJson
         } catch (ex) {
