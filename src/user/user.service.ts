@@ -212,7 +212,7 @@ export class UserService {
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                sql = "SELECT A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, B.PICTURE, "
+                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, B.PICTURE, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
                 sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
