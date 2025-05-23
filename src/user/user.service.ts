@@ -34,12 +34,18 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !pwd) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            if (!uid || !pwd) {
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            }
             const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+            if (!user) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+            }
             const config = appConfig()
-            const decoded = hush.decrypt(user.PWD, config.crypto.key) //sendjay와 SSO (동일한 암호화 키값 사용)
-            if (pwd !== decoded) return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req)
+            const decoded = hush.decrypt(user.PWD, config.crypto.key)
+            if (pwd !== decoded) {
+                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req)
+            }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
             return resJson
