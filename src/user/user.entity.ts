@@ -21,20 +21,17 @@ export class Org {
 export class User {
 
     @PrimaryColumn()
-    USER_ID: string
+    USERID: string
 
     @Column()
-    ID_KIND: string
+    USERNM: string
+
+    @Column()
+    KIND: string
 
     @Column()
     PWD: string
-
-    @Column()
-    USER_NM: string
-
-    @Column()
-    INUSE: string
-
+    
     @Column()
     SEQ: string
 
@@ -54,9 +51,6 @@ export class User {
     PICTURE: Buffer
 
     @Column()
-    MIMETYPE: string
-
-    @Column()
     JOB: string
 
     @Column()
@@ -66,7 +60,7 @@ export class User {
     TELNO: string
 
     @Column()
-    IS_SYNC: string
+    SYNC: string
 
     @Column()
     OTP_NUM: string

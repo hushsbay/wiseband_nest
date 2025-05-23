@@ -101,14 +101,14 @@ export function throwCatchedEx(ex: any, req?: Request) { //, logger?: Logger) {
     throwHttpEx(codeMsg.msg, codeMsg.code)
 }
 
-export function chkResJson(json: ResJson, okFilter?: string) {
-    if (okFilter === Code.NOT_FOUND) { //목록조회시 데이터가 없어도 오류로 표시하지 않을 때 사용
-        if (json.code === Code.OK || json.code === Code.NOT_FOUND) return true
-    } else {
-        if (json.code === Code.OK) return true
-    }
-    return false
-}
+// export function chkResJson(json: ResJson, okFilter?: string) {
+//     if (okFilter === Code.NOT_FOUND) { //목록조회시 데이터가 없어도 오류로 표시하지 않을 때 사용
+//         if (json.code === Code.OK || json.code === Code.NOT_FOUND) return true
+//     } else {
+//         if (json.code === Code.OK) return true
+//     }
+//     return false
+// }
 
 export function setResJson(json: ResJson, msg: string, code?: string, req?: Request, smallTitle?: string) {
     if (req) { //req가 전달되면 로깅하겠다는 의도로 보면 됨
@@ -174,12 +174,12 @@ export function isvoid(obj: any) { //0 ?? 500 = 0을 반환. 0 || 500 = 500을 �
     return false
 }
 
-export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 addFieldValue 사용하도록 모두 고치기
-    const deli = newLine ? '\n' : ' => '
-    const valStr = (val == '') ? '없음' : val
-    if (title) return deli + title + ' [' + valStr + ']'
-    return deli + '[' + valStr + ']'
-}
+// export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 addFieldValue 사용하도록 모두 고치기
+//     const deli = newLine ? '\n' : ' => '
+//     const valStr = (val == '') ? '없음' : val
+//     if (title) return deli + title + ' [' + valStr + ']'
+//     return deli + '[' + valStr + ']'
+// }
 
 //export function addFieldValue(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
 export function addFieldValue(val: any, title?: any) { //title은 AA/BB/CC..형식

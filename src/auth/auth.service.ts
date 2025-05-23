@@ -20,7 +20,7 @@ export class AuthService {
     ) {}
 
     async setUserDataWithToken(userDataObj: any): Promise<any> {
-        const payload = { userid: userDataObj.USER_ID, usernm: userDataObj.USER_NM, orgcd: userDataObj.ORG_CD, toporgcd: userDataObj.TOP_ORG_CD }
+        const payload = { userid: userDataObj.USERID, usernm: userDataObj.USERNM, orgcd: userDataObj.ORG_CD, toporgcd: userDataObj.TOP_ORG_CD }
         const token = await this.jwtSvc.signAsync(payload)
         return { token: token, ...userDataObj } //모바일 앱 개발 편의성 고려. token을 쿠키나 헤더로 저장하지 않고 그냥 응답 Json에 넣기
     }
@@ -31,14 +31,9 @@ export class AuthService {
         const resJson = new ResJson()        
         const { uid, pwd } = dto
         try {
-            const obj = await this.userSvc.login(uid, pwd)
-            if (!hush.chkResJson(obj)) return hush.setResJson(resJson, obj.msg, obj.code, this.req)
-            /*const payload = { userid: obj.data.USER_ID, usernm: obj.data.USER_NM, orgcd: obj.data.ORG_CD, toporgcd: obj.data.TOP_ORG_CD }
-            const token = await this.jwtSvc.signAsync(payload)
-            resJson.data = { token: token, ...obj.data }*/ //모바일 앱 개발 편의성 고려. token을 쿠키나 헤더로 저장하지 않고 그냥 응답 Json에 넣기
-            resJson.data = await this.setUserDataWithToken(obj.data)
-            //this.res.cookie('token', token) //위 한행을 2행으로 분리(token은 쿠키로만 처리)하고자 했으나 쿠키 처리 못해서 위 1행으로 그대로 당분간 유지
-            //resJson.data = obj.data
+            const json = await this.userSvc.login(uid, pwd)
+            if (json.code != hush.Code.OK) return hush.setResJson(resJson, json.msg, json.code, this.req)
+            resJson.data = await this.setUserDataWithToken(json.data) //this.res.cookie('token', token)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
@@ -51,8 +46,8 @@ export class AuthService {
         try {
             if (!uid.includes('@')) return hush.setResJson(resJson, '아이디가 메일형식이 아닙니다.', hush.Code.NOT_OK, this.req)
             const otpNum = hush.getRnd().toString()
-            const obj = await this.userSvc.setOtp(uid, otpNum)
-            if (!hush.chkResJson(obj)) return hush.setResJson(resJson, obj.msg, obj.code, this.req)
+            const json = await this.userSvc.setOtp(uid, otpNum)
+            if (json.code != hush.Code.OK) return hush.setResJson(resJson, json.msg, json.code, this.req)
             const mailTitle = '[' + hush.cons.appName + '] OTP : ' + otpNum
             const mailBody = '아래 6자리 숫자를 ' + hush.cons.appName + ' 인증창에서 입력합니다. \n\nOTP : ' + otpNum + '\n\n'
             this.mailSvc.sendMail(uid, mailTitle, mailBody)
@@ -66,30 +61,30 @@ export class AuthService {
         const resJson = new ResJson()        
         const { uid, otpNum } = dto
         try {
-            const obj = await this.userSvc.verifyOtp(uid, otpNum)
-            if (!hush.chkResJson(obj)) return hush.setResJson(resJson, obj.msg, obj.code, this.req)
-            resJson.data = await this.setUserDataWithToken(obj.data)
+            const json = await this.userSvc.verifyOtp(uid, otpNum)
+            if (json.code != hush.Code.OK) return hush.setResJson(resJson, json.msg, json.code, this.req)
+            resJson.data = await this.setUserDataWithToken(json.data)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
         }
     }
 
-    async logintest(dto: Record<string, any>): Promise<ResJson> {
-        const resJson = new ResJson()        
-        const { uid, pwd } = dto
-        try {
-            const obj = await this.userSvc.login(uid, pwd)
-            if (!hush.chkResJson(obj)) return hush.setResJson(resJson, obj.msg, obj.code, this.req)
-            const payload = { userid: obj.data.USER_ID, usernm: obj.data.USER_NM, orgcd: obj.data.ORG_CD, toporgcd: obj.data.TOP_ORG_CD }
-            const token = await this.jwtSvc.signAsync(payload)
-            resJson.data = { token: token, ...obj.data } //모바일 앱 개발 편의성 고려. token을 쿠키나 헤더로 저장하지 않고 그냥 응답 Json에 넣기
-            //this.res.cookie('token', token) //위 한행을 2행으로 분리(token은 쿠키로만 처리)하고자 했으나 쿠키 처리 못해서 위 1행으로 그대로 당분간 유지
-            //resJson.data = obj.data
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
-        }
-    }
+    // async logintest(dto: Record<string, any>): Promise<ResJson> {
+    //     const resJson = new ResJson()        
+    //     const { uid, pwd } = dto
+    //     try {
+    //         const obj = await this.userSvc.login(uid, pwd)
+    //         if (!hush.chkResJson(obj)) return hush.setResJson(resJson, obj.msg, obj.code, this.req)
+    //         const payload = { userid: obj.data.USER_ID, usernm: obj.data.USER_NM, orgcd: obj.data.ORG_CD, toporgcd: obj.data.TOP_ORG_CD }
+    //         const token = await this.jwtSvc.signAsync(payload)
+    //         resJson.data = { token: token, ...obj.data } //모바일 앱 개발 편의성 고려. token을 쿠키나 헤더로 저장하지 않고 그냥 응답 Json에 넣기
+    //         //this.res.cookie('token', token) //위 한행을 2행으로 분리(token은 쿠키로만 처리)하고자 했으나 쿠키 처리 못해서 위 1행으로 그대로 당분간 유지
+    //         //resJson.data = obj.data
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req)
+    //     }
+    // }
 
 }

@@ -32,15 +32,15 @@ export class UserService {
 
     async login(uid: string, pwd: string): Promise<ResJson> {
         const resJson = new ResJson()
-        const detailInfo = hush.addDetailInfo(uid, '아이디')
+        let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !pwd) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
-            const user = await this.userRepo.findOneBy({ USER_ID: uid, INUSE: 'Y' })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            if (!uid || !pwd) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            const user = await this.userRepo.findOneBy({ USERID: uid })
+            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
             const config = appConfig()
             const decoded = hush.decrypt(user.PWD, config.crypto.key) //sendjay와 SSO (동일한 암호화 키값 사용)
-            if (pwd !== decoded) return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + detailInfo, hush.Code.PWD_MISMATCH, this.req)
-            const { PWD, PICTURE, MIMETYPE, ...userFiltered } = user 
+            if (pwd !== decoded) return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req)
+            const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
             return resJson
         } catch (ex) {
@@ -50,11 +50,11 @@ export class UserService {
 
     async setOtp(uid: string, otpNum: string): Promise<ResJson> {
         const resJson = new ResJson()
-        const detailInfo = hush.addDetailInfo(uid, '아이디')
+        let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
-            const user = await this.userRepo.findOneBy({ USER_ID: uid, INUSE: 'Y' })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            const user = await this.userRepo.findOneBy({ USERID: uid })
+            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
@@ -67,17 +67,17 @@ export class UserService {
 
     async verifyOtp(uid: string, otpNum: string): Promise<ResJson> {
         const resJson = new ResJson()
-        const detailInfo = hush.addDetailInfo(uid, '아이디')
+        let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + detailInfo, hush.Code.BLANK_DATA, this.req)
-            const user = await this.userRepo.findOneBy({ USER_ID: uid, INUSE: 'Y' })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            const user = await this.userRepo.findOneBy({ USERID: uid })
+            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             console.log(user.OTP_NUM, otpNum, user.OTP_DT, curdtObj.DT)
-            if (otpNum != user.OTP_NUM) return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + detailInfo, hush.Code.OTP_MISMATCH, this.req)
+            if (otpNum != user.OTP_NUM) return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req)
             const minDiff = hush.getDateTimeDiff(user.OTP_DT, curdtObj.DT, 'M')
             if (minDiff > hush.cons.otpDiffMax) return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다', hush.Code.OTP_TIMEOVER, this.req)
-            const { PWD, PICTURE, MIMETYPE, ...userFiltered } = user 
+            const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
             return resJson
         } catch (ex) {
