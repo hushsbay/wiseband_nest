@@ -21,10 +21,10 @@ export class CodeService {
     async qryCode(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const kind = dto.kind
-        const detailInfo = hush.addDetailInfo(kind, 'kind')
+        let fv = hush.addFieldValue(kind, 'kind')
         try {
             const list = await this.codeRepo.find({ where: { KIND: kind }, order: { ID: 'ASC' }})
-            if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + detailInfo, hush.Code.NOT_FOUND, this.req)
+            if (!list) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
             resJson.list = list
             return resJson
         } catch (ex) {

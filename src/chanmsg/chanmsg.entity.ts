@@ -123,19 +123,16 @@ export class ChanMst {
     MASTERNM: string
 
     @Column()
-    INUSE: string
-
-    @Column()
     STATE: string
 
     @Column()
-    MEMCNT: number
-
-    @Column()
-    RMKS: string
+    ISUR: string
 
     @Column()
     CDT: string
+
+    @Column()
+    MODR: string
 
     @Column()
     UDT: string
@@ -167,7 +164,13 @@ export class ChanDtl {
     BOOKMARK: string
 
     @Column()
+    ISUR: string
+
+    @Column()
     CDT: string
+
+    @Column()
+    MODR: string
 
     @Column()
     UDT: string
@@ -192,13 +195,13 @@ export class GrMst {
     MASTERNM: string
 
     @Column()
-    INUSE: string
-
-    @Column()
-    RMKS: string
+    ISUR: string
 
     @Column()
     CDT: string
+
+    @Column()
+    MODR: string
 
     @Column()
     UDT: string
@@ -239,10 +242,16 @@ export class GrDtl {
     RMKS: string
 
     @Column()
-    IS_SYNC: string
+    SYNC: string
+
+    @Column()
+    ISUR: string
 
     @Column()
     CDT: string
+
+    @Column()
+    MODR: string
 
     @Column()
     UDT: string

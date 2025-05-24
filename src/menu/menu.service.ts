@@ -70,10 +70,10 @@ export class MenuService {
             const userid = this.req['user'].userid
             const kind = dto.kind
             //let fv = hush.addFieldValue(kind, 'kind')
-            let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USER_ID = ? AND KIND = ? "
+            let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
-                sqlChk =  "INSERT INTO S_MENUPER_TBL (USER_ID, KIND, ID) "
+                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID) "
                 sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
                 await this.dataSource.query(sqlChk, [userid, kind])
             }
@@ -81,9 +81,9 @@ export class MenuService {
             //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
             //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나..
             //typeorm으로 leftjoin내의 subquery 구현을 제대로 해내지 못해 결국 포기하고 일단 아래 raw sql로 얻고자 함
-            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USER_ID "
+            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID "
             sql += "     FROM S_MENU_TBL A "
-            sql += "     LEFT OUTER JOIN (SELECT USER_ID, KIND, ID FROM S_MENUPER_TBL WHERE USER_ID = ? AND KIND = ?) B "
+            sql += "     LEFT OUTER JOIN (SELECT USERID, KIND, ID FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ?) B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
             sql += "    WHERE A.KIND = ? "
             sql += "      AND A.INUSE = 'Y' "
@@ -108,36 +108,33 @@ export class MenuService {
             let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE A.INUSE = 'Y' "
-            sql += "      AND B.USERID = '" + userid + "' "
+            sql += "    WHERE B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
             sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM "
             sql += "             FROM S_GRMST_TBL A "
             sql += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "            WHERE A.INUSE = 'Y' "
-            sql += "              AND B.USERID = '" + userid + "') X "
+            sql += "            WHERE B.USERID = '" + userid + "') X "
             if (kind == 'my') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' "
+                sql += "                   WHERE A.TYP = 'WS' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
             } else if (kind == 'other') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
+                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             } else { //all=my+other
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-                sql += "                   WHERE A.INUSE = 'Y' "
-                sql += "                     AND B.USERID = '" + userid + "' "
+                sql += "                   WHERE B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.INUSE = 'Y' AND A.TYP = 'WS' AND A.STATE = 'A' "
+                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
@@ -186,7 +183,7 @@ export class MenuService {
             if (kind == 'notyet') {
                 sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
             }
-            sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS' AND B.INUSE = 'Y') Z "
+            sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS') Z "
             sql += "    WHERE Z.LASTMSGDT < ? "
             if (search) {
                 sql += "  AND LOWER(Z.MEMBERS) LIKE '%" + search.toLowerCase() + "%' "
@@ -359,11 +356,10 @@ export class MenuService {
             const userid = this.req['user'].userid
             const kind = dto.kind
             let fv = hush.addFieldValue(kind, 'kind')
-            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.IS_SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
+            let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE A.INUSE = 'Y' "
-            sql += "      AND B.USERID = '" + userid + "' "
+            sql += "    WHERE B.USERID = '" + userid + "' "
             if (kind == 'my') {
                 sql += "  AND A.MASTERID = '" + userid + "' "
             } else if (kind == 'other') {

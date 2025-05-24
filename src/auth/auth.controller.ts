@@ -21,8 +21,8 @@ export class AuthController {
     @Post('verifyOtp')
     verifyOtp(@Body() dto: Record<string, any>) { return this.authSvc.verifyOtp(dto) }
 
-    @Unauth()
-    @Get('logintest')
-    logintest(@Query() dto: Record<string, any>) { return this.authSvc.logintest(dto) }
+    // @Unauth()
+    // @Get('logintest')
+    // logintest(@Query() dto: Record<string, any>) { return this.authSvc.logintest(dto) }
 
 }

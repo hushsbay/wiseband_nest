@@ -108,7 +108,7 @@ export class UserService {
     //         }
     //         data.grmst = grmst
     //         const grdtl = await this.grdtlRepo.createQueryBuilder('B')
-    //         .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.IS_SYNC'])
+    //         .select(['B.USERID', 'B.USERNM', 'B.KIND', 'B.SYNC'])
     //         .where("B.GR_ID = :grid ", { 
     //             grid: grid
     //         }).getMany()
@@ -149,10 +149,10 @@ export class UserService {
                 const lvl = item.LVL + 1
                 const userlist = await qb
                 .select([
-                    'USER_ID', 'ID_KIND', 'USER_NM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 
+                    'USERID', 'KIND', 'USERNM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 
                     'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'PICTURE'
                 ])
-                .where("ORG_CD = :orgcd and INUSE = 'Y' ", { 
+                .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
                 }).orderBy('SEQ', 'ASC').getRawMany()
                 if (!userlist) {
@@ -177,18 +177,17 @@ export class UserService {
             const userid = this.req['user'].userid
             const searchText = dto.searchText
             const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
-            .select(['A.USER_ID', 'A.USER_NM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
-            .where("A.INUSE = 'Y' ")
-            .andWhere("A.IS_SYNC = 'Y' ")
+            .select(['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
+            .where("A.SYNC = 'Y' ")
             .andWhere(new Brackets(qb => {
-                qb.where("A.USER_NM LIKE :usernm ", { usernm: `%${searchText}%` })
+                qb.where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` })
                 .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
                 .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
             }))
             // .where("A.USER_NM LIKE :usernm ", { usernm: `%${searchText}%` })
             // .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
             // .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
-            .orderBy('A.USER_NM', 'ASC').getMany()
+            .orderBy('A.USERNM', 'ASC').getMany()
             resJson.list = userlist
             const vipList = await this.getVipList(userid)
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
@@ -206,8 +205,7 @@ export class UserService {
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE A.INUSE = 'Y' "
-            sql += "      AND B.USERID = '" + userid + "' "
+            sql += "    WHERE B.USERID = '" + userid + "' "
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
             } //sql += "      AND A.MASTERID = '" + userid + "' "
@@ -218,15 +216,15 @@ export class UserService {
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.IS_SYNC, 1 LVL, B.PICTURE, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
-                sql += "      CASE WHEN A.IS_SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS "
+                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, B.PICTURE, "
+                sql += "      CASE WHEN A.SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, "
+                sql += "      CASE WHEN A.SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
+                sql += "      CASE WHEN A.SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
+                sql += "      CASE WHEN A.SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
+                sql += "      CASE WHEN A.SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS "
                 sql += " FROM S_GRDTL_TBL A "
-                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
-                sql += "WHERE A.GR_ID = ? AND B.INUSE = 'Y' "
+                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
+                sql += "WHERE A.GR_ID = ? "
                 sql += "ORDER BY A.USERNM, A.USERID "
                 const userlist = await this.dataSource.query(sql, [row.GR_ID])
                 row.userlist = userlist
@@ -288,10 +286,10 @@ export class UserService {
         try {            
             const resJson = new ResJson()
             const userid = this.req['user'].userid //내 그룹만 가능해야 함
-            const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, IS_SYNC, KIND } = dto
-            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, IS_SYNC, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/IS_SYNC/KIND')
-            const useridToProc = (crud == 'U') ? USERID : (IS_SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+            const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND } = dto
+            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/SYNC/KIND')
+            const useridToProc = (crud == 'U') ? USERID : (SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
+            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
             if (!grmst) {
                 return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grmst')
             }
@@ -311,7 +309,7 @@ export class UserService {
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
                     return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
-                if (grdtl.IS_SYNC != 'Y') {
+                if (grdtl.SYNC != 'Y') {
                     grdtl.USERNM = USERNM
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
@@ -336,27 +334,25 @@ export class UserService {
                 grdtl.TELNO = TELNO    
                 grdtl.KIND = KIND
                 grdtl.RMKS = RMKS
-                grdtl.IS_SYNC = IS_SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
+                grdtl.SYNC = SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
                 grdtl.CDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
             }
-            if (IS_SYNC == '') { //수동입력시
-                let user = await this.userRepo.findOneBy({ USER_ID: useridToProc })
+            if (SYNC == '') { //수동입력시
+                let user = await this.userRepo.findOneBy({ USERID: useridToProc })
                 if (!user) { //사용자아이디가 없으면 만들기
                     user = this.userRepo.create()
-                    user.USER_ID = useridToProc
-                    user.INUSE = 'Y'
-                    user.ID_KIND = 'U'
+                    user.USERID = useridToProc
+                    user.KIND = 'U'
                     user.SEQ = 'ZZZZ' //마지막 순서로 잡기
-                    user.IS_SYNC = 'W' //S_GRDTL_TBL에는 ''로 입력되는데 S_USER_TBL에는 'W'로 입력됨
+                    user.SYNC = 'W' //S_GRDTL_TBL에는 ''로 입력되는데 S_USER_TBL에는 'W'로 입력됨
                     user.ISUR = userid
                     user.ISUDT = curdtObj.DT
                 } else { //사용자아이디가 있으면 수정하기
-                    if (user.INUSE != 'Y') user.INUSE = 'Y'                    
                     user.MODR = userid
                     user.MODDT = curdtObj.DT
                 }
-                user.USER_NM = USERNM
+                user.USERNM = USERNM
                 user.JOB = JOB
                 user.EMAIL = EMAIL
                 user.TELNO = TELNO
@@ -375,7 +371,7 @@ export class UserService {
             const { GR_ID, USERID } = dto
             let fv = hush.addFieldValue([GR_ID, USERID], 'GR_ID/USERID')
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
             if (!grmst) {
                 return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grmst')
             }
@@ -394,11 +390,11 @@ export class UserService {
                 return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
             }                
             await this.grdtlRepo.delete(grdtl)
-            if (grdtl.IS_SYNC == '') { //수동입력(W입력)만 추가 처리
+            if (grdtl.SYNC == '') { //수동입력(W입력)만 추가 처리
                 let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
                 const menuList = await this.dataSource.query(sqlChk, [USERID])
                 if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
-                    sqlChk =  "UPDATE S_USER_TBL SET INUSE = 'N', MODR = ?, MODDT = ? WHERE USER_ID = ? AND INUSE = 'Y' "
+                    sqlChk =  "DELETE FROM S_USER_TBL WHERE USEID = ? "
                     await this.dataSource.query(sqlChk, [curdtObj.DT, userid, USERID])
                 }
             }
@@ -418,7 +414,7 @@ export class UserService {
             const unidObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne() //unidObj.ID, unidObj.DT
             let grmst: GrMst
             if (GR_ID != 'new') {
-                grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+                grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
                 if (!grmst) {
                     return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
                 }
@@ -430,7 +426,6 @@ export class UserService {
                 grmst.GR_NM = GR_NM
                 grmst.MASTERID = userid
                 grmst.MASTERNM = usernm
-                grmst.INUSE = 'Y'
                 grmst.CDT = unidObj.DT
             }
             await this.grmstRepo.save(grmst)
@@ -440,7 +435,7 @@ export class UserService {
                 grdtl.USERID = userid
                 grdtl.USERNM = usernm
                 grdtl.KIND = 'admin'
-                grdtl.IS_SYNC = 'Y'
+                grdtl.SYNC = 'Y'
                 grdtl.CDT = unidObj.DT
                 await this.grdtlRepo.save(grdtl)
                 resJson.data.grid = unidObj.ID
@@ -458,11 +453,10 @@ export class UserService {
             const { GR_ID } = dto
             let fv = hush.addFieldValue([GR_ID], 'GR_ID')
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID, INUSE: 'Y' })
+            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
             if (!grmst) {
                 return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteGroup>grmst')
             }
-            grmst.INUSE = ''
             grmst.UDT = curdtObj.DT
             await this.grmstRepo.save(grmst)
             return resJson
