@@ -351,29 +351,29 @@ export class MenuService {
     }
 
     async qryGroup(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try { //내가 멤버로 들어가 있는 그룹만 조회 가능
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const kind = dto.kind
-            let fv = hush.addFieldValue(kind, 'kind')
+            const { kind } = dto
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = '" + userid + "' "
-            if (kind == 'my') {
+            if (kind == 'my') { //내가 만든 그룹만 조회
                 sql += "  AND A.MASTERID = '" + userid + "' "
-            } else if (kind == 'other') {
+            } else if (kind == 'other') { //내가 만들지 않았지만 내가 들어가 있는 그룹 (관리자로 지정이 안되어 있으면 편집 권한 없음)
                 sql += "  AND A.MASTERID <> '" + userid + "' "
             }
             sql += "    ORDER BY GR_NM, GR_ID "
             const list = await this.dataSource.query(sql, [userid])
-            if (!list) {
+            if (list.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryGroup')
             }
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req) 
+            hush.throwCatchedEx(ex, this.req, fv) 
         }
     }
 

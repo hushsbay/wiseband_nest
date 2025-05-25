@@ -16,8 +16,8 @@ export class UserController {
     @Post('procOrgSearch')
     procOrgSearch(@Body() dto: Record<string, any>) { return this.userSvc.procOrgSearch(dto) }
 
-    @Post('qryInvolvedGroup')
-    qryInvolvedGroup(@Body() dto: Record<string, any>) { return this.userSvc.qryInvolvedGroup(dto) }
+    @Post('qryGroupWithUserList')
+    qryGroupWithUserList(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupWithUserList(dto) }
 
     @Post('setVip')
     setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }

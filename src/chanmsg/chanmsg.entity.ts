@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm'
 
-@Entity({ name: 'S_MSGMST_TBL'})
+@Entity({ name: 'S_MSGMST_TBL' })
 export class MsgMst {
 
     @PrimaryColumn()
@@ -35,7 +35,7 @@ export class MsgMst {
 
 }
 
-@Entity({ name: 'S_MSGSUB_TBL'})
+@Entity({ name: 'S_MSGSUB_TBL' })
 export class MsgSub {
 
     @PrimaryColumn()
@@ -67,7 +67,7 @@ export class MsgSub {
 
 }
 
-@Entity({ name: 'S_MSGDTL_TBL'})
+@Entity({ name: 'S_MSGDTL_TBL' })
 export class MsgDtl {
 
     @PrimaryColumn()
@@ -101,7 +101,7 @@ export class MsgDtl {
 
 //////////////////////////////////////////////////////////////////
 
-@Entity({ name: 'S_CHANMST_TBL'})
+@Entity({ name: 'S_CHANMST_TBL' })
 export class ChanMst {
 
     @PrimaryColumn()
@@ -139,7 +139,7 @@ export class ChanMst {
 
 }
 
-@Entity({ name: 'S_CHANDTL_TBL'})
+@Entity({ name: 'S_CHANDTL_TBL' })
 export class ChanDtl {
 
     @PrimaryColumn()
@@ -211,7 +211,7 @@ export class GrMst {
 
 }
 
-@Entity({ name: 'S_GRDTL_TBL'})
+@Entity({ name: 'S_GRDTL_TBL' })
 export class GrDtl {
 
     @PrimaryColumn()

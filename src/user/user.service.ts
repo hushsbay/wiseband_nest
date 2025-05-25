@@ -28,6 +28,17 @@ export class UserService {
         return vipList //데이터 없으면 vipList[0].VIP = null로 나옴
     }
 
+    async chkUserRightForGroup(grid: string, userid: string): Promise<[GrMst, string]> {
+        const grmst = await this.grmstRepo.findOneBy({ GR_ID: grid })
+        if (!grmst) return [null, '해당 그룹이 없습니다 : ' + grid + '/' + userid]
+        let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: userid }) //1) useridToProc이 아닌 현재 사용자인 userid의 자격을 먼저 체크
+        if (!grdtl) return [null, '해당 그룹에 본인이 없습니다 : ' + grid + '/' + userid]
+        //행저장은 SYNC=Y이든 W입력멤버든 admin이라면 모두 가능하도록 함 (그룹 만들때만 W입력멤버는 제한하도록 함)
+        if (grmst.MASTERID != userid && grdtl.KIND != 'admin') return [null, '해당 그룹의 관리자가 아닙니다 : ' + grid + '/' + userid]
+        //MASTERID는 admin으로 자동으로 만들어지나 MASTERID 체크는 일단 그냥 두기로 함
+        return [grmst, '']
+    }
+
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async login(uid: string, pwd: string): Promise<ResJson> {
@@ -35,22 +46,22 @@ export class UserService {
         let fv = hush.addFieldValue([uid], 'uid')
         try {
             if (!uid || !pwd) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>login')
             }
             const user = await this.userRepo.findOneBy({ USERID: uid })
             if (!user) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>login')
             }
             const config = appConfig()
             const decoded = hush.decrypt(user.PWD, config.crypto.key)
             if (pwd !== decoded) {
-                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req)
+                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, 'user>login')
             }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -58,16 +69,20 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            if (!uid || !otpNum) {
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>setOtp')
+            }
             const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+            if (!user) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>setOtp')
+            }
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
             this.userRepo.save(user)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -75,19 +90,26 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req)
+            if (!uid || !otpNum) {
+                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>verifyOtp')
+            }
             const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req)
+            if (!user) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>verifyOtp')
+            }
+            if (otpNum != user.OTP_NUM) {
+                return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req, 'user>verifyOtp')
+            }
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            console.log(user.OTP_NUM, otpNum, user.OTP_DT, curdtObj.DT)
-            if (otpNum != user.OTP_NUM) return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req)
             const minDiff = hush.getDateTimeDiff(user.OTP_DT, curdtObj.DT, 'M')
-            if (minDiff > hush.cons.otpDiffMax) return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다', hush.Code.OTP_TIMEOVER, this.req)
+            if (minDiff > hush.cons.otpDiffMax) {
+                return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다.' + fv, hush.Code.OTP_TIMEOVER, this.req, 'user>verifyOtp')
+            }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -124,10 +146,10 @@ export class UserService {
     // }
 
     async orgTree(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
         try {
             let listOrg = [], maxLevel = -1
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const orglist = await this.dataSource.createQueryBuilder()
             .select('A.ORG_CD', 'ORG_CD')
             .addSelect('A.ORG_NM', 'ORG_NM')
@@ -155,9 +177,6 @@ export class UserService {
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
                 }).orderBy('SEQ', 'ASC').getRawMany()
-                if (!userlist) {
-                    return hush.setResJson(resJson, '해당 그룹 사용자가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree>orgcd')
-                }
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
             }
@@ -172,10 +191,11 @@ export class UserService {
     }
 
     async procOrgSearch(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const searchText = dto.searchText
+            const { searchText } = dto
             const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
             .select(['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
             .where("A.SYNC = 'Y' ")
@@ -184,23 +204,21 @@ export class UserService {
                 .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
                 .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
             }))
-            // .where("A.USER_NM LIKE :usernm ", { usernm: `%${searchText}%` })
-            // .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
-            // .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
             .orderBy('A.USERNM', 'ASC').getMany()
             resJson.list = userlist
             const vipList = await this.getVipList(userid)
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
-    async qryInvolvedGroup(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일
+    async qryGroupWithUserList(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일하나 user가 있음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try { //내가 멤버로 들어가 있는 그룹만 조회 가능
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { grid } = dto
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
             sql += "     FROM S_GRMST_TBL A "
@@ -211,8 +229,8 @@ export class UserService {
             } //sql += "      AND A.MASTERID = '" + userid + "' "
             sql += "    ORDER BY GR_NM, GR_ID "
             const list = await this.dataSource.query(sql, null)
-            if (!list) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND, hush.Code.NOT_FOUND, this.req, 'menu>qryMyGroup')
+            if (list.length == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>qryGroupWithUserList')
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
@@ -235,15 +253,15 @@ export class UserService {
             resJson.data.maxLevel = 1 //내그룹의 depth가 무조건 2 (starts from 0)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req) 
+            hush.throwCatchedEx(ex, this.req, fv) 
         }
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async setVip(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { list, bool } = dto
             let retCnt = 0
             const qbUserCode = this.usercodeRepo.createQueryBuilder()
@@ -253,7 +271,6 @@ export class UserService {
                 .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
                     userid: userid, uid: list[i].userid
                 }).getRawOne()
-                console.log(list[i].USER_NM, bool, userid, usercode.CNT)
                 if (bool) {
                     if (usercode.CNT == 0) {
                         await qbUserCode
@@ -270,7 +287,6 @@ export class UserService {
                             userid: userid, uid: list[i].userid
                         }).execute()
                         retCnt += 1
-                        console.log(list[i].USER_NM, retCnt)
                     }
                 }
             }
@@ -281,64 +297,79 @@ export class UserService {
         }
     }
 
+    chkFieldValidA(usernm: string, org: string, job: string, email: string, telno: string): string {
+        if (!usernm || usernm.trim() == '' || usernm.trim().length > 30) return '이름은 30자까지 가능합니다.'
+        if (!org || org.trim() == '' || org.trim().length > 50) return '소속은 50자까지 가능합니다.'
+        if (!job || job.trim() == '' || job.trim().length > 50) return '직책/업무는 50자까지 가능합니다.'
+        if (!email || email.trim() == '' || email.trim().length > 50) return '이메일은 50자까지 가능합니다.' //정확하게 안되면 메일 OTP 인증이 안되므로 정규식 체크는 일단 보류 
+        if (!telno || telno.trim() == '' || telno.trim().length > 50) return '전화번호는 50자까지 가능합니다.'
+        return ''
+    }
+
+    chkFieldValidB(rmks: string): string {
+        if (!rmks || rmks.trim() == '' || rmks.trim().length > 200) return '비고는 200자까지 가능합니다.'
+        return ''
+    }
+
     @Transactional({ propagation: Propagation.REQUIRED })
-    async saveMember(dto: Record<string, any>): Promise<any> { //crud가 C or U만 가능 (D는 별도 서비스 처리)
-        try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid //내 그룹만 가능해야 함
+    async saveMember(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
             const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND } = dto
-            let fv = hush.addFieldValue([crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND], 'crud/GR_ID/USERID/USERNM/ORG/JOB/EMAIL/TELNO/RMKS/SYNC/KIND')
             const useridToProc = (crud == 'U') ? USERID : (SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
-            if (!grmst) {
-                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grmst')
-            }
-            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: userid }) //useridToProc이 아닌 현재 사용자인 userid를 먼저 체크
-            if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
-            }
-            if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
-                return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
-            }
-            const curdtObj = await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne() //curdtObj.DT
-            grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc })
+            const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveMember>chkUserRightForGroup')
+            const curdtObj = await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc }) //2) 여기서부터는 처리할 멤버(useridToProc)를 대상으로 체크
             if (crud == 'U') {                
                 if (!grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
                 }
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
                     return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
                 if (grdtl.SYNC != 'Y') {
+                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO)
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                     grdtl.USERNM = USERNM
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
                     grdtl.TELNO = TELNO    
                 }
-                grdtl.KIND = KIND
+                grdtl.KIND = KIND ? KIND : 'member'
+                const ret1 = this.chkFieldValidB(RMKS)
+                if (ret1 != '') return hush.setResJson(resJson, ret1 + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 grdtl.RMKS = RMKS
+                grdtl.MODR = userid
                 grdtl.UDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
             } else { //crud=C
                 if (grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 이미 존재합니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
                 grdtl = this.grdtlRepo.create()                
                 grdtl.GR_ID = GR_ID
                 grdtl.USERID = useridToProc //수동입력의 경우 EMAIL이 USERID가 됨
+                const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO)
+                if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 grdtl.USERNM = USERNM
                 grdtl.ORG = ORG
                 grdtl.JOB = JOB
                 grdtl.EMAIL = EMAIL
                 grdtl.TELNO = TELNO    
-                grdtl.KIND = KIND
+                grdtl.KIND = KIND ? KIND : 'member'
+                const ret1 = this.chkFieldValidB(RMKS)
+                if (ret1 != '') return hush.setResJson(resJson, ret1 + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 grdtl.RMKS = RMKS
                 grdtl.SYNC = SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
+                grdtl.ISUR = userid
                 grdtl.CDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
             }
-            if (SYNC == '') { //수동입력시
+            if (SYNC == '') { //수동입력시 사용자테이블 연동 처리
                 let user = await this.userRepo.findOneBy({ USERID: useridToProc })
                 if (!user) { //사용자아이디가 없으면 만들기
                     user = this.userRepo.create()
@@ -359,74 +390,89 @@ export class UserService {
                 await this.userRepo.save(user)
             }
             return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+        } catch (ex) {            
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
+    @Transactional({ propagation: Propagation.REQUIRED })
     async deleteMember(dto: Record<string, any>): Promise<any> {
-        try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid //내 그룹만 가능해야 함
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
             const { GR_ID, USERID } = dto
-            let fv = hush.addFieldValue([GR_ID, USERID], 'GR_ID/USERID')
-            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
-            if (!grmst) {
-                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grmst')
-            }
-            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: userid })
+            const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>deleteMember>chkUserRightForGroup')
+            let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID }) //2) 여기서부터는 처리할 멤버(USERID)를 대상으로 체크
             if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 본인이 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
-            }
-            if (grmst.MASTERID != userid && grdtl.KIND != 'admin') {
-                return hush.setResJson(resJson, '해당 그룹의 관리자가 아닙니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
-            }
-            grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID })
-            if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 편집할 사용자가 소속되어 있지 않습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
+                return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
             }
             if (grmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
-            }                
+            } //아래는 S_GRDTLDEL_TBL로의 백업 시작
+            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            let sqlDel = "SELECT COUNT(*) CNT FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
+            const deluser = await this.dataSource.query(sqlDel, [GR_ID, USERID])
+            if (deluser[0].CNT == 0) {
+                sqlDel =  "DELETE FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
+                await this.dataSource.query(sqlDel, [GR_ID, USERID])
+            }
+            sqlDel = " INSERT INTO S_GRDTLDEL_TBL (GR_ID, USERID, USERNM, KIND, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, ISUR, CDT, MODR, UDT) "
+            sqlDel += "SELECT GR_ID, USERID, USERNM, KIND, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, ISUR, CDT, ?, ? "
+            sqlDel += "  FROM S_GRDTL_TBL "
+            sqlDel += " WHERE GR_ID = ? AND USERID = ? "
+            await this.dataSource.query(sqlDel, [userid, curdtObj.DT, GR_ID, USERID])
+            //S_GRDTLDEL_TBL로의 백업 종료
             await this.grdtlRepo.delete(grdtl)
             if (grdtl.SYNC == '') { //수동입력(W입력)만 추가 처리
                 let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
                 const menuList = await this.dataSource.query(sqlChk, [USERID])
                 if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
-                    sqlChk =  "DELETE FROM S_USER_TBL WHERE USEID = ? "
-                    await this.dataSource.query(sqlChk, [curdtObj.DT, userid, USERID])
+                    sqlChk =  "DELETE FROM S_USER_TBL WHERE USERID = ? "
+                    await this.dataSource.query(sqlChk, [USERID]) //S_GRDTLDEL_TBL이 있으므로 S_USERDEL_TBL로의 백업은 필요없음
                 }
             }
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
-    async saveGroupMaster(dto: Record<string, any>): Promise<any> { //crud가 C or U만 가능 (D는 별도 서비스 처리)
+    async saveGroupMaster(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid //W입력은 권한 없어야 함. 내 그룹만 가능해야 함
-            const usernm = this.req['user'].usernm
             const { GR_ID, GR_NM } = dto
-            let fv = hush.addFieldValue([GR_ID, GR_NM], 'GR_ID/GR_NM')
-            const unidObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne() //unidObj.ID, unidObj.DT
+            const unidObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let grmst: GrMst
             if (GR_ID != 'new') {
-                grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
-                if (!grmst) {
-                    return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
-                }
+                const [grmst1, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
+                if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveGroupMaster>chkUserRightForGroup')
+                grmst = grmst1                
                 grmst.GR_NM = GR_NM
+                grmst.MODR = userid
                 grmst.UDT = unidObj.DT
-            } else {
+            } else { //신규
+                const user = await this.userRepo.findOneBy({ USERID: userid })
+                if (!user) {
+                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
+                }
+                if (user.SYNC != 'Y') {
+                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+                }
                 grmst = this.grmstRepo.create()
                 grmst.GR_ID = unidObj.ID
                 grmst.GR_NM = GR_NM
                 grmst.MASTERID = userid
                 grmst.MASTERNM = usernm
+                grmst.ISUR = userid
                 grmst.CDT = unidObj.DT
+            }
+            if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
+                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
             }
             await this.grmstRepo.save(grmst)
             if (GR_ID == 'new') {
@@ -436,32 +482,31 @@ export class UserService {
                 grdtl.USERNM = usernm
                 grdtl.KIND = 'admin'
                 grdtl.SYNC = 'Y'
+                grdtl.ISUR = userid
                 grdtl.CDT = unidObj.DT
                 await this.grdtlRepo.save(grdtl)
                 resJson.data.grid = unidObj.ID
             }            
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async deleteGroup(dto: Record<string, any>): Promise<any> {
-        try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid //W입력은 권한 없어야 함. 내 그룹만 가능해야 함
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
             const { GR_ID } = dto
-            let fv = hush.addFieldValue([GR_ID], 'GR_ID')
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            const grmst = await this.grmstRepo.findOneBy({ GR_ID: GR_ID })
-            if (!grmst) {
-                return hush.setResJson(resJson, '해당 그룹이 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteGroup>grmst')
-            }
+            const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>deleteGroup>chkUserRightForGroup')
             grmst.UDT = curdtObj.DT
             await this.grmstRepo.save(grmst)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 

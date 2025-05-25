@@ -75,7 +75,7 @@ export function throwHttpEx(msg?: string, code?: string) { //, logger?: Logger, 
     //http-exception.filter.ts에서 code/msg의 object내 위치 수정시켜 위로 올림
 }
 
-export function throwCatchedEx(ex: any, req?: Request) { //, logger?: Logger) {
+export function throwCatchedEx(ex: any, req?: Request, fv?: string) { //, logger?: Logger) {
     //try에서 catch로 넘어온 오류는 아래와 같을 것인데 그걸 받아서 (다시 throwHttpEx()로) 클라이언트에게 응답하기
     //1. 바로 위 throwHttpEx()로 넘어온 경우 (아래 예 참조 - 나중에 http-exception.filter.ts를 거침)
     //   => {"response":{"statusCode":200,"message":""},"status":200,"options":{"cause":{"code":"-100","msg":"데이터가 없습니다.사업자번호: 1298701825"}},"message":"","name":"HttpException","cause":{"code":"-100","msg":"데이터가 없습니다.사업자번호: 1298701825"}}
@@ -98,7 +98,7 @@ export function throwCatchedEx(ex: any, req?: Request) { //, logger?: Logger) {
     const [msgStr, bracket] = setMsgBracket(codeMsg.msg, codeMsg.code, req)
     comLog.error(msgStr, bracket) //comLog.error(codeMsg.msg, codeMsg.code)
     if (ex.stack) comLog.error(ex.stack)
-    throwHttpEx(codeMsg.msg, codeMsg.code)
+    throwHttpEx(codeMsg.msg + fv, codeMsg.code) //userid, ip를 오류표시하면서 화면에 굳이 노출하지 말기
 }
 
 // export function chkResJson(json: ResJson, okFilter?: string) {
@@ -174,30 +174,76 @@ export function isvoid(obj: any) { //0 ?? 500 = 0을 반환. 0 || 500 = 500을 �
     return false
 }
 
-// export function addDetailInfo(val: string, title?: string, newLine?: boolean) { //대신에 아래 addFieldValue 사용하도록 모두 고치기
-//     const deli = newLine ? '\n' : ' => '
-//     const valStr = (val == '') ? '없음' : val
-//     if (title) return deli + title + ' [' + valStr + ']'
-//     return deli + '[' + valStr + ']'
-// }
+export function isObject(value: any): boolean {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
-//export function addFieldValue(val: any, title?: any, newLine?: boolean) { //title은 AA/BB/CC..형식
-export function addFieldValue(val: any, title?: any) { //title은 AA/BB/CC..형식
+export function addFieldValue(val: any, title?: any, includeOther?: any) { //, newLine?: boolean) { //title은 AA/BB/CC..형식
     const deli = '\n' //newLine ? '\n' : ' => '
-    let valStr = ""
-    if (val == '') {
-        valStr = ' [없음]'
-    } else if (Array.isArray(val)) {
-        if (val.length == 1) {
-            valStr = " [" + val + "]"
+    let valStr = "" //fv(fieldvalue)값을 보여줄 때 name/value로 맞춰서 보여주면 사용자가 읽기 쉽게 볼 수 있도록 함
+    //사실, 아래에서 #### 이외는 사용할 일이 없을 것이나 일단 그대로 두기로 함
+    if (Array.isArray(val)) {
+        if (title) {
+            const arr = title.split('/')
+            if (arr.length == val.length) {
+                let valStr = '', deliHere = ''
+                for (let i = 0; i < arr.length; i++) {
+                    valStr += deliHere + arr[i] + '[' + val[i] + ']'
+                    deliHere = ' / '
+                }
+                return deli + valStr
+            } else {
+                if (val.length == 1) {
+                    valStr = " [" + val + "]"
+                } else {
+                    valStr = " [" + val.join("][") + "]"
+                }
+                return deli + title + valStr
+            }
         } else {
-            valStr = " [" + val.join("][") + "]"
+            if (val.length == 1) {
+                valStr = " [" + val + "]"
+            } else {
+                valStr = " [" + val.join("][") + "]"
+            }
+            return deli + valStr
         }
-    } else {
-        valStr = " [" + val + "]"
+    } else if (isObject(val)) { //####
+        const arr = (title) ? title.split('/') : []
+        const entries = Object.entries(val)
+        let valStr = '', deliHere = ''
+        entries.forEach(([key, value]) => {
+            if (title) {
+                if (title.startsWith('@')) { //@는 제외하라는 표시임
+                    if (!arr.includes(key)) {
+                        valStr += deliHere + key + '[' + value + ']'
+                        deliHere = ' / '
+                    }
+                } else {
+                    if (arr.includes(key)) {
+                        valStr += deliHere + key + '[' + value + ']'
+                        deliHere = ' / '
+                    }
+                }
+            } else {
+                valStr += deliHere + key + '[' + value + ']'
+                deliHere = ' / '
+            }
+        })
+        if (includeOther) { //무조건 배열이여야 함 (하지만, userid, ip 등은 굳이 일부러 사용자 화면에 노출하지는 말기 - 꼭 필요시만 사용)
+            const arrStr = includeOther.join(',')
+            valStr += deliHere + '[' + arrStr + ']'
+        }
+        return deli + valStr
+    } else { 
+        if (val == '') {
+            valStr = ' [없음]'
+        } else {
+            valStr = " [" + val + "]"
+        }
+        if (title) return deli + title + valStr
+        return deli + valStr
     }
-    if (title) return deli + title + valStr
-    return deli + valStr
 }
 
 export function encrypt(text: string, key: string) { //key = 32bytes
