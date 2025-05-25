@@ -39,19 +39,28 @@ export class UserService {
         return [grmst, '']
     }
 
+    async chkUser(uid: string, secret: string): Promise<[User, string]> {
+        if (!uid || !secret) return [null, '아이디/OTP(비번) 값이 없습니다 : ' + uid + '/' + secret]
+        const user = await this.userRepo.findOneBy({ USERID: uid })
+        if (!user) return [null, '아이디가 없습니다 : ' + uid]
+        return [user, '']
+    }
+
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async login(uid: string, pwd: string): Promise<ResJson> {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !pwd) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>login')
-            }
-            const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>login')
-            }
+            // if (!uid || !pwd) {
+            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>login')
+            // }
+            // const user = await this.userRepo.findOneBy({ USERID: uid })
+            // if (!user) {
+            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>login')
+            // }
+            const [user, retStr] = await this.chkUser(uid, pwd)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
             const config = appConfig()
             const decoded = hush.decrypt(user.PWD, config.crypto.key)
             if (pwd !== decoded) {
@@ -69,13 +78,15 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>setOtp')
-            }
-            const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>setOtp')
-            }
+            // if (!uid || !otpNum) {
+            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>setOtp')
+            // }
+            // const user = await this.userRepo.findOneBy({ USERID: uid })
+            // if (!user) {
+            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>setOtp')
+            // }
+            const [user, retStr] = await this.chkUser(uid, otpNum)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
             const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
@@ -90,13 +101,15 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            if (!uid || !otpNum) {
-                return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>verifyOtp')
-            }
-            const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>verifyOtp')
-            }
+            // if (!uid || !otpNum) {
+            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>verifyOtp')
+            // }
+            // const user = await this.userRepo.findOneBy({ USERID: uid })
+            // if (!user) {
+            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>verifyOtp')
+            // }
+            const [user, retStr] = await this.chkUser(uid, otpNum)
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
             if (otpNum != user.OTP_NUM) {
                 return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req, 'user>verifyOtp')
             }
