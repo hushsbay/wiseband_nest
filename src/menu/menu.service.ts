@@ -23,7 +23,7 @@ export class MenuService {
         const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, picture: null, url: null }
         let sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
         sql += "     FROM S_CHANDTL_TBL A "
-        sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+        sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
         sql += "    WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
         const listChan = await this.dataSource.query(sql, [chanid])
         const arr = [], brr = [], crr = [], drr = []
@@ -219,7 +219,7 @@ export class MenuService {
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
-            sql += "     LEFT OUTER JOIN S_USER_TBL E ON A.AUTHORID = E.USER_ID "
+            sql += "     LEFT OUTER JOIN S_USER_TBL E ON A.AUTHORID = E.USERID "
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
             } else {
@@ -329,7 +329,7 @@ export class MenuService {
                 sql += "INNER JOIN (SELECT DISTINCT CHANID, MSGID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') X "
                 sql += "   ON Z.MSGID = X.MSGID AND Z.CHANID = X.CHANID "
             }
-            sql += "     LEFT OUTER JOIN S_USER_TBL E ON Z.AUTHORID = E.USER_ID "
+            sql += "     LEFT OUTER JOIN S_USER_TBL E ON Z.AUTHORID = E.USERID "
             sql += "    WHERE Z.CDT < ? "
             sql += "    ORDER BY Z.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
