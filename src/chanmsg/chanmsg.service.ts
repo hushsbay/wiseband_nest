@@ -32,7 +32,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
-            const { userid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
+            const { userid, grid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
@@ -47,11 +47,11 @@ export class ChanmsgService {
             if (chanmst.TYP == 'GS') {
                 //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
             } else {
-                // if (grid) {
-                //     if (grid != chanmst.GR_ID) {
-                //         return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
-                //     }
-                // }
+                if (grid) {
+                    if (grid != chanmst.GR_ID) {
+                        return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
+                    }
+                }
                 const gr = await this.grmstRepo.createQueryBuilder('A')
                 .select(['A.GR_NM'])
                 .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
@@ -138,7 +138,6 @@ export class ChanmsgService {
                     data.chanmst.KIND = item.KIND //R(읽기전용)
                     data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)
                 }
-                console.log(item.SYNC, item.USERID)
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
                     if (user) {
@@ -147,7 +146,7 @@ export class ChanmsgService {
                         item.EMAIL = user.EMAIL
                         item.TELNO = user.TELNO
                         item.RMKS = ''
-                        item.PICTURE = user.PICTURE
+                        if (includeBlob) item.PICTURE = user.PICTURE
                     }
                 } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
@@ -1140,46 +1139,95 @@ export class ChanmsgService {
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMaster')
-                chanmst = rs.data.chanmst
-                if (chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
+                if (rs.data.chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
+                chanmst = await this.chanmstRepo.findOneBy({ CHANID: CHANID }) //chanmst = rs.data.chanmst
                 chanmst.CHANNM = CHANNM
                 chanmst.STATE = STATE
                 chanmst.MODR = userid
                 chanmst.UDT = unidObj.DT
             } else { //신규
-                const user = await this.userRepo.findOneBy({ USERID: userid })
-                if (!user) {
-                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
+                const gr = await this.grmstRepo.createQueryBuilder('A')
+                .select(['A.GR_NM', 'B.SYNC'])
+                .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
+                .where("A.GR_ID = :grid and B.USERID = :userid ", { 
+                    grid: GR_ID, userid: userid 
+                }).getOne()
+                if (!gr) {
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChanMaster>gr')
                 }
-                if (user.SYNC != 'Y') {
-                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
-                }
-                grmst = this.grmstRepo.create()
-                grmst.GR_ID = unidObj.ID
-                grmst.GR_NM = GR_NM
-                grmst.MASTERID = userid
-                grmst.MASTERNM = usernm
-                grmst.ISUR = userid
-                grmst.CDT = unidObj.DT
+                chanmst = this.chanmstRepo.create()
+                chanmst.CHANID = unidObj.ID
+                chanmst.CHANNM = CHANNM
+                chanmst.TYP = 'WS'
+                chanmst.GR_ID = GR_ID
+                chanmst.MASTERID = userid
+                chanmst.MASTERNM = usernm
+                chanmst.STATE = STATE
+                chanmst.ISUR = userid
+                chanmst.CDT = unidObj.DT
             }
-            if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
-                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+            if (!CHANNM || CHANNM.trim() == '' || CHANNM.trim().length > 50) {
+                hush.setResJson(resJson, '채널명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMaster>chanmst')
             }
-            await this.grmstRepo.save(grmst)
-            if (GR_ID == 'new') {
-                const grdtl = this.grdtlRepo.create()                
-                grdtl.GR_ID = unidObj.ID
-                grdtl.USERID = userid
-                grdtl.USERNM = usernm
-                grdtl.KIND = 'admin'
-                grdtl.SYNC = 'Y'
-                grdtl.ISUR = userid
-                grdtl.CDT = unidObj.DT
-                await this.grdtlRepo.save(grdtl)
-                resJson.data.grid = unidObj.ID
-            }            
+            await this.chanmstRepo.save(chanmst)
+            if (CHANID == 'new') {
+                const chandtl = this.chandtlRepo.create()                
+                chandtl.CHANID = unidObj.ID
+                chandtl.USERID = userid
+                chandtl.USERNM = usernm
+                chandtl.KIND = 'admin'
+                chandtl.SYNC = 'Y' //채널 생성은 Y만 가능 (그룹도 마찬가지임)
+                chandtl.ISUR = userid
+                chandtl.CDT = unidObj.DT
+                await this.chandtlRepo.save(chandtl)
+                resJson.data.chanid = unidObj.ID
+            }
             return resJson
         } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async saveChanMember(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
+            const { crud, CHANID, USERID, USERNM, KIND, SYNC } = dto
+            console.log(fv, "======")
+            const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMember')
+            const chanmst = rs.data.chanmst
+            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
+            if (crud == 'U') {
+                if (!chandtl) {
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveChanMember>chandtl')
+                }
+                if (KIND != 'admin' && chanmst.MASTERID == USERID) {
+                    return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember>chandtl')
+                }
+                chandtl.USERNM = USERNM
+                chandtl.KIND = KIND
+                chandtl.MODR = userid
+                chandtl.UDT = curdtObj.DT
+            } else { //crud=C
+                if (chandtl) {
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember>chandtl')
+                }
+                chandtl = this.chandtlRepo.create()
+                chandtl.CHANID = CHANID
+                chandtl.USERID = USERID
+                chandtl.USERNM = USERNM
+                chandtl.KIND = KIND
+                chandtl.STATE = 'C' //초대직전
+                chandtl.SYNC = SYNC
+                chandtl.ISUR = userid
+                chandtl.CDT = curdtObj.DT
+            }
+            await this.chandtlRepo.save(chandtl)
+            return resJson
+        } catch (ex) {            
             hush.throwCatchedEx(ex, this.req, fv)
         }
     }

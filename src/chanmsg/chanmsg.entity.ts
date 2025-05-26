@@ -164,6 +164,9 @@ export class ChanDtl {
     BOOKMARK: string
 
     @Column()
+    SYNC: string
+
+    @Column()
     ISUR: string
 
     @Column()
