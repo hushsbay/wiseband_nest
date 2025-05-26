@@ -8,6 +8,7 @@ import { Propagation, Transactional } from 'typeorm-transactional'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
+import { User } from 'src/user/user.entity'
 
 @Injectable({ scope: Scope.REQUEST })
 export class ChanmsgService {
@@ -20,6 +21,7 @@ export class ChanmsgService {
         @InjectRepository(ChanDtl) private chandtlRepo: Repository<ChanDtl>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
+        @InjectRepository(User) private userRepo: Repository<User>, 
         private dataSource : DataSource,
         @Inject(REQUEST) private readonly req: Request
     ) {}
@@ -90,6 +92,7 @@ export class ChanmsgService {
                     break
                 }
             } */
+            /* 바로 아래와 같이 개선함
             const picFld = includeBlob ? ", B.PICTURE" : ""
             let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND " + picFld
             sql += "     FROM S_CHANDTL_TBL A "
@@ -119,6 +122,52 @@ export class ChanmsgService {
             //if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
             //    return hush.setResJson(resJson, '퇴장처리된 채널입니다.' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
             //}
+            data.chandtl = chandtl */
+            let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
+            sql += "     FROM S_CHANDTL_TBL "
+            sql += "    WHERE CHANID = ? "
+            //sql += "      AND STATE IN ('') " //사용중(빈칸)/초대직전(C)/참여대기(W)
+            sql += "    ORDER BY USERNM "
+            const chandtl = await this.dataSource.query(sql, [chanid])
+            if (chandtl.length == 0) {
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chandtl')
+            }
+            for (let item of chandtl) {
+                if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
+                    data.chanmst.USERID = item.USERID
+                    data.chanmst.KIND = item.KIND //R(읽기전용)
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)
+                }
+                console.log(item.SYNC, item.USERID)
+                if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
+                    const user = await this.userRepo.findOneBy({ USERID: item.USERID })
+                    if (user) {
+                        item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM
+                        item.JOB = user.JOB
+                        item.EMAIL = user.EMAIL
+                        item.TELNO = user.TELNO
+                        item.RMKS = ''
+                        item.PICTURE = user.PICTURE
+                    }
+                } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
+                    const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
+                    if (grdtl) {
+                        item.ORG = grdtl.ORG
+                        item.JOB = grdtl.JOB
+                        item.EMAIL = grdtl.EMAIL
+                        item.TELNO = grdtl.TELNO
+                        item.RMKS = grdtl.RMKS
+                        item.PICTURE = null
+                    }
+                }
+            }
+            if (data.chanmst.STATE == 'A') {
+                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음
+            } else { //비공개(Private)
+                if (!data.chanmst.USERID) {
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (비공개 채널)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
+                }
+            }
             data.chandtl = chandtl
             if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
                 resJson.data = data
@@ -254,15 +303,15 @@ export class ChanmsgService {
         sqlWs += "     FROM (SELECT A.GR_ID, A.GR_NM "
         sqlWs += "             FROM S_GRMST_TBL A "
         sqlWs += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
-        sqlWs += "            WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
+        sqlWs += "            WHERE B.USERID = '" + userid + "') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
         sqlWs += "             LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
         sqlWs += "                                FROM S_CHANMST_TBL A "
         sqlWs += "                               INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-        sqlWs += "                               WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
+        sqlWs += "                               WHERE B.USERID = '" + userid + "' " //a. 내가 참여하고 있는 채널
         sqlWs += "                               UNION ALL "
         sqlWs += "                              SELECT A.CHANID, A.CHANNM, A.GR_ID "
         sqlWs += "                                FROM S_CHANMST_TBL A "
-        sqlWs += "                               WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
+        sqlWs += "                               WHERE A.TYP = 'WS' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
         sqlWs += "                                 AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
         sqlWs += "          ) Y ON X.GR_ID = Y.GR_ID "
         return sqlWs
@@ -272,7 +321,7 @@ export class ChanmsgService {
         let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
         sqlGs += "           FROM S_CHANMST_TBL A "
         sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-        sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' AND A.INUSE = 'Y' "
+        sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' "
         return sqlGs
     }
 
@@ -731,7 +780,7 @@ export class ChanmsgService {
                 const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
                 const chandtl = await this.chandtlRepo.createQueryBuilder('A')
                 .select(['A.USERID', 'A.USERNM'])
-                .where("A.CHANID = :chanid and A.STATE in ('', 'M') ", { 
+                .where("A.CHANID = :chanid and A.STATE = '' ", { 
                     chanid: chanid
                 }).getMany()
                 chandtl.forEach(async (item) => {
@@ -1063,12 +1112,76 @@ export class ChanmsgService {
         }
     }
 
-}
+    async qryChanDmWithMemberList(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
+            const { chanid } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanDmWithMemberList')
+            resJson.data.chanmst = rs.data.chanmst
+            resJson.data.chandtl = rs.data.chandtl
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv) 
+        }
+    }
 
-/*
-(1)은 아래 RAW SQL과 동일 : 아래 SQL말고 다른 SQL은 JOIN보다 테이블별로 QUERY 분리해서 짜는 것이 효율적임
-SELECT A.GR_NM
-  FROM S_GRMST_TBL A 
- INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID
- WHERE A.GR_ID = '20250120084532918913033423' AND A.INUSE = 'Y' AND B.USERID = 'oldclock'
-*/
+    async saveChanMaster(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {            
+            const { GR_ID, CHANID, CHANNM, STATE } = dto
+            const unidObj = await this.chanmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
+            let chanmst: ChanMst
+            if (CHANID != 'new') {
+                const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
+                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMaster')
+                chanmst = rs.data.chanmst
+                if (chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
+                chanmst.CHANNM = CHANNM
+                chanmst.STATE = STATE
+                chanmst.MODR = userid
+                chanmst.UDT = unidObj.DT
+            } else { //신규
+                const user = await this.userRepo.findOneBy({ USERID: userid })
+                if (!user) {
+                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
+                }
+                if (user.SYNC != 'Y') {
+                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+                }
+                grmst = this.grmstRepo.create()
+                grmst.GR_ID = unidObj.ID
+                grmst.GR_NM = GR_NM
+                grmst.MASTERID = userid
+                grmst.MASTERNM = usernm
+                grmst.ISUR = userid
+                grmst.CDT = unidObj.DT
+            }
+            if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
+                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+            }
+            await this.grmstRepo.save(grmst)
+            if (GR_ID == 'new') {
+                const grdtl = this.grdtlRepo.create()                
+                grdtl.GR_ID = unidObj.ID
+                grdtl.USERID = userid
+                grdtl.USERNM = usernm
+                grdtl.KIND = 'admin'
+                grdtl.SYNC = 'Y'
+                grdtl.ISUR = userid
+                grdtl.CDT = unidObj.DT
+                await this.grdtlRepo.save(grdtl)
+                resJson.data.grid = unidObj.ID
+            }            
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+}

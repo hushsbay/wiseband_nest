@@ -63,6 +63,9 @@ export class ChanmsgController {
     @Post('delBlob')
     delBlob(@Body() dto: Record<string, any>) { return this.chanmsgSvc.delBlob(dto) }
     
+    @Post('qryChanDmWithMemberList')
+    qryChanDmWithMemberList(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanDmWithMemberList(dto) }
+    
     /////////////////////////////////////////////////////////////////////////////////////
     //readBlob1보다 안정적임. 파일 만들지 않고 바로 res.download로 가는 pipe는 메소드는 아직 구현하지 못함 (가능한지도 아직 모름)
     //그리고 또한, 대부분 db에는 파일을 저장하는 것을 권장하지 않는데 구현한 것이므로 upload시 용량제한을 반드시 두어야 함

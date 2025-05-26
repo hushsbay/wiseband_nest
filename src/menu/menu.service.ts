@@ -24,7 +24,8 @@ export class MenuService {
         let sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
         sql += "     FROM S_CHANDTL_TBL A "
         sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
-        sql += "    WHERE A.CHANID = ? AND A.STATE IN ('', 'M', 'W') ORDER BY A.USERNM "
+        sql += "    WHERE A.CHANID = ? "
+        sql += "    ORDER BY A.USERNM "
         const listChan = await this.dataSource.query(sql, [chanid])
         const arr = [], brr = [], crr = [], drr = []
         let picCnt = 0, me = null
@@ -166,14 +167,14 @@ export class MenuService {
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
             sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
             if (search) {
-                sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID AND A.STATE IN ('', 'M', 'W')) MEMBERS "
+                sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEMBERS "
             }
             sql += "             FROM S_CHANDTL_TBL A "
             sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             if (kind == 'notyet') {
                 sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
             }
-            sql += "            WHERE A.USERID = ? AND A.STATE IN ('', 'M', 'W') AND B.TYP = 'GS') Z "
+            sql += "            WHERE A.USERID = ? AND B.TYP = 'GS') Z "
             sql += "    WHERE Z.LASTMSGDT < ? "
             if (search) {
                 sql += "  AND LOWER(Z.MEMBERS) LIKE '%" + search.toLowerCase() + "%' "
@@ -276,7 +277,7 @@ export class MenuService {
             sqlFrom += "  INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sqlFrom += "  INNER JOIN S_CHANDTL_TBL C ON A.CHANID = C.CHANID "
             let sqlLeft = "LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
-            let sqlWhere = "WHERE B.TYP = 'WS' AND C.USERID = 'oldclock' AND C.STATE IN ('', 'M') "
+            let sqlWhere = "WHERE B.TYP = 'WS' AND C.USERID = 'oldclock' "
             //mention
             let sqlMention = sqlSelect + "'' KIND, 0 CNT, D.USERNM PARENT_BODY, 'mention' TITLE "
             sqlMention += (sqlFrom + sqlLeft + sqlWhere)
