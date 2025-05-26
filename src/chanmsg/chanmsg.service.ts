@@ -279,15 +279,15 @@ export class ChanmsgService {
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
             let data = { 
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null 
             }
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //grid, 
-            //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
+            const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -327,7 +327,6 @@ export class ChanmsgService {
                     msgid: msgid, chanid: chanid
                 }).getOne()
                 if (!msgmst) {
-                    let fv = hush.addFieldValue([userid, chanid, msgid], 'userid/chanid/msgid')
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>atHome>MsgMst')
                 } 
                 const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
@@ -349,12 +348,11 @@ export class ChanmsgService {
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
-                    let fv = hush.addFieldValue([chanid, msgid, msgidParent, kind], 'chanid/msgid/msgidParent/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
                 data.msgidParent = msgidParent //MsgList.vue의 getList()에서 사용
                 data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
-                console.log(msgidParent, msgid, "$$$$$$$")
+                //console.log(msgidParent, msgid, "$$$$$$$")
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
@@ -364,7 +362,6 @@ export class ChanmsgService {
                 sql += "    ORDER BY CDT ASC "
                 msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
                 if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
-                    let fv = hush.addFieldValue([chanid, msgid, kind], 'chanid/msgid/kind') //grid, grid/
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                 }
             } else if (kind == 'notyet' || kind == 'unread') { //안읽은 댓글의 경우, 댓글이 아닌 부모글을 보여줘야 하는데 부모글도 댓글도 모두 안읽은 경우는 한개만 보여줘야 함
@@ -393,8 +390,7 @@ export class ChanmsgService {
             if (msglist.length > 0) data.msglist = msglist
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)
             for (let i = 0; i < data.msglist.length; i++) {
-                const item = data.msglist[i]
-                //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
+                const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
                 item.act_later = msgdtlforuser.act_later
                 item.act_fixed = msgdtlforuser.act_fixed
@@ -432,14 +428,15 @@ export class ChanmsgService {
             resJson.data = data
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async qryOneMsgNotYet(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try { //채널 열 때 내가 아직 읽지 않은 최초의 메시지를 볼 수 있도록 함 (댓글이 최초라면 그 댓글의 부모글을 보여줘야 함)
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid } = dto
             let sql = "SELECT A.MSGID, CASE WHEN B.REPLYTO <> '' THEN B.REPLYTO ELSE A.MSGID END MSGIDOLD "
             sql += "     FROM S_MSGDTL_TBL A "
@@ -451,7 +448,7 @@ export class ChanmsgService {
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -491,12 +488,13 @@ export class ChanmsgService {
     // }
 
     async searchMedia(dto: Record<string, any>): Promise<any> { //아래 sql에서 먼저 권한있는 채널만 필터링됨
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, searchText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
-            console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
+            //console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
@@ -530,9 +528,7 @@ export class ChanmsgService {
             }
             sql += "              AND A.KIND = '" + kindStr + "' "
             if (kindStr == 'F' && fileExt != '') sql += " AND A.FILEEXT = '" + fileExt + "' "
-            //if (kindStr == 'F' && fileName != '') sql += " AND LOWER(A.BODY) LIKE '%" + fileName.toLowerCase() + "%' "
             if (authorNm != '') sql += " AND LOWER(B.AUTHORNM) LIKE '%" + authorNm.toLowerCase() + "%' "
-            //if (bodyText != '') sql += " AND LOWER(B.BODYTEXT) LIKE '%" + bodyText.toLowerCase() + "%' "
             if (searchText != '') sql += " AND (LOWER(B.BODYTEXT) LIKE '%" + searchText + "%' OR LOWER(A.BODY) LIKE '%" + searchText.toLowerCase() + "%') "
             sql += "    ) Q ) R ON P.CHANID = R.CHANID "
             sql += "    WHERE R.CDT < ? "
@@ -543,16 +539,17 @@ export class ChanmsgService {
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async searchMsg(dto: Record<string, any>): Promise<any> { //아래 sql에서 먼저 권한있는 채널만 필터링됨
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
-            console.log("searchMsg", chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
+            //console.log("searchMsg", chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
             let frDash = '0000-00-00', toDash = '9999-99-99'
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
@@ -587,7 +584,7 @@ export class ChanmsgService {
             sql += " WHERE R.CDT < ? " //무한 스크롤
             sql += " ORDER BY R.CDT DESC "
             sql += " LIMIT " + hush.cons.rowsCnt
-            console.log(sql)
+            //console.log(sql)
             const list = await this.dataSource.query(sql, [lastMsgMstCdt])
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             for (let i = 0; i < list.length; i++) {
@@ -600,16 +597,19 @@ export class ChanmsgService {
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async qryMsg(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            let data = { msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null }
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { chanid, msgid } = dto //let fv = hush.addFieldValue([chanid, msgid], 'chanid/msgid')
+            let data = { 
+                msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null 
+            }
+            const { chanid, msgid } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryMsg')
             const qb = this.msgmstRepo.createQueryBuilder('A')
@@ -639,46 +639,49 @@ export class ChanmsgService {
             resJson.data = data
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async qryActionForUser(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid, msgid } = dto
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
             resJson.data = msgdtlforuser //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async qryAction(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
             const { chanid, msgid } = dto
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
             resJson.data = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveMsg(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const usernm = this.req['user'].usernm
             const { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
-            let fv = hush.addFieldValue([msgid, chanid, replyto, crud, num_file, num_image, num_link], 'msgid/chanid/replyto/crud/num_file/num_image/num_link')
             if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
                 if (!chanid || (!body && num_file == 0 && num_image == 0 && num_link == 0)) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
@@ -750,15 +753,16 @@ export class ChanmsgService {
             }
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
-    async delMsg(dto: Record<string, any>): Promise<any> {        
+    async delMsg(dto: Record<string, any>): Promise<any> { 
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])       
         try { //메시지 마스터를 삭제하면 거기에 딸려 있는 서브와 디테일 테이블 정보는 소용없으므로 모두 삭제함 (~DEL_TBL로 이동시킴)
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { msgid, chanid } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')            
@@ -794,16 +798,16 @@ export class ChanmsgService {
             }).execute()
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async toggleChanOption(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid, kind, job } = dto
-            let fv = hush.addFieldValue([chanid, kind, job], 'chanid/kind/job')
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleChanOption')
             const qbChanDtl = this.chandtlRepo.createQueryBuilder()
@@ -816,7 +820,7 @@ export class ChanmsgService {
             if (chandtl.CNT == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>toggleChanOption')
             } else {
-                let obj = { UDT: curdtObj.DT }
+                let obj = { MODR: userid, UDT: curdtObj.DT }
                 if (kind == "noti") { //job=X/빈값
                     Object.assign(obj, { NOTI: job })
                 } else if (kind == "bookmark") { //job=Y/빈값
@@ -833,14 +837,15 @@ export class ChanmsgService {
             }
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])       
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { msgid, chanid, oldKind, newKind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
@@ -854,14 +859,15 @@ export class ChanmsgService {
             }).execute()
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async updateAllWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])       
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { chanid, oldKind, newKind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateAllWithNewKind')
@@ -875,15 +881,16 @@ export class ChanmsgService {
             }).execute()
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
     
     async toggleAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : checked, done, watching
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const usernm = this.req['user'].usernm
             const { msgid, chanid, kind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleAction')
@@ -908,15 +915,16 @@ export class ChanmsgService {
             }
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async changeAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : later, stored, finished, fixed
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const usernm = this.req['user'].usernm
             const { msgid, chanid, kind, job } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>changeAction')
@@ -974,16 +982,16 @@ export class ChanmsgService {
             }
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async uploadBlob(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])        
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { msgid, chanid, kind, body, filesize } = dto 
-            console.log(userid, msgid, chanid, kind, body, filesize)
+            const { msgid, chanid, kind, body, filesize } = dto //console.log(userid, msgid, chanid, kind, body, filesize)
             const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>uploadBlob')
             let fileExt = '' //파일 검색에서 사용됨
@@ -1007,14 +1015,15 @@ export class ChanmsgService {
             //임시 코딩 - 사진 넣기 끝
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
-    async delBlob(dto: Record<string, any>): Promise<any> { //temp일 상태와 msgid가 있는 상태 모두 여기서 처리하는 것임        
+    async delBlob(dto: Record<string, any>): Promise<any> { //temp일 상태와 msgid가 있는 상태 모두 여기서 처리하는 것임   
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])            
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
             const { chanid, kind, cdt } = dto //console.log(userid, msgid, chanid, kind, cdt)
             const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
@@ -1026,18 +1035,17 @@ export class ChanmsgService {
             }).execute()
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async readBlob(dto: Record<string, any>): Promise<any> { //파일,이미지 읽어서 다운로드. 파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])        
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
-            const { chanid, kind, cdt, name } = dto 
-            console.log('readBlob', userid, msgid, chanid, kind, cdt, name)
-            let fv = hush.addFieldValue([msgid, chanid, kind, cdt, name], 'msgid/chanid/kind/cdt/name')
+            const { chanid, kind, cdt, name } = dto //console.log('readBlob', userid, msgid, chanid, kind, cdt, name)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>readBlob')
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
@@ -1051,7 +1059,7 @@ export class ChanmsgService {
             resJson.data = msgsub
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 

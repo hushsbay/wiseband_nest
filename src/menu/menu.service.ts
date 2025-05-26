@@ -65,11 +65,10 @@ export class MenuService {
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> {
-        try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const kind = dto.kind
-            //let fv = hush.addFieldValue(kind, 'kind')
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        try {            
+            const { kind } = dto
             let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
@@ -77,10 +76,6 @@ export class MenuService {
                 sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
                 await this.dataSource.query(sqlChk, [userid, kind])
             }
-            //여기서는 아래 sql처럼 menu중에 특정 user가 설정하지 않은 menu도 포함해서 조회해서 내려주면 
-            //클라이언트가 아래 B.USER_ID가 null인 것을 제외하면 그 사용자가 가진 menu목록이 되고 null은 더보기 버튼을 눌러 보게 되는 것을
-            //맨 아래 주석의 '1),2) 위 소스는 아래 SQL과 같음'과 같이 두번을 호출하지 않고 한번의 query로 가져오려 했으나..
-            //typeorm으로 leftjoin내의 subquery 구현을 제대로 해내지 못해 결국 포기하고 일단 아래 raw sql로 얻고자 함
             let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID "
             sql += "     FROM S_MENU_TBL A "
             sql += "     LEFT OUTER JOIN (SELECT USERID, KIND, ID FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ?) B "
@@ -88,10 +83,7 @@ export class MenuService {
             sql += "    WHERE A.KIND = ? "
             sql += "      AND A.INUSE = 'Y' "
             sql += "    ORDER BY A.SEQ "
-            const list = await this.dataSource.query(sql, [userid, kind, kind]) //console.log(typeof list, list.length)
-            //if (list.length == 0) {                
-            //    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry')
-            //}
+            const list = await this.dataSource.query(sql, [userid, kind, kind])
             resJson.list = list
             return resJson
         } catch (ex) {
@@ -100,11 +92,11 @@ export class MenuService {
     }
 
     async qryChan(dto: Record<string, any>): Promise<any> { //내가 권한이 있는 채널들만 보여야 함 (사용자그룹에서 제거 되었으면 그 채널은 권한이 없어짐)
-        try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const kind = dto.kind
-            let fv = hush.addFieldValue(kind, 'kind')
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {            
+            const { kind } = dto
             let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
@@ -139,18 +131,14 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
-            console.log(kind, sql)
             const list = await this.dataSource.query(sql, null)
-            if (!list) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qryChan')
-            }
             for (let i = 0; i < list.length; i++) {
                 if (list[i].DEPTH == 2) list[i].mynotyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
             }
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req) 
+            hush.throwCatchedEx(ex, this.req, fv) 
         }
     }
 
@@ -167,10 +155,11 @@ export class MenuService {
     }
 
     async qryDm(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { kind, search, lastMsgMstCdt } = dto //all,notyet //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind, search, lastMsgMstCdt } = dto //all,notyet
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
@@ -214,14 +203,15 @@ export class MenuService {
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
     async qryPanel(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
             const { kind, lastMsgMstCdt, msgid } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
@@ -252,7 +242,7 @@ export class MenuService {
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -274,10 +264,11 @@ export class MenuService {
     }
 
     async qryActivity(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
-            const { kind, notyet, lastMsgMstCdt, msgid } = dto //console.log(kind, notyet, lastMsgMstCdt, msgid)
+            const { kind, notyet, lastMsgMstCdt, msgid } = dto
             //공통 sql
             let sqlSelect = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, "
             let sqlFrom = "FROM S_MSGMST_TBL A "
@@ -341,12 +332,11 @@ export class MenuService {
             sql += "    WHERE Z.CDT < ? "
             sql += "    ORDER BY Z.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
-            //console.log(sql)
             const list = await this.dataSource.query(sql, [lastMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
