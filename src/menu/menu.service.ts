@@ -143,14 +143,15 @@ export class MenuService {
     }
 
     async qryKindCnt(dto: Record<string, any>): Promise<any> { //해당 채널 + 해당 사용자의 kindCnt 조회
-        try {
-            const resJson = new ResJson()
-            const userid = this.req['user'].userid
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {            
             const { chanid, kind } = dto
             resJson.data.kindCnt = await this.qryKindCntForUser(chanid, userid, kind)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
