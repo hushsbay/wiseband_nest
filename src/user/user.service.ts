@@ -310,17 +310,14 @@ export class UserService {
         }
     }
 
-    chkFieldValidA(usernm: string, org: string, job: string, email: string, telno: string): string {
-        if (!usernm || usernm.trim() == '' || usernm.trim().length > 30) return '이름은 30자까지 가능합니다.'
-        if (!org || org.trim() == '' || org.trim().length > 50) return '소속은 50자까지 가능합니다.'
-        if (!job || job.trim() == '' || job.trim().length > 50) return '직책/업무는 50자까지 가능합니다.'
-        if (!email || email.trim() == '' || email.trim().length > 50) return '이메일은 50자까지 가능합니다.' //정확하게 안되면 메일 OTP 인증이 안되므로 정규식 체크는 일단 보류 
-        if (!telno || telno.trim() == '' || telno.trim().length > 50) return '전화번호는 50자까지 가능합니다.'
-        return ''
-    }
-
-    chkFieldValidB(rmks: string): string {
-        if (!rmks || rmks.trim() == '' || rmks.trim().length > 200) return '비고는 200자까지 가능합니다.'
+    chkFieldValidA(usernm: string, org: string, job: string, email: string, telno: string, rmks: string): string {
+        if (!usernm || usernm.trim() == '' || usernm.trim().length > 30) return '이름은 공란없이 30자까지 가능합니다.'
+        if (!org || org.trim() == '' || org.trim().length > 50) return '소속은 공란없이 50자까지 가능합니다.'
+        if ((job && job.trim() != '') && job.trim().length > 50) return '직책/업무 입력시 50자까지 가능합니다.'
+        if (!email || email.trim() == '' || email.trim().length > 50) return '이메일은 공란없이 50자까지 가능합니다.'
+        if (!email.includes('@')) return '이메일은 인증되어야 하므로 정확하게 입력하시기 바랍니다.' //정규식 체크는 일단 보류
+        if (!telno || telno.trim() == '' || telno.trim().length > 50) return '전화번호는 공란없이 50자까지 가능합니다.'
+        if ((rmks && rmks.trim() != '') && rmks.trim().length > 200) return '비고 입력시 200자까지 가능합니다.'
         return ''
     }
 
@@ -328,10 +325,11 @@ export class UserService {
     async saveMember(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
         const resJson = new ResJson()
         const userid = this.req['user'].userid
-        let fv = hush.addFieldValue(dto, null, [userid])
+        let fv = '' //여기선 특별히 아래에서 읽어오기
         try {
             const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND } = dto
             const useridToProc = (crud == 'U') ? USERID : (SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
+            fv = hush.addFieldValue(dto, null, [userid, useridToProc]) //console.log(useridToProc, crud, USERID, SYNC, EMAIL)
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveMember>chkUserRightForGroup')
             const curdtObj = await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -343,40 +341,38 @@ export class UserService {
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
                     return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
-                if (grdtl.SYNC != 'Y') {
-                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO)
+                if (SYNC != 'Y') {
+                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
                     if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
-                    grdtl.USERNM = USERNM
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
-                    grdtl.TELNO = TELNO    
+                    grdtl.TELNO = TELNO
+                    grdtl.RMKS = RMKS    
                 }
-                grdtl.KIND = KIND ? KIND : 'member'
-                const ret1 = this.chkFieldValidB(RMKS)
-                if (ret1 != '') return hush.setResJson(resJson, ret1 + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
-                grdtl.RMKS = RMKS
+                grdtl.USERNM = USERNM
+                grdtl.KIND = KIND ? KIND : 'member'                
                 grdtl.MODR = userid
                 grdtl.UDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
-            } else { //crud=C
+            } else { //crud=C (조직도에서 SYNC=Y를 선택해 추가하는 경우도 있음)
                 if (grdtl) {
                     return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
-                grdtl = this.grdtlRepo.create()                
+                grdtl = this.grdtlRepo.create()
+                if (SYNC != 'Y') {
+                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    grdtl.ORG = ORG
+                    grdtl.JOB = JOB
+                    grdtl.EMAIL = EMAIL
+                    grdtl.TELNO = TELNO
+                    grdtl.RMKS = RMKS
+                }
                 grdtl.GR_ID = GR_ID
                 grdtl.USERID = useridToProc //수동입력의 경우 EMAIL이 USERID가 됨
-                const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO)
-                if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 grdtl.USERNM = USERNM
-                grdtl.ORG = ORG
-                grdtl.JOB = JOB
-                grdtl.EMAIL = EMAIL
-                grdtl.TELNO = TELNO    
                 grdtl.KIND = KIND ? KIND : 'member'
-                const ret1 = this.chkFieldValidB(RMKS)
-                if (ret1 != '') return hush.setResJson(resJson, ret1 + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
-                grdtl.RMKS = RMKS
                 grdtl.SYNC = SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
                 grdtl.ISUR = userid
                 grdtl.CDT = curdtObj.DT
