@@ -25,16 +25,17 @@ export class ChanmsgService {
     ) {}
 
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
-            const resJson = new ResJson()
-            const { userid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크함 //grid, 
-            console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor) //grid, 
-            let fv = hush.addFieldValue([userid, chanid, msgid, includeBlob, chkAuthor], 'userid/chanid/msgid/includeBlob/chkAuthor') //grid, grid/
+            const { userid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
+            //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE', 'A.RMKS'])
-            .where("A.CHANID = :chanid and A.INUSE = 'Y' ", { 
+            .where("A.CHANID = :chanid ", { 
                 chanid: chanid 
             }).getOne()
             if (!chanmst) {
@@ -52,11 +53,11 @@ export class ChanmsgService {
                 const gr = await this.grmstRepo.createQueryBuilder('A')
                 .select(['A.GR_NM'])
                 .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
-                .where("A.GR_ID = :grid and A.INUSE = 'Y' and B.USERID = :userid ", { 
+                .where("A.GR_ID = :grid and B.USERID = :userid ", { 
                     grid: chanmst.GR_ID, userid: userid 
                 }).getOne()
                 if (!gr) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>gr')
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>gr')
                 }
                 grnm = gr.GR_NM
             }
@@ -85,7 +86,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND
-                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z))
+                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W))
                     break
                 }
             } */
@@ -94,8 +95,7 @@ export class ChanmsgService {
             sql += "     FROM S_CHANDTL_TBL A "
             sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
             sql += "    WHERE A.CHANID = ? "
-            sql += "      AND A.STATE IN ('', 'M') " //사용중(빈칸)/매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
-            sql += "      AND B.INUSE = 'Y' "
+            sql += "      AND A.STATE IN ('', 'M') " //사용중(빈칸)/매니저(M)/참여대기(W)
             sql += "    ORDER BY A.USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
             if (chandtl.length == 0) {
@@ -105,7 +105,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)/퇴장(X)/강제퇴장(Z)
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)
                     break
                 }
             }
@@ -116,9 +116,9 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (비공개 채널)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
                 }
             }
-            if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
-                return hush.setResJson(resJson, '퇴장처리된 채널입니다.' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
-            }
+            //if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
+            //    return hush.setResJson(resJson, '퇴장처리된 채널입니다.' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
+            //}
             data.chandtl = chandtl
             if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
                 resJson.data = data
@@ -142,7 +142,7 @@ export class ChanmsgService {
             resJson.data = data
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
@@ -250,21 +250,21 @@ export class ChanmsgService {
     }
 
     getSqlWs(userid: string): string {
-        let sqlWs = "      SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
-        sqlWs += "           FROM (SELECT A.GR_ID, A.GR_NM "
-        sqlWs += "                   FROM S_GRMST_TBL A "
-        sqlWs += "                  INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
-        sqlWs += "                  WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
-        sqlWs += "                   LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
-        sqlWs += "                                      FROM S_CHANMST_TBL A "
-        sqlWs += "                                     INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-        sqlWs += "                                     WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
-        sqlWs += "                                     UNION ALL "
-        sqlWs += "                                    SELECT A.CHANID, A.CHANNM, A.GR_ID "
-        sqlWs += "                                      FROM S_CHANMST_TBL A "
-        sqlWs += "                                     WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
-        sqlWs += "                                       AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
-        sqlWs += "                ) Y ON X.GR_ID = Y.GR_ID "
+        let sqlWs = "SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
+        sqlWs += "     FROM (SELECT A.GR_ID, A.GR_NM "
+        sqlWs += "             FROM S_GRMST_TBL A "
+        sqlWs += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
+        sqlWs += "            WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
+        sqlWs += "             LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
+        sqlWs += "                                FROM S_CHANMST_TBL A "
+        sqlWs += "                               INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+        sqlWs += "                               WHERE B.USERID = '" + userid + "' AND A.INUSE = 'Y' " //a. 내가 참여하고 있는 채널
+        sqlWs += "                               UNION ALL "
+        sqlWs += "                              SELECT A.CHANID, A.CHANNM, A.GR_ID "
+        sqlWs += "                                FROM S_CHANMST_TBL A "
+        sqlWs += "                               WHERE A.TYP = 'WS' AND A.INUSE = 'Y' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
+        sqlWs += "                                 AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+        sqlWs += "          ) Y ON X.GR_ID = Y.GR_ID "
         return sqlWs
     }
 
@@ -288,7 +288,7 @@ export class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null 
             }
             const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨 //grid: grid, 
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
@@ -432,7 +432,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryOneMsgNotYet(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음을 유의 - 권한체크안해도 무방하다고 판단함
+    async qryOneMsgNotYet(dto: Record<string, any>): Promise<any> { //chkAcl()이 없음 - 권한체크안해도 무방하다고 판단
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
