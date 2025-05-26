@@ -34,7 +34,7 @@ export class ChanmsgService {
             //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
-            .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE', 'A.RMKS'])
+            .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
             .where("A.CHANID = :chanid ", { 
                 chanid: chanid 
             }).getOne()
@@ -93,7 +93,7 @@ export class ChanmsgService {
             const picFld = includeBlob ? ", B.PICTURE" : ""
             let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND " + picFld
             sql += "     FROM S_CHANDTL_TBL A "
-            sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USER_ID "
+            sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USERID "
             sql += "    WHERE A.CHANID = ? "
             sql += "      AND A.STATE IN ('', 'M') " //사용중(빈칸)/매니저(M)/참여대기(W)
             sql += "    ORDER BY A.USERNM "
