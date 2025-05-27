@@ -405,7 +405,7 @@ export class UserService {
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
-    async deleteMember(dto: Record<string, any>): Promise<any> {
+    async deleteMember(dto: Record<string, any>): Promise<any> { //그룹 멤버를 DELETE하면 그룹에 속한 채널에 대한 권한도 없어지므로 사용자 안내가 필요함 (다시 추가하면 권한 생김)
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -419,11 +419,11 @@ export class UserService {
             }
             if (grmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
-            } //아래는 S_GRDTLDEL_TBL로의 백업 시작
+            } /*아래는 S_GRDTLDEL_TBL로의 백업 시작
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
             const deluser = await this.dataSource.query(sqlDel, [GR_ID, USERID])
-            if (deluser[0].CNT == 0) {
+            if (deluser[0].CNT > 0) {
                 sqlDel =  "DELETE FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
                 await this.dataSource.query(sqlDel, [GR_ID, USERID])
             }
@@ -432,14 +432,14 @@ export class UserService {
             sqlDel += "  FROM S_GRDTL_TBL "
             sqlDel += " WHERE GR_ID = ? AND USERID = ? "
             await this.dataSource.query(sqlDel, [userid, curdtObj.DT, GR_ID, USERID])
-            //S_GRDTLDEL_TBL로의 백업 종료
-            await this.grdtlRepo.delete(grdtl)
+            S_GRDTLDEL_TBL로의 백업 종료*/
+            await this.grdtlRepo.delete(grdtl) //더 위로 올라가면 안됨
             if (grdtl.SYNC == '') { //수동입력(W입력)만 추가 처리
                 let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
                 const menuList = await this.dataSource.query(sqlChk, [USERID])
                 if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
                     sqlChk =  "DELETE FROM S_USER_TBL WHERE USERID = ? "
-                    await this.dataSource.query(sqlChk, [USERID]) //S_GRDTLDEL_TBL이 있으므로 S_USERDEL_TBL로의 백업은 필요없음
+                    await this.dataSource.query(sqlChk, [USERID])
                 }
             }
             return resJson
@@ -448,6 +448,7 @@ export class UserService {
         }
     }
 
+    @Transactional({ propagation: Propagation.REQUIRED })
     async saveGroupMaster(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
         const resJson = new ResJson()
         const userid = this.req['user'].userid
@@ -502,17 +503,43 @@ export class UserService {
         }
     }
 
-    async deleteGroup(dto: Record<string, any>): Promise<any> {
+    @Transactional({ propagation: Propagation.REQUIRED })
+    async deleteGroup(dto: Record<string, any>): Promise<any> { //멤버는 지워도 마스터가 있으므로 복원이 상대적으로 쉬우나 마스터를 DELETE하면 복구는 어려워짐
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { GR_ID } = dto
-            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>deleteGroup>chkUserRightForGroup')
-            grmst.UDT = curdtObj.DT
-            await this.grmstRepo.save(grmst)
+            let sql = "SELECT COUNT(*) CNT FROM S_CHANMST_TBL WHERE GR_ID = ? "
+            const chanmst = await this.dataSource.query(sql, [GR_ID])
+            if (chanmst[0].CNT > 0) {
+                return hush.setResJson(resJson, '해당 그룹에서 생성된 채널이 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
+            } //채널 여부만 체크해도 되는 것이 채널은 그 안에 메시지 및 멤버 모두 삭제해야 채널마스터도 삭제 가능한 것으로 되어 있음
+            // sql = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE GR_ID = ? "
+            // const grdtl = await this.dataSource.query(sql, [GR_ID])
+            // if (grdtl[0].CNT > 0) {
+            //     return hush.setResJson(resJson, '먼저 해당 그룹의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
+            // }
+            await this.dataSource.query("DELETE FROM S_GRDTL_TBL WHERE GR_ID = ? ", [GR_ID])
+            await this.dataSource.query("DELETE FROM S_GRMST_TBL WHERE GR_ID = ? ", [GR_ID])
+            /*아래는 S_GRMSTDEL_TBL로의 백업 시작
+            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            let sqlDel = "SELECT COUNT(*) CNT FROM S_GRMSTDEL_TBL WHERE GR_ID = ? "
+            const delgrmst = await this.dataSource.query(sqlDel, [GR_ID])
+            if (delgrmst[0].CNT > 0) {
+                sqlDel =  "DELETE FROM S_GRMSTDEL_TBL WHERE GR_ID = ? "
+                await this.dataSource.query(sqlDel, [GR_ID])
+            }
+            sqlDel = " INSERT INTO S_GRMSTDEL_TBL (GR_ID, GR_NM, MASTERID, MASTERNM, ISUR, CDT, MODR, UDT) "
+            sqlDel += "SELECT GR_ID, GR_NM, MASTERID, MASTERNM, ISUR, CDT, ?, ? "
+            sqlDel += "  FROM S_GRMST_TBL "
+            sqlDel += " WHERE GR_ID = ? "
+            await this.dataSource.query(sqlDel, [userid, curdtObj.DT, GR_ID])
+            //S_GRMSTDEL_TBL로의 백업 종료*/
+            //sql = "DELETE FROM S_GRMST_TBL WHERE GR_ID = ? "
+            //await this.dataSource.query(sql, [GR_ID]) //더 위로 올라가면 안됨
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
