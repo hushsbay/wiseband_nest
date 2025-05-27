@@ -1342,12 +1342,12 @@ export class ChanmsgService {
             if (!rec) {
                 return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
             }
-            if (!rec.EMAIL.includes('@')) {
+            if (!rec.EMAIL.includes('@')) { //정확하게 체크하려면 정규식 사용해야 하나 일단 @ 체크로 처리
                 return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
             }
-            const link = '<a href="http://10.10.221.215/5173:login" target="_blank">WiSEBand 열기</a>'
-            const mailTitle = '[' + hush.cons.appName + '] 조대합니다. (' + usernm + ')'
-            const mailBody = channm + ' : 채널에 초대합니다.\n\n' + link + '\n\n'
+            const link = '<p><a href="http://localhost:5173/login" target="_blank" style="margin:10px">WiSEBand 열기</a></p>'
+            const mailTitle = rec.USERNM + '님! [' + hush.cons.appName + ']로 조대합니다. (from ' + usernm + ')'
+            const mailBody = '<p style="margin:10px">초대 채널 : <b>' + channm + '</b></p>' + link
             this.mailSvc.sendMail(rec.EMAIL, mailTitle, mailBody)
             //메일 발송 결과를 알 수 있으면 베스트임
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -1355,6 +1355,7 @@ export class ChanmsgService {
             chandtl.MODR = userid
             chandtl.UDT = curdtObj.DT
             await this.chandtlRepo.save(chandtl)
+            return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
         }
