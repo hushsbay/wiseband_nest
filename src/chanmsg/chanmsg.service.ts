@@ -1167,7 +1167,7 @@ export class ChanmsgService {
                 chanmst.CDT = unidObj.DT
             }
             if (!CHANNM || CHANNM.trim() == '' || CHANNM.trim().length > 50) {
-                hush.setResJson(resJson, '채널명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMaster>chanmst')
+                return hush.setResJson(resJson, '채널명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMaster>chanmst')
             }
             await this.chanmstRepo.save(chanmst)
             if (CHANID == 'new') {
