@@ -77,6 +77,9 @@ export class ChanmsgController {
 
     @Post('deleteChanMember')
     deleteChanMember(@Body() dto: Record<string, any>) { return this.chanmsgSvc.deleteChanMember(dto) }
+
+    @Post('inviteToMember')
+    inviteToMember(@Body() dto: Record<string, any>) { return this.chanmsgSvc.inviteToMember(dto) }
         
     /////////////////////////////////////////////////////////////////////////////////////
     //readBlob1보다 안정적임. 파일 만들지 않고 바로 res.download로 가는 pipe는 메소드는 아직 구현하지 못함 (가능한지도 아직 모름)

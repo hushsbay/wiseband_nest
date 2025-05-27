@@ -7,6 +7,7 @@ import { Propagation, Transactional } from 'typeorm-transactional'
 
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
+import { MailService } from 'src/mail/mail.service'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 import { User } from 'src/user/user.entity'
 
@@ -23,6 +24,7 @@ export class ChanmsgService {
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         @InjectRepository(User) private userRepo: Repository<User>, 
         private dataSource : DataSource,
+        private mailSvc: MailService, 
         @Inject(REQUEST) private readonly req: Request
     ) {}
 
@@ -1310,6 +1312,49 @@ export class ChanmsgService {
             //S_GRDTLDEL_TBL로의 백업 종료*/
             await this.chandtlRepo.delete(chandtl) //더 위로 올라가면 안됨
             return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async inviteToMember(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
+            const { CHANID, USERID } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>inviteToMember')
+            const chanmst = rs.data.chanmst
+            const grid = chanmst.GR_ID
+            const channm = chanmst.CHANNM
+            const chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
+            if (!chandtl) {
+                return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+            }
+            let rec: any
+            if (chandtl.SYNC == 'Y') {
+                rec = await this.userRepo.findOneBy({ USERID: USERID })
+            } else {
+                rec = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: USERID })
+            }
+            if (!rec) {
+                return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+            }
+            if (!rec.EMAIL.includes('@')) {
+                return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
+            }
+            const link = '<a href="http://10.10.221.215/5173:login" target="_blank">WiSEBand 열기</a>'
+            const mailTitle = '[' + hush.cons.appName + '] 조대합니다. (' + usernm + ')'
+            const mailBody = channm + ' : 채널에 초대합니다.\n\n' + link + '\n\n'
+            this.mailSvc.sendMail(rec.EMAIL, mailTitle, mailBody)
+            //메일 발송 결과를 알 수 있으면 베스트임
+            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            chandtl.STATE = 'W'
+            chandtl.MODR = userid
+            chandtl.UDT = curdtObj.DT
+            await this.chandtlRepo.save(chandtl)
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
         }
