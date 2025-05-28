@@ -44,6 +44,9 @@ export class MenuPer {
     @PrimaryColumn()
     ID: string
 
+    @PrimaryColumn()
+    USERID: string
+
     //@ManyToOne(() => Menu, (menu) => menu.menupers)
     //@JoinColumn({ name: 'ID' })
     //menu: Menu

@@ -73,9 +73,9 @@ export class MenuService {
             let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
-                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID) "
-                sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
-                await this.dataSource.query(sqlChk, [userid, kind])
+                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID, USER_ID) "
+                sqlChk += "SELECT ?, ?, ID, ? FROM S_MENU_TBL WHERE INUSE = 'Y' "
+                await this.dataSource.query(sqlChk, [userid, kind, userid])
             }
             let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID "
             sql += "     FROM S_MENU_TBL A "
