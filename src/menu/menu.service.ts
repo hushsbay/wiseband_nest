@@ -69,15 +69,15 @@ export class MenuService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {            
-            const { kind } = dto
+            const { kind } = dto //바로 아래에서 개인메뉴 없으면 생성하기
             let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
-                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID, USER_ID) "
-                sqlChk += "SELECT ?, ?, ID, ? FROM S_MENU_TBL WHERE INUSE = 'Y' "
-                await this.dataSource.query(sqlChk, [userid, kind, userid])
+                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID) "
+                sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
+                await this.dataSource.query(sqlChk, [userid, kind])
             }
-            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID "
+            let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID " //B.USERID가 있으면 내게 설정된 메뉴. null이면 내게 설정되지 않은 메뉴
             sql += "     FROM S_MENU_TBL A "
             sql += "     LEFT OUTER JOIN (SELECT USERID, KIND, ID FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ?) B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
