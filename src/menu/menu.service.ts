@@ -165,7 +165,6 @@ export class MenuService {
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.LASTMSGDT " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, "
-            //sql += "                  (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID) LASTMSGDT "
             sql += "                  IFNULL((SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID), '9999-99-98') LASTMSGDT " //메시지가 없는 경우 맨 위에 표시
             if (search) {
                 sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEMBERS "
