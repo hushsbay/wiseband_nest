@@ -252,7 +252,7 @@ export class MenuService {
         try {
             const resJson = new ResJson()
             const userid = this.req['user'].userid
-            const { kind } = dto //later, stored, finished, fixed //let fv = hush.addFieldValue(kind, 'kind')
+            const { kind } = dto //later, stored, finished, fixed
             let sql = "SELECT COUNT(*) CNT "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
