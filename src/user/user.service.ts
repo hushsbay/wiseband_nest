@@ -227,7 +227,7 @@ export class UserService {
         }
     }
 
-    async qryGroupWithUserList(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일하나 user가 있음
+    async qryGroupWithUser(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일하나 user가 있음
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -236,14 +236,14 @@ export class UserService {
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE B.USERID = '" + userid + "' "
+            sql += "    WHERE A.MASTERID = ? AND B.USERID = ? "
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
             } //sql += "      AND A.MASTERID = '" + userid + "' "
             sql += "    ORDER BY GR_NM, GR_ID "
-            const list = await this.dataSource.query(sql, null)
+            const list = await this.dataSource.query(sql, [userid, userid])
             if (list.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>qryGroupWithUserList')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>qryGroupWithUser')
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
@@ -449,7 +449,7 @@ export class UserService {
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
-    async saveGroupMaster(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+    async saveGroup(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -460,7 +460,7 @@ export class UserService {
             let grmst: GrMst
             if (GR_ID != 'new') {
                 const [grmst1, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
-                if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveGroupMaster>chkUserRightForGroup')
+                if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveGroup>chkUserRightForGroup')
                 grmst = grmst1                
                 grmst.GR_NM = GR_NM
                 grmst.MODR = userid
@@ -468,10 +468,10 @@ export class UserService {
             } else { //신규
                 const user = await this.userRepo.findOneBy({ USERID: userid })
                 if (!user) {
-                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroupMaster>grmst')
+                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroup>grmst')
                 }
                 if (user.SYNC != 'Y') {
-                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroup>grmst')
                 }
                 grmst = this.grmstRepo.create()
                 grmst.GR_ID = unidObj.ID
@@ -482,7 +482,7 @@ export class UserService {
                 grmst.CDT = unidObj.DT
             }
             if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
-                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroupMaster>grmst')
+                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroup>grmst')
             }
             await this.grmstRepo.save(grmst)
             if (GR_ID == 'new') {

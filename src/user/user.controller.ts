@@ -16,8 +16,8 @@ export class UserController {
     @Post('procOrgSearch')
     procOrgSearch(@Body() dto: Record<string, any>) { return this.userSvc.procOrgSearch(dto) }
 
-    @Post('qryGroupWithUserList')
-    qryGroupWithUserList(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupWithUserList(dto) }
+    @Post('qryGroupWithUser')
+    qryGroupWithUser(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupWithUser(dto) }
 
     @Post('setVip')
     setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }
@@ -28,8 +28,8 @@ export class UserController {
     @Post('deleteMember')
     deleteMember(@Body() dto: Record<string, any>) { return this.userSvc.deleteMember(dto) }
 
-    @Post('saveGroupMaster')
-    saveGroupMaster(@Body() dto: Record<string, any>) { return this.userSvc.saveGroupMaster(dto) }
+    @Post('saveGroup')
+    saveGroup(@Body() dto: Record<string, any>) { return this.userSvc.saveGroup(dto) }
 
     @Post('deleteGroup')
     deleteGroup(@Body() dto: Record<string, any>) { return this.userSvc.deleteGroup(dto) }
