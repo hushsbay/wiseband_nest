@@ -161,7 +161,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
-            const { kind, search, lastMsgMstCdt } = dto //all,notyet
+            const { kind, search, lastMsgMstCdt, chanid } = dto //all,notyet
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.CDT, Z.LASTMSGDT " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, A.STATE, A.BOOKMARK, A.NOTI, A.CDT, "
@@ -174,13 +174,19 @@ export class MenuService {
             if (kind == 'notyet') {
                 sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
             }
-            sql += "            WHERE A.USERID = ? AND B.TYP = 'GS') Z "
-            sql += "    WHERE Z.LASTMSGDT < ? "
+            sql += "            WHERE A.USERID = ? "
+            if (chanid) {
+                sql += "          AND A.CHANID = '" + chanid + "' "
+            }
+            sql += "              AND B.TYP = 'GS' "
+            sql += "           ) Z "
+            sql += "    WHERE Z.LASTMSGDT < ? "            
             if (search) {
                 sql += "  AND LOWER(Z.MEMBERS) LIKE '%" + search.toLowerCase() + "%' "
             }
             sql += "ORDER BY Z.LASTMSGDT DESC, Z.CDT DESC "
             sql += "LIMIT " + hush.cons.rowsCnt
+            console.log(sql, userid, lastMsgMstCdt)
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
