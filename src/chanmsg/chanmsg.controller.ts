@@ -66,8 +66,8 @@ export class ChanmsgController {
     @Post('qryChanDmWithMemberList')
     qryChanDmWithMemberList(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanDmWithMemberList(dto) }
 
-    @Post('saveChanMaster')
-    saveChanMaster(@Body() dto: Record<string, any>) { return this.chanmsgSvc.saveChanMaster(dto) }
+    @Post('saveChan')
+    saveChan(@Body() dto: Record<string, any>) { return this.chanmsgSvc.saveChan(dto) }
 
     @Post('deleteChan')
     deleteChan(@Body() dto: Record<string, any>) { return this.chanmsgSvc.deleteChan(dto) }

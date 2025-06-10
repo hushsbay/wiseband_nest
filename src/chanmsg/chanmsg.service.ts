@@ -1129,7 +1129,7 @@ export class ChanmsgService {
         }
     }
 
-    async saveChanMaster(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+    async saveChan(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1140,7 +1140,7 @@ export class ChanmsgService {
             let chanmst: ChanMst
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMaster')
+                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChan')
                 if (rs.data.chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
                 chanmst = await this.chanmstRepo.findOneBy({ CHANID: CHANID }) //chanmst = rs.data.chanmst
                 chanmst.CHANNM = CHANNM
@@ -1156,7 +1156,7 @@ export class ChanmsgService {
                         grid: GR_ID, userid: userid 
                     }).getOne()
                     if (!gr) {
-                        return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChanMaster>gr')
+                        return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChan>gr')
                     }
                 }
                 chanmst = this.chanmstRepo.create()
@@ -1172,7 +1172,7 @@ export class ChanmsgService {
             }
             if (GR_ID) {
                 if (!CHANNM || CHANNM.trim() == '' || CHANNM.trim().length > 50) {
-                    return hush.setResJson(resJson, '채널명은 공란없이 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMaster>chanmst')
+                    return hush.setResJson(resJson, '채널명은 공란없이 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChan>chanmst')
                 }
             }
             await this.chanmstRepo.save(chanmst)
