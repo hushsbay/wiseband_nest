@@ -15,6 +15,7 @@ import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 export class UserService {
     
     constructor(
+        //@InjectRepository(Org) private orgRepo: Repository<Org>, 
         @InjectRepository(User) private userRepo: Repository<User>, 
         @InjectRepository(UserCode) private usercodeRepo: Repository<UserCode>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
@@ -162,7 +163,8 @@ export class UserService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {
-            let listOrg = [], maxLevel = -1
+            const { myteam } = dto //console.log(myteam, "@@@@@")
+            let maxLevel = -1
             const orglist = await this.dataSource.createQueryBuilder()
             .select('A.ORG_CD', 'ORG_CD')
             .addSelect('A.ORG_NM', 'ORG_NM')
@@ -176,10 +178,10 @@ export class UserService {
             if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
             }
-            listOrg = orglist
+            let myOrgArr = []
             const qb = this.userRepo.createQueryBuilder()
-            for (let i = 0; i < listOrg.length; i++) {
-                const item = listOrg[i]
+            for (let i = 0; i < orglist.length; i++) {
+                const item = orglist[i]
                 const orgcd = item.ORG_CD
                 const lvl = item.LVL + 1
                 const userlist = await qb
@@ -192,9 +194,25 @@ export class UserService {
                 }).orderBy('SEQ', 'ASC').getRawMany()
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
+                if (myteam != '' && orgcd == myteam) myOrgArr.push(item)
             }
-            resJson.list = listOrg
+            if (myOrgArr.length > 0) { //아래는 내팀 찾아서 트리에서 펼칠 수 있게 상위노드 가져오는 로직임
+                let ok = true
+                while (ok) {
+                    const seq = myOrgArr[myOrgArr.length - 1].SEQ
+                    const lvl = myOrgArr[myOrgArr.length - 1].LVL
+                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 "
+                    const orgList = await this.dataSource.query(sql, [seq, lvl])
+                    if (orgList.length == 0) {
+                        ok = false
+                    } else {
+                        myOrgArr.push(orgList[0]) //console.log(orgList[0].ORG_NM, orgList[0].ORG_CD)
+                    }
+                }
+            }
+            resJson.list = orglist
             const vipList = await this.getVipList(userid)
+            resJson.data.myOrgArr = myOrgArr
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             resJson.data.maxLevel = maxLevel            
             return resJson
