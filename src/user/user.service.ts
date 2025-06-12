@@ -249,17 +249,17 @@ export class UserService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
-        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
+        try { //내가 만들지 않았지만 내가 관리자로 들어가 있는 그룹도 포함됨 (관리자로 지정이 안되어 있으면 편집 권한 없음)
             const { grid } = dto
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE A.MASTERID = ? AND B.USERID = ? "
+            sql += "    WHERE B.USERID = ? AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
             } //sql += "      AND A.MASTERID = '" + userid + "' "
             sql += "    ORDER BY GR_NM, GR_ID "
-            const list = await this.dataSource.query(sql, [userid, userid])
+            const list = await this.dataSource.query(sql, [userid])
             if (list.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>qryGroupWithUser')
             }
