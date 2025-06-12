@@ -328,7 +328,12 @@ export class UserService {
         }
     }
 
-    chkFieldValidA(usernm: string, org: string, job: string, email: string, telno: string, rmks: string): string {
+    chkFieldValidSync(rmks: string): string {
+        if ((rmks && rmks.trim() != '') && rmks.trim().length > 200) return '비고 입력시 200자까지 가능합니다.'
+        return ''
+    }
+
+    chkFieldValidNoSync(usernm: string, org: string, job: string, email: string, telno: string, rmks: string): string {
         if (!usernm || usernm.trim() == '' || usernm.trim().length > 30) return '이름은 공란없이 30자까지 가능합니다.'
         if (!org || org.trim() == '' || org.trim().length > 50) return '소속은 공란없이 50자까지 가능합니다.'
         if ((job && job.trim() != '') && job.trim().length > 50) return '직책/업무 입력시 50자까지 가능합니다.'
@@ -357,19 +362,22 @@ export class UserService {
                     return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
                 }
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
-                    return hush.setResJson(resJson, '해당 그룹 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
                 if (SYNC != 'Y') {
-                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
+                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
                     if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
                     grdtl.TELNO = TELNO
-                    grdtl.RMKS = RMKS    
+                } else {
+                    const ret = this.chkFieldValidSync(RMKS)
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
                 grdtl.USERNM = USERNM
-                grdtl.KIND = KIND ? KIND : 'member'                
+                grdtl.KIND = KIND ? KIND : 'member'    
+                grdtl.RMKS = RMKS                
                 grdtl.MODR = userid
                 grdtl.UDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
@@ -379,7 +387,7 @@ export class UserService {
                 }
                 grdtl = this.grdtlRepo.create()
                 if (SYNC != 'Y') {
-                    const ret = this.chkFieldValidA(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
+                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
                     if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
@@ -436,7 +444,7 @@ export class UserService {
                 return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
             }
             if (grmst.MASTERID == USERID) {
-                return hush.setResJson(resJson, '해당 그룹 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
+                return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
             } /*아래는 S_GRDTLDEL_TBL로의 백업 시작
             const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
@@ -540,6 +548,9 @@ export class UserService {
             // if (grdtl[0].CNT > 0) {
             //     return hush.setResJson(resJson, '먼저 해당 그룹의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
             // }
+            if (grmst.MASTERID != userid) {
+                return hush.setResJson(resJson, '그룹삭제는 해당 그룹 마스터만 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
+            }
             await this.dataSource.query("DELETE FROM S_GRDTL_TBL WHERE GR_ID = ? ", [GR_ID])
             await this.dataSource.query("DELETE FROM S_GRMST_TBL WHERE GR_ID = ? ", [GR_ID])
             /*아래는 S_GRMSTDEL_TBL로의 백업 시작
