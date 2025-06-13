@@ -128,7 +128,7 @@ export class ChanmsgService {
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
             sql += "     FROM S_CHANDTL_TBL "
             sql += "    WHERE CHANID = ? "
-            //sql += "      AND STATE IN ('') " //사용중(빈칸)/초대직전(C)/참여대기(W)
+            //sql += "      AND STATE IN ('') " //사용중(빈칸)/초대전(C)/참여대기(W)
             sql += "    ORDER BY USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
             if (chandtl.length == 0) {
@@ -137,8 +137,8 @@ export class ChanmsgService {
             for (let item of chandtl) {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
                     data.chanmst.USERID = item.USERID
-                    data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)
+                    data.chanmst.KIND = item.KIND //admin/member/guest
+                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 초대전(C)/참여대기(W)
                 }
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
@@ -170,10 +170,10 @@ export class ChanmsgService {
                 }
             }
             data.chandtl = chandtl
-            if (data.chanmst.STATE1 == 'W') { //초청받고 참여대기시엔 메시지는 안보여주기
+            if (data.chanmst.STATE1 == 'C' || data.chanmst.STATE1 == 'W') { //초청받고 초대전이나 참여대기시엔 메시지는 안보여주기
                 resJson.data = data
                 return resJson
-            } //data.chanmst.STATE1(M)=채널매니저,data.chanmst.KIND(R)=읽기전용은 클라이언트든 서버든 로직 추가될 수 있음
+            }
             //////////c) S_MSGMST_TBL
             if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
@@ -328,7 +328,7 @@ export class ChanmsgService {
 
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
-    async qry(dto: Record<string, any>): Promise<any> {
+    async qry(dto: Record<string, any>): Promise<any> { //채널내 메시지 리스트를 무한스크롤로 가져 오는 경우에도 마스터 정보는 어차피 ACL때문이라도 읽어야 함
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -479,6 +479,22 @@ export class ChanmsgService {
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+    
+    async qryChanMstDtl(dto: Record<string, any>): Promise<any> { //1) MemberList에서 사용 2) MsgList에서 채널 정보만 읽어서 새로고침 용도로 사용
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
+            const { chanid } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanMstDtl')
+            resJson.data.chanmst = rs.data.chanmst
+            resJson.data.chandtl = rs.data.chandtl
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv) 
         }
     }
 
@@ -815,7 +831,9 @@ export class ChanmsgService {
         try { //메시지 마스터를 삭제하면 거기에 딸려 있는 서브와 디테일 테이블 정보는 소용없으므로 모두 삭제함 (DEL_TBL로 이동시킴)
             const { msgid, chanid } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')            
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')  
+            const msgReply = await this.msgmstRepo.findOneBy({ REPLYTO: msgid, CHANID: chanid })
+            if (msgReply) return hush.setResJson(resJson, '댓글이 있습니다.', hush.Code.NOT_OK, this.req, 'chanmsg>delMsg')  
             let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT) "
             sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT "
             sql += "     FROM S_MSGMST_TBL "
@@ -1127,22 +1145,6 @@ export class ChanmsgService {
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
-        }
-    }
-
-    async qryChanDmWithMemberList(dto: Record<string, any>): Promise<any> {
-        const resJson = new ResJson()
-        const userid = this.req['user'].userid
-        let fv = hush.addFieldValue(dto, null, [userid])
-        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
-            const { chanid } = dto
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanDmWithMemberList')
-            resJson.data.chanmst = rs.data.chanmst
-            resJson.data.chandtl = rs.data.chandtl
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req, fv) 
         }
     }
 

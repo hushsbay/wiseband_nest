@@ -14,6 +14,9 @@ export class ChanmsgController {
 
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
+    
+    @Post('qryChanMstDtl')
+    qryChanMstDtl(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanMstDtl(dto) }
 
     @Post('qryOneMsgNotYet')
     qryOneMsgNotYet(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryOneMsgNotYet(dto) }
@@ -63,9 +66,6 @@ export class ChanmsgController {
     @Post('delBlob')
     delBlob(@Body() dto: Record<string, any>) { return this.chanmsgSvc.delBlob(dto) }
     
-    @Post('qryChanDmWithMemberList')
-    qryChanDmWithMemberList(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanDmWithMemberList(dto) }
-
     @Post('saveChan')
     saveChan(@Body() dto: Record<string, any>) { return this.chanmsgSvc.saveChan(dto) }
 
