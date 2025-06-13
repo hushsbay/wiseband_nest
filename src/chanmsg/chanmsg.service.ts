@@ -894,6 +894,7 @@ export class ChanmsgService {
     async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])       
         try {            
             const { msgid, chanid, oldKind, newKind } = dto
@@ -901,12 +902,28 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
-            await qbMsgDtl
-            .update()
-            .set({ KIND: newKind, UDT: curdtObj.DT })
-            .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
-            }).execute()
+            const msgdtlNew = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind })
+            if (msgdtlNew) this.msgdtlRepo.delete(msgdtlNew) //아래에서 update하면 같은 newKind가 생길 수 있으므로 미리 check and delete
+            let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
+            if (msgdtl) {
+                msgdtl.UDT = curdtObj.DT
+            } else {
+                msgdtl = this.msgdtlRepo.create()
+                msgdtl.MSGID = msgid
+                msgdtl.CHANID = chanid
+                msgdtl.USERID = userid
+                msgdtl.USERNM = usernm
+                msgdtl.TYP = ''
+                msgdtl.CDT = curdtObj.DT
+            }
+            msgdtl.KIND = newKind
+            this.msgdtlRepo.save(msgdtl)
+            // await qbMsgDtl
+            // .update()
+            // .set({ KIND: newKind, UDT: curdtObj.DT })
+            // .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+            //     msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
+            // }).execute()
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
