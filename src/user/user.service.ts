@@ -333,7 +333,7 @@ export class UserService {
         return ''
     }
 
-    chkFieldValidNoSync(usernm: string, org: string, job: string, email: string, telno: string, rmks: string): string {
+    chkFieldValidNoSync(usernm: string, org: string, job: string, email: string, telno: string, rmks: string, kind: string): string {
         if (!usernm || usernm.trim() == '' || usernm.trim().length > 30) return '이름은 공란없이 30자까지 가능합니다.'
         if (!org || org.trim() == '' || org.trim().length > 50) return '소속은 공란없이 50자까지 가능합니다.'
         if ((job && job.trim() != '') && job.trim().length > 50) return '직책/업무 입력시 50자까지 가능합니다.'
@@ -341,6 +341,7 @@ export class UserService {
         if (!email.includes('@')) return '이메일은 인증되어야 하므로 정확하게 입력하시기 바랍니다.' //정규식 체크는 일단 보류
         if (!telno || telno.trim() == '' || telno.trim().length > 50) return '전화번호는 공란없이 50자까지 가능합니다.'
         if ((rmks && rmks.trim() != '') && rmks.trim().length > 200) return '비고 입력시 200자까지 가능합니다.'
+        if (kind == 'admin') return '수동입력(외부인) 사용자는 Admin으로 설정할 수 없습니다.' //그러나, 채널멤버로서는 Admin이 가능해야 함
         return ''
     }
 
@@ -365,7 +366,7 @@ export class UserService {
                     return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                 }
                 if (SYNC != 'Y') {
-                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
+                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND)
                     if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
@@ -387,7 +388,7 @@ export class UserService {
                 }
                 grdtl = this.grdtlRepo.create()
                 if (SYNC != 'Y') {
-                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS)
+                    const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND)
                     if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB

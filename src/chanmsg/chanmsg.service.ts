@@ -136,7 +136,7 @@ export class ChanmsgService {
             }
             for (let item of chandtl) {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
-                    data.chanmst.USERID = item.USERID
+                    //data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND //admin/member/guest
                     data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 초대전(C)/참여대기(W)
                 }
@@ -1164,6 +1164,9 @@ export class ChanmsgService {
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChan')
+                if (rs.data.chanmst.KIND != 'admin') {
+                    return hush.setResJson(resJson, '해당 관리자만 저장 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChan')
+                }
                 if (rs.data.chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
                 chanmst = await this.chanmstRepo.findOneBy({ CHANID: CHANID }) //chanmst = rs.data.chanmst
                 chanmst.CHANNM = CHANNM
@@ -1218,7 +1221,7 @@ export class ChanmsgService {
     }
     
     @Transactional({ propagation: Propagation.REQUIRED })
-    async deleteChan(dto: Record<string, any>): Promise<any> { //멤버는 지워도 마스터가 있으므로 복원이 상대적으로 쉬우나 마스터를 DELETE하면 복구는 어려워짐
+    async deleteChan(dto: Record<string, any>): Promise<any> { //채널 및 멤버 삭제시 백업테이블은 사용하지 않고 로그로 대체함 
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -1236,8 +1239,10 @@ export class ChanmsgService {
             // if (chandtl[0].CNT > 0) {
             //     return hush.setResJson(resJson, '해당 채널(또는 DM)의의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
             // }
-            await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
-            await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
+            const chanmst = rs.data.chanmst
+            if (chanmst.MASTERID != userid) {
+                return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
+            }
             /*아래는 S_CHANMSTDEL_TBL로의 백업 시작
             const curdtObj = await this.chanmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANMSTDEL_TBL WHERE CHANID = ? "
@@ -1254,6 +1259,8 @@ export class ChanmsgService {
             //S_GRMSTDEL_TBL로의 백업 종료*/
             //sql = "DELETE FROM S_CHANMST_TBL WHERE GR_ID = ? "
             //await this.dataSource.query(sql, [CHANID]) //더 위로 올라가면 안됨
+            await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
+            await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1269,14 +1276,17 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMember')
             const chanmst = rs.data.chanmst
+            if (chanmst.KIND != 'admin') {
+                return hush.setResJson(resJson, '해당 채널 관리자만 멤버저장 가능합니다.' + fv, hush.Code.NOT_OK, null, 'usechanmsgr>saveChanMember')
+            }
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (crud == 'U') {
                 if (!chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveChanMember>chandtl')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveChanMember')
                 }
                 if (KIND != 'admin' && chanmst.MASTERID == USERID) {
-                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember>chandtl')
+                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember')
                 }
                 chandtl.USERNM = USERNM
                 chandtl.KIND = KIND
@@ -1284,7 +1294,7 @@ export class ChanmsgService {
                 chandtl.UDT = curdtObj.DT
             } else { //crud=C
                 if (chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember>chandtl')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember')
                 }
                 chandtl = this.chandtlRepo.create()
                 chandtl.CHANID = CHANID
@@ -1304,7 +1314,7 @@ export class ChanmsgService {
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
-    async deleteChanMember(dto: Record<string, any>): Promise<any> {
+    async deleteChanMember(dto: Record<string, any>): Promise<any> { //채널 및 멤버 삭제시 백업테이블은 사용하지 않고 로그로 대체함 
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -1313,13 +1323,17 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>deleteChanMember')
             const chanmst = rs.data.chanmst
-            let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
-            if (!chandtl) {
-                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteChanMember>chandtl')
+            if (chanmst.KIND != 'admin') {
+                return hush.setResJson(resJson, '해당 관리자만 멤버삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
             }
             if (chanmst.MASTERID == USERID) {
-                return hush.setResJson(resJson, '해당 채널 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteChanMember>chandtl')
-            } /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
+                return hush.setResJson(resJson, '해당 채널 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
+            }
+            let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
+            if (!chandtl) {
+                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'uschanmsger>deleteChanMember')
+            }
+            /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
             const deldtl = await this.dataSource.query(sqlDel, [CHANID, USERID])
