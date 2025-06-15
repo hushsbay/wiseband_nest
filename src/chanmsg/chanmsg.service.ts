@@ -487,11 +487,15 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //내가 멤버로 들어가 있는 그룹만 조회 가능
-            const { chanid } = dto
+            const { chanid, state } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanMstDtl')
             resJson.data.chanmst = rs.data.chanmst
-            resJson.data.chandtl = rs.data.chandtl
+            if (state == 'C' || state == 'W') { //초대전(초대필요),참여대기 : 위 chkAcl은 권한 체크모듈이므로 거기서 처리하지 않고 여기서 안전하게 처리 
+                resJson.data.chandtl = rs.data.chandtl.filter((item: ChanDtl) => (item.STATE == state))
+            } else { //All
+                resJson.data.chandtl = rs.data.chandtl
+            }
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv) 
@@ -1370,7 +1374,7 @@ export class ChanmsgService {
             this.mailSvc.sendMail(rec.EMAIL, mailTitle, mailBody)
             //메일 발송 결과를 알 수 있으면 베스트임
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            chandtl.STATE = 'W'
+            chandtl.STATE = 'W' //메일 발송후엔 참여대기로 상태가 변경됨
             chandtl.MODR = userid
             chandtl.UDT = curdtObj.DT
             await this.chandtlRepo.save(chandtl)
