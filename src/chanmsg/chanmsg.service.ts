@@ -34,7 +34,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
-            const { userid, grid, chanid, msgid, includeBlob, chkAuthor } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
+            const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
@@ -188,6 +188,10 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '작성자가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>chkAuthor')
                 }
                 data.msgmst = msgmst
+            } else if (chkGuest) {
+                if (data.chanmst.KIND != 'admin' && data.chanmst.KIND != 'member') {
+                    return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>chkAcl>chkGuest')    
+                }
             }
             resJson.data = data
             return resJson
@@ -780,9 +784,9 @@ export class ChanmsgService {
                 let rs: ResJson
                 if (crud == 'C') {
                     if (replyto) { //부모메시지 존재 여부만 체크
-                        rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: replyto })    
+                        rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: replyto, chkGuest: true })    
                     } else {
-                        rs = await this.chkAcl({ userid: userid, chanid: chanid })
+                        rs = await this.chkAcl({ userid: userid, chanid: chanid, chkGuest: true })
                     }
                 } else {
                     rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
@@ -846,6 +850,30 @@ export class ChanmsgService {
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
         }
+    }
+
+    async forwardToChan(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])       
+        try {
+            const { chanid, msgid, targetChanid } = dto
+            let rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan') 
+            rs = await this.chkAcl({ userid: userid, chanid: targetChanid, chkGuest: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan>targetChanid') 
+            const unidObj = await this.msgmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
+            let sql = "INSERT INTO S_MSGMST_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, KIND, CDT, UDT) " //REPLYTO는 없음
+            sql += "   SELECT ?, ?, ?, ?, BODY, BODYTEXT, KIND, ?, '' " 
+            sql += "     FROM S_MSGMST_TBL "
+            sql += "    WHERE MSGID = ? AND CHANID = ? "
+            await this.dataSource.query(sql, [unidObj.ID, targetChanid, userid, usernm, unidObj.DT, msgid, chanid])
+            rs.data.newMsgid = unidObj.ID
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        } 
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
@@ -1102,7 +1130,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])        
         try {
             const { msgid, chanid, kind, body, filesize } = dto //console.log(userid, msgid, chanid, kind, body, filesize)
-            const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
+            const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true, chkGuest: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>uploadBlob')
             let fileExt = '' //파일 검색에서 사용됨
             if (kind == 'F') {
@@ -1345,7 +1373,11 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>deleteChanMember')
             const chanmst = rs.data.chanmst
             if (chanmst.KIND != 'admin') {
-                return hush.setResJson(resJson, '해당 관리자만 멤버삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
+                if (USERID == userid) {
+                    //본인이 방에서 나가려고 하는 것임
+                } else { //멤버삭제=강제퇴장
+                    return hush.setResJson(resJson, '해당 관리자만 멤버삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
+                }
             }
             if (chanmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 채널 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
@@ -1441,7 +1473,6 @@ export class ChanmsgService {
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const chanmst = rs.data.chanmst
             const grid = chanmst.GR_ID
-            //const channm = CHANNM //chanmst.CHANNM
             const mailTo = [], nmTo = []
             const link = '<p><a href="http://localhost:5173/login" target="_blank" style="margin:10px">WiSEBand 열기</a></p>'
             const mailTitle = '[' + hush.cons.appName + ']로 조대합니다 - ' + usernm
@@ -1479,13 +1510,9 @@ export class ChanmsgService {
             this.mailSvc.sendMail(mailTo, mailTitle, mailBody)
             //위 메일 발송 결과를 알 수 있으면 베스트. 아래는 초대 메시지 생성
             const str = '초대합니다.<br><br>' + nmTo.join(', ')
-            const param: Record<string, any> = { 
-                crud: 'C', 
-                chanid: CHANID, 
-                body : str, 
-                bodytext : str.replaceAll('<br>', '\n')
-            }
-            await this.saveMsg(param)
+            await this.saveMsg({ //const param: Record<string, any> = { crud: 'C'.. }
+                crud: 'C', chanid: CHANID, body : str, bodytext : str.replaceAll('<br>', '\n') 
+            })
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

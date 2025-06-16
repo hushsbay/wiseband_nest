@@ -39,6 +39,9 @@ export class ChanmsgController {
     @Post('saveMsg')
     saveMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.saveMsg(dto) }
 
+    @Post('forwardToChan')
+    forwardToChan(@Body() dto: Record<string, any>) { return this.chanmsgSvc.forwardToChan(dto) }
+
     @Post('delMsg')
     delMsg(@Body() dto: Record<string, any>) { return this.chanmsgSvc.delMsg(dto) }
 
