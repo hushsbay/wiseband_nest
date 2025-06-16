@@ -136,7 +136,7 @@ export class ChanmsgService {
             }
             for (let item of chandtl) {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
-                    //data.chanmst.USERID = item.USERID
+                    data.chanmst.USERID = item.USERID //아래 사용
                     data.chanmst.KIND = item.KIND //admin/member/guest
                     data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 초대전(C)/참여대기(W)
                 }
@@ -486,7 +486,7 @@ export class ChanmsgService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
-        try { //내가 멤버로 들어가 있는 그룹만 조회 가능
+        try { //DM아닌 채널인 경우 그룹도 체크하는데 내가 멤버로 들어가 있는 그룹만 조회 가능. 비공개채널은 채널멤버로 들어가 있어야만 열람 가능
             const { chanid, state } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanMstDtl')
@@ -494,7 +494,28 @@ export class ChanmsgService {
             if (state == 'C' || state == 'W') { //초대전(초대필요),참여대기 : 위 chkAcl은 권한 체크모듈이므로 거기서 처리하지 않고 여기서 안전하게 처리 
                 resJson.data.chandtl = rs.data.chandtl.filter((item: ChanDtl) => (item.STATE == state))
             } else { //All
-                resJson.data.chandtl = rs.data.chandtl
+                resJson.data.chandtl = rs.data.chandtl 
+                if (rs.data.chanmst.TYP == "GS") { //멤버중복 체크하는 루틴 (DM방에 대해서만. 미리 체크해 방지하면 최선이나 멤버추가시 마다 체크하는 루틴이므로 쉽지 않아 일단 사후경고만 하고 있음)
+                    let sql = "SELECT (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
+                    sql += "     FROM S_CHANDTL_TBL A "
+                    sql += "    WHERE CHANID = ? AND USERID = ? "
+                    sql += "    ORDER BY USERID "
+                    const mychan = await this.dataSource.query(sql, [chanid, userid]) //console.log(userid, mychan[0].CNT, mychan[0].MEM, chanid)
+                    if (mychan.length > 0) {
+                        sql = "SELECT Y.CHANID, Y.CNT, Y.MEM "
+                        sql += " FROM (SELECT Z.CHANID, Z.CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = Z.CHANID) MEM "
+                        sql += "         FROM (SELECT A.CHANID, (SELECT COUNT(*) GTOM FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT "
+                        sql += "                 FROM S_CHANDTL_TBL A "
+                        sql += "                INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+                        sql += "                WHERE A.USERID = ? AND B.GR_ID = 'GS' "
+                        sql += "                ORDER BY USERID) Z "
+                        sql += "         WHERE Z.CNT = ?) Y "                
+                        sql += " WHERE Y.MEM = ? "
+                        sql += "   AND Y.CHANID <> ? "
+                        const otherchan = await this.dataSource.query(sql, [userid, mychan[0].CNT, mychan[0].MEM, chanid])
+                        if (otherchan.length > 0) resJson.data.chanidAlready = otherchan[0].CHANID
+                    }
+                }
             }
             return resJson
         } catch (ex) {
@@ -1283,10 +1304,10 @@ export class ChanmsgService {
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (crud == 'U') {
                 if (!chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChanMember')
                 }
                 if (KIND != 'admin' && chanmst.MASTERID == USERID) {
-                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChanMember')
                 }
                 chandtl.USERNM = USERNM
                 chandtl.KIND = KIND
@@ -1294,7 +1315,7 @@ export class ChanmsgService {
                 chandtl.UDT = curdtObj.DT
             } else { //crud=C
                 if (chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChanMember')
                 }
                 chandtl = this.chandtlRepo.create()
                 chandtl.CHANID = CHANID
@@ -1331,7 +1352,7 @@ export class ChanmsgService {
             }
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (!chandtl) {
-                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'uschanmsger>deleteChanMember')
+                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>deleteChanMember')
             }
             /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
             const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -1354,44 +1375,117 @@ export class ChanmsgService {
         }
     }
 
+    // async inviteToMember(dto: Record<string, any>): Promise<any> {
+    //     const resJson = new ResJson()
+    //     const userid = this.req['user'].userid
+    //     const usernm = this.req['user'].usernm
+    //     let fv = hush.addFieldValue(dto, null, [userid])
+    //     try {
+    //         const { CHANID, USERID } = dto
+    //         const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
+    //         if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>inviteToMember')
+    //         const chanmst = rs.data.chanmst
+    //         const grid = chanmst.GR_ID
+    //         const channm = chanmst.CHANNM
+    //         const chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
+    //         if (!chandtl) {
+    //             return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+    //         }
+    //         let rec: any
+    //         if (chandtl.SYNC == 'Y') {
+    //             rec = await this.userRepo.findOneBy({ USERID: USERID })
+    //         } else {
+    //             rec = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: USERID })
+    //         }
+    //         if (!rec) {
+    //             return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+    //         }
+    //         if (!rec.EMAIL.includes('@')) { //정확하게 체크하려면 정규식 사용해야 하나 일단 @ 체크로 처리
+    //             return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
+    //         }
+    //         const link = '<p><a href="http://localhost:5173/login" target="_blank" style="margin:10px">WiSEBand 열기</a></p>'
+    //         const mailTitle = rec.USERNM + '님! [' + hush.cons.appName + ']로 조대합니다. (from ' + usernm + ')'
+    //         const mailBody = '<p style="margin:10px">초대 채널 : <b>' + channm + '</b></p>' + link
+    //         this.mailSvc.sendMail(rec.EMAIL, mailTitle, mailBody)
+    //         //위 메일 발송 결과를 알 수 있으면 베스트. 아래는 초대 메시지 생성
+    //         const str = '[초대]<br>'
+    //         const param: Record<string, any> = { 
+    //             crud: 'C', 
+    //             chanid: CHANID, 
+    //             body : str, 
+    //             bodytext : str.replaceAll('<br>', '\n')
+    //         }
+    //         await this.saveMsg(param)
+    //         //발송후엔 참여대기로 상태가 변경
+    //         const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+    //         chandtl.STATE = 'W'
+    //         chandtl.MODR = userid
+    //         chandtl.UDT = curdtObj.DT
+    //         await this.chandtlRepo.save(chandtl)
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req, fv)
+    //     }
+    // }
+
+    @Transactional({ propagation: Propagation.REQUIRED })
     async inviteToMember(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { CHANID, USERID } = dto
+            const { CHANID, CHANNM, USERIDS } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>inviteToMember')
+            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const chanmst = rs.data.chanmst
             const grid = chanmst.GR_ID
-            const channm = chanmst.CHANNM
-            const chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
-            if (!chandtl) {
-                return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
-            }
-            let rec: any
-            if (chandtl.SYNC == 'Y') {
-                rec = await this.userRepo.findOneBy({ USERID: USERID })
-            } else {
-                rec = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: USERID })
-            }
-            if (!rec) {
-                return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
-            }
-            if (!rec.EMAIL.includes('@')) { //정확하게 체크하려면 정규식 사용해야 하나 일단 @ 체크로 처리
-                return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
-            }
+            //const channm = CHANNM //chanmst.CHANNM
+            const mailTo = [], nmTo = []
             const link = '<p><a href="http://localhost:5173/login" target="_blank" style="margin:10px">WiSEBand 열기</a></p>'
-            const mailTitle = rec.USERNM + '님! [' + hush.cons.appName + ']로 조대합니다. (from ' + usernm + ')'
-            const mailBody = '<p style="margin:10px">초대 채널 : <b>' + channm + '</b></p>' + link
-            this.mailSvc.sendMail(rec.EMAIL, mailTitle, mailBody)
-            //메일 발송 결과를 알 수 있으면 베스트임
-            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            chandtl.STATE = 'W' //메일 발송후엔 참여대기로 상태가 변경됨
-            chandtl.MODR = userid
-            chandtl.UDT = curdtObj.DT
-            await this.chandtlRepo.save(chandtl)
+            const mailTitle = '[' + hush.cons.appName + ']로 조대합니다 - ' + usernm
+            let mailBody = '<p style="margin:10px">방명 : <b>' + CHANNM + '</b></p>' + link
+            for (let i = 0; i < USERIDS.length; i++) {
+                const useridMem = USERIDS[i]
+                const chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: useridMem })
+                if (!chandtl) {
+                    return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+                }
+                let rec: any
+                if (chandtl.SYNC == 'Y') {
+                    rec = await this.userRepo.findOneBy({ USERID: useridMem })                    
+                } else {
+                    rec = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: useridMem })
+                }
+                if (!rec) {
+                    return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+                }
+                if (!rec.EMAIL.includes('@')) { //정확하게 체크하려면 정규식 사용해야 하나 일단 @ 체크로 처리
+                    return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
+                }
+                mailTo.push(rec.EMAIL)                
+                if (chandtl.SYNC == 'Y') {
+                    nmTo.push(rec.USERNM + '/' + rec.ORG_NM + '/' + rec.TOP_ORG_NM)
+                } else {
+                    nmTo.push(rec.USERNM + '/' + rec.ORG)
+                }
+                chandtl.STATE = 'W' //발송후엔 참여대기로 상태가 변경
+                chandtl.MODR = userid
+                chandtl.UDT = curdtObj.DT
+                await this.chandtlRepo.save(chandtl)
+            }
+            mailBody += '<p style="margin:10px">대상 : ' + nmTo.join(', ') + '</p>'
+            this.mailSvc.sendMail(mailTo, mailTitle, mailBody)
+            //위 메일 발송 결과를 알 수 있으면 베스트. 아래는 초대 메시지 생성
+            const str = '초대합니다.<br><br>' + nmTo.join(', ')
+            const param: Record<string, any> = { 
+                crud: 'C', 
+                chanid: CHANID, 
+                body : str, 
+                bodytext : str.replaceAll('<br>', '\n')
+            }
+            await this.saveMsg(param)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

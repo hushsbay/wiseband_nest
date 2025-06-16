@@ -186,7 +186,7 @@ export class MenuService {
             }
             sql += "ORDER BY Z.LASTMSGDT DESC, Z.CDT DESC "
             sql += "LIMIT " + hush.cons.rowsCnt
-            console.log(sql, userid, lastMsgMstCdt)
+            //console.log(sql, userid, lastMsgMstCdt)
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]

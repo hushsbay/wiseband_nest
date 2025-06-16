@@ -50,7 +50,7 @@ export class AuthService {
             if (json.code != hush.Code.OK) return hush.setResJson(resJson, json.msg, json.code, this.req)
             const mailTitle = '[' + hush.cons.appName + '] OTP : ' + otpNum
             const mailBody = '아래 6자리 숫자를 ' + hush.cons.appName + ' 인증창에서 입력합니다. \n\nOTP : ' + otpNum + '\n\n'
-            this.mailSvc.sendMail(uid, mailTitle, mailBody)
+            this.mailSvc.sendMail([uid], mailTitle, mailBody)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

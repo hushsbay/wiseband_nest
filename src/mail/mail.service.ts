@@ -10,7 +10,7 @@ export class MailService {
         private configService: ConfigService
     ) {}
 
-    public sendMail(to: string, subject: string, body: string): void {
+    public sendMail(to: string[], subject: string, body: string): void {
         this.mailerService.sendMail({
             to, //string or array
             from: this.configService.get<string>('MAILER_USER'),
