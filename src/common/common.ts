@@ -43,7 +43,7 @@ export enum Msg {
 export const cons = {
     appName : 'WiSEBand',
     otpDiffMax : 1, //분
-    rowsCnt : 10,
+    rowsCnt : 30,
     replyCntLimit : 2, //댓글표시할 때 사진 보여주기 Max값
     unidMySqlStr : "CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     curdtMySqlStr : "DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",

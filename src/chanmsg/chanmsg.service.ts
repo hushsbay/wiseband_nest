@@ -401,6 +401,7 @@ export class ChanmsgService {
                 sql += "             ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
+                console.log(sql)
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
@@ -869,7 +870,7 @@ export class ChanmsgService {
             sql += "     FROM S_MSGMST_TBL "
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [unidObj.ID, targetChanid, userid, usernm, unidObj.DT, msgid, chanid])
-            rs.data.newMsgid = unidObj.ID
+            resJson.data.newMsgid = unidObj.ID
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
