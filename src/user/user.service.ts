@@ -300,13 +300,13 @@ export class UserService {
                 const usercode = await qbUserCode
                 .select("COUNT(*) CNT")
                 .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
-                    userid: userid, uid: list[i].userid
+                    userid: userid, uid: list[i].USERID
                 }).getRawOne()
                 if (bool) {
                     if (usercode.CNT == 0) {
                         await qbUserCode
                         .insert().values({ 
-                            KIND: 'vip', USERID: userid, UID: list[i].userid, UNM: list[i].USER_NM
+                            KIND: 'vip', USERID: userid, UID: list[i].USERID, UNM: list[i].USERNM
                         }).execute()
                         retCnt += 1
                     }
@@ -315,7 +315,7 @@ export class UserService {
                         await qbUserCode
                         .delete()
                         .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
-                            userid: userid, uid: list[i].userid
+                            userid: userid, uid: list[i].USERID
                         }).execute()
                         retCnt += 1
                     }

@@ -215,6 +215,27 @@ export class MenuService {
         }
     }
 
+    async qryDmTwo(dto: Record<string, any>): Promise<any> { //DM 보내기 (2명으로만 구성된 DM방 찾아서 방 아이디 리턴)
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
+            const { USERID } = dto
+            const two1 = USERID + ',' + userid
+            const two2 = userid + ',' + USERID 
+            let sql = "SELECT CHANID, CNT, MEM "
+            sql += "     FROM (SELECT CHANID, (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
+            sql += "             FROM S_CHANDTL_TBL A "
+            sql += "            WHERE USERID = ? ORDER BY UDT DESC) Z "
+            sql += "    WHERE CNT = 2 AND MEM IN (?, ?) "
+            const list = await this.dataSource.query(sql, [USERID, two1, two2])
+            if (list.length > 0) resJson.data.chanid = list[0].CHANID
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
     async qryPanel(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
