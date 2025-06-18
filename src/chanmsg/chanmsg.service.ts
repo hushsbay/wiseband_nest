@@ -90,7 +90,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND
-                    data.chanmst.STATE1 = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATE1=매니저(M)/참여대기(W))
+                    data.chanmst.STATEDTL = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATEDTL=매니저(M)/참여대기(W))
                     break
                 }
             } */
@@ -110,7 +110,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) {
                     data.chanmst.USERID = item.USERID
                     data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 매니저(M)/참여대기(W)
+                    data.chanmst.STATEDTL = item.STATE //S_CHANDTL_TBL의 STATE=STATEDTL임 : 매니저(M)/참여대기(W)
                     break
                 }
             }
@@ -121,7 +121,7 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (비공개 채널)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
                 }
             }
-            //if (data.chanmst.STATE1 == 'X' || data.chanmst.STATE1 == 'Z') { //퇴장 or 강제퇴장
+            //if (data.chanmst.STATEDTL == 'X' || data.chanmst.STATEDTL == 'Z') { //퇴장 or 강제퇴장
             //    return hush.setResJson(resJson, '퇴장처리된 채널입니다.' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
             //}
             data.chandtl = chandtl */
@@ -138,7 +138,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
                     data.chanmst.USERID = item.USERID //아래 사용
                     data.chanmst.KIND = item.KIND //admin/member/guest
-                    data.chanmst.STATE1 = item.STATE //S_CHANDTL_TBL의 STATE=STATE1임 : 초대전(C)/참여대기(W)
+                    data.chanmst.STATEDTL = item.STATE //S_CHANDTL_TBL의 STATE=STATEDTL임 : 초대전(C)/참여대기(W)
                 }
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
@@ -163,14 +163,18 @@ export class ChanmsgService {
                 }
             }
             if (data.chanmst.STATE == 'A') {
-                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음
+                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음 (DM은 무조건 M,P이므로 여기에 해당안됨)
+            } else if (data.chanmst.STATE == 'M') { //DM방이 맨 처음 만들어지고 아직 메시지가 없을 때는 방을 만든 마스터에게만 보이기로 함
+                if (data.chanmst.MASTERID != userid) {
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (M)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl')
+                }
             } else { //비공개(Private)
                 if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (비공개 채널)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (P)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl')
                 }
             }
             data.chandtl = chandtl
-            if (data.chanmst.STATE1 == 'C' || data.chanmst.STATE1 == 'W') { //초청받고 초대전이나 참여대기시엔 메시지는 안보여주기
+            if (data.chanmst.STATEDTL == 'C' || data.chanmst.STATEDTL == 'W') { //초청받고 초대전이나 참여대기시엔 메시지는 안보여주기
                 resJson.data = data
                 return resJson
             }
@@ -788,16 +792,24 @@ export class ChanmsgService {
                         rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: replyto, chkGuest: true })    
                     } else {
                         rs = await this.chkAcl({ userid: userid, chanid: chanid, chkGuest: true })
-                    }
+                    }                    
                 } else {
                     rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
                 }
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveMsg')
+                if (rs.data.chanmst.STATE == 'M') {
+                    await this.chanmstRepo.createQueryBuilder()
+                    .update()
+                    .set({ STATE: 'P' })
+                    .where("CHANID = :chanid ", { 
+                        chanid: chanid
+                    }).execute()
+                }
             } else {
                 return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
             }
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
-            if (crud == 'C') {
+            if (crud == 'C') {                
                 const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
                 msgid = unidObj.ID
                 await qbMsgMst
@@ -1202,13 +1214,14 @@ export class ChanmsgService {
         }
     }
 
+    @Transactional({ propagation: Propagation.REQUIRED })
     async saveChan(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const { GR_ID, CHANID, CHANNM, STATE } = dto
+            const { GR_ID, CHANID, CHANNM, STATE, MEMBER } = dto
             const unidObj = await this.chanmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let chanmst: ChanMst
             if (CHANID != 'new') {
@@ -1242,7 +1255,7 @@ export class ChanmsgService {
                 chanmst.GR_ID = GR_ID ? GR_ID : 'GS'
                 chanmst.MASTERID = userid
                 chanmst.MASTERNM = usernm
-                chanmst.STATE = GR_ID ? STATE : 'P' //DM은 무조건 P=비공개
+                chanmst.STATE = GR_ID ? STATE : 'M' //DM은 무조건 M=마스터만열람으로 설정후 메시지 저장시 P(비공개)로 변경됨
                 chanmst.ISUR = userid
                 chanmst.CDT = unidObj.DT
             }
@@ -1262,6 +1275,19 @@ export class ChanmsgService {
                 chandtl.ISUR = userid
                 chandtl.CDT = unidObj.DT
                 await this.chandtlRepo.save(chandtl)
+                if (MEMBER && Array.isArray(MEMBER) && MEMBER.length > 0) {
+                    for (let i = 0; i < MEMBER.length; i++) {
+                        const chandtl = this.chandtlRepo.create()                
+                        chandtl.CHANID = unidObj.ID
+                        chandtl.USERID = MEMBER[i].USERID
+                        chandtl.USERNM = MEMBER[i].USERNM
+                        chandtl.KIND = 'member'
+                        chandtl.SYNC = 'Y'
+                        chandtl.ISUR = userid
+                        chandtl.CDT = unidObj.DT
+                        await this.chandtlRepo.save(chandtl)
+                    }
+                }
                 resJson.data.chanid = unidObj.ID
             }
             return resJson
