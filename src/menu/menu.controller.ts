@@ -16,8 +16,8 @@ export class MenuController {
     @Post('qryDm')
     qryDm(@Body() dto: Record<string, any>) { return this.menuSvc.qryDm(dto) }
 
-    @Post('qryDmTwo')
-    qryDmTwo(@Body() dto: Record<string, any>) { return this.menuSvc.qryDmTwo(dto) }
+    @Post('qryDmChkExist')
+    qryDmChkExist(@Body() dto: Record<string, any>) { return this.menuSvc.qryDmChkExist(dto) }
 
     @Post('qryActivity')
     qryActivity(@Body() dto: Record<string, any>) { return this.menuSvc.qryActivity(dto) }

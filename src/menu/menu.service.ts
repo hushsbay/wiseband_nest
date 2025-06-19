@@ -224,20 +224,45 @@ export class MenuService {
         }
     }
 
-    async qryDmTwo(dto: Record<string, any>): Promise<any> { //DM 보내기 (2명으로만 구성된 DM방 찾아서 방 아이디 리턴)
+    // async qryDmTwo(dto: Record<string, any>): Promise<any> { //DM 보내기 (2명으로만 구성된 DM방 찾아서 방 아이디 리턴) => 아래 잘되면 지우기
+    //     const resJson = new ResJson()
+    //     const userid = this.req['user'].userid
+    //     let fv = hush.addFieldValue(dto, null, [userid])
+    //     try {
+    //         const { USERID } = dto
+    //         const two1 = USERID + ',' + userid
+    //         const two2 = userid + ',' + USERID 
+    //         let sql = "SELECT CHANID, CNT, MEM "
+    //         sql += "     FROM (SELECT CHANID, (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
+    //         sql += "             FROM S_CHANDTL_TBL A "
+    //         sql += "            WHERE USERID = ? ORDER BY UDT DESC) Z "
+    //         sql += "    WHERE CNT = 2 AND MEM IN (?, ?) "
+    //         const list = await this.dataSource.query(sql, [USERID, two1, two2])
+    //         if (list.length > 0) resJson.data.chanid = list[0].CHANID
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req, fv)
+    //     }
+    // }
+
+    async qryDmChkExist(dto: Record<string, any>): Promise<any> { //복수로 구성된 DM방 찾아서 방 아이디 리턴
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { USERID } = dto
-            const two1 = USERID + ',' + userid
-            const two2 = userid + ',' + USERID 
+            let { member } = dto
+            member.sort((a: string, b: string) => a.localeCompare(b)) //오름차순 정렬
+            if (!member.includes(userid)) member.push(userid)
+            console.log(userid, member.length, member.join(','))
             let sql = "SELECT CHANID, CNT, MEM "
-            sql += "     FROM (SELECT CHANID, (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
+            sql += "     FROM (SELECT A.CHANID, "
+            sql += "                  (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, "
+            sql += "                  (SELECT GROUP_CONCAT(USERID ORDER BY USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
             sql += "             FROM S_CHANDTL_TBL A "
-            sql += "            WHERE USERID = ? ORDER BY UDT DESC) Z "
-            sql += "    WHERE CNT = 2 AND MEM IN (?, ?) "
-            const list = await this.dataSource.query(sql, [USERID, two1, two2])
+            sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            sql += "            WHERE A.USERID = ? AND B.TYP = 'GS' ORDER BY A.UDT DESC) Z "
+            sql += "    WHERE CNT = ? AND MEM = ? "
+            const list = await this.dataSource.query(sql, [userid, member.length, member.join(',')])
             if (list.length > 0) resJson.data.chanid = list[0].CHANID
             return resJson
         } catch (ex) {

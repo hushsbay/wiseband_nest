@@ -1277,12 +1277,13 @@ export class ChanmsgService {
                 await this.chandtlRepo.save(chandtl)
                 if (MEMBER && Array.isArray(MEMBER) && MEMBER.length > 0) {
                     for (let i = 0; i < MEMBER.length; i++) {
+                        if (MEMBER[i].USERID == userid) continue //바로 위에서 처리
                         const chandtl = this.chandtlRepo.create()                
                         chandtl.CHANID = unidObj.ID
                         chandtl.USERID = MEMBER[i].USERID
                         chandtl.USERNM = MEMBER[i].USERNM
                         chandtl.KIND = 'member'
-                        chandtl.SYNC = 'Y'
+                        chandtl.SYNC = MEMBER[i].SYNC
                         chandtl.ISUR = userid
                         chandtl.CDT = unidObj.DT
                         await this.chandtlRepo.save(chandtl)
