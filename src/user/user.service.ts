@@ -226,17 +226,22 @@ export class UserService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { searchText } = dto
-            const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
-            .select(['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'])
-            .where("A.SYNC = 'Y' ")
-            .andWhere(new Brackets(qb => {
-                qb.where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` })
-                .orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
-                .orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
-            }))
-            .orderBy('A.USERNM', 'ASC').getMany()
-            resJson.list = userlist
+            const { searchText, onlyAllUsers } = dto
+            const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE']
+            if (onlyAllUsers) {
+                const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+                .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany()
+                resJson.list = userlist
+            } else {
+                const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+                .select(fieldArr).where("A.SYNC = 'Y' ")
+                .andWhere(new Brackets(qb => {
+                    qb.where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` })
+                    qb.orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` })
+                    qb.orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` })
+                })).orderBy('A.USERNM', 'ASC').getMany()
+                resJson.list = userlist
+            }
             const vipList = await this.getVipList(userid)
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             return resJson
