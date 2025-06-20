@@ -2,7 +2,7 @@ import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, DataSource, SelectQueryBuilder } from 'typeorm'
+import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
 
 import * as hush from 'src/common/common'
@@ -810,7 +810,7 @@ export class ChanmsgService {
             }
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
             if (crud == 'C') {                
-                const unidObj = await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
+                const unidObj = await hush.getMysqlUnid(this.dataSource) //await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
                 msgid = unidObj.ID
                 await qbMsgMst
                 .insert().values({ 
@@ -851,7 +851,7 @@ export class ChanmsgService {
                 })
                 resJson.data.msgid = msgid
             } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
-                const curdtObj = await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
+                const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
                 await qbMsgMst
                 .update()
                 .set({ BODY: body, BODYTEXT: bodytext, UDT: curdtObj.DT })
@@ -876,7 +876,7 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan') 
             rs = await this.chkAcl({ userid: userid, chanid: targetChanid, chkGuest: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan>targetChanid') 
-            const unidObj = await this.msgmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
+            const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.msgmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let sql = "INSERT INTO S_MSGMST_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, KIND, CDT, UDT) " //REPLYTO는 없음
             sql += "   SELECT ?, ?, ?, ?, BODY, BODYTEXT, KIND, ?, '' " 
             sql += "     FROM S_MSGMST_TBL "
@@ -916,18 +916,15 @@ export class ChanmsgService {
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [msgid, chanid])
             await this.msgmstRepo.createQueryBuilder()
-            .delete()
-            .where("MSGID = :msgid and CHANID = :chanid ", {
+            .delete().where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
             }).execute()
             await this.msgsubRepo.createQueryBuilder()
-            .delete()
-            .where("MSGID = :msgid and CHANID = :chanid ", {
+            .delete().where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
             }).execute()
             await this.msgdtlRepo.createQueryBuilder()
-            .delete()
-            .where("MSGID = :msgid and CHANID = :chanid ", {
+            .delete().where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
             }).execute()
             return resJson
@@ -945,7 +942,7 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleChanOption')
             const qbChanDtl = this.chandtlRepo.createQueryBuilder()
-            const curdtObj = await qbChanDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbChanDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             const chandtl = await qbChanDtl
             .select("COUNT(*) CNT")
             .where("CHANID = :chanid and USERID = :userid ", {
@@ -985,29 +982,45 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
-            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             const msgdtlNew = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind })
             if (msgdtlNew) this.msgdtlRepo.delete(msgdtlNew) //아래에서 update하면 같은 newKind가 생길 수 있으므로 미리 check and delete
             let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
             if (msgdtl) {
-                msgdtl.UDT = curdtObj.DT
+                await qbMsgDtl.update()
+                .set({ KIND: newKind, UDT: curdtObj.DT })
+                .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                    msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
+                }).execute()
+                // const bracket = new Brackets((qb) => { //지우지말 것. where는 아래처럼 넣지 말고 Bracket으로 분리해서 공용으로 사용할 수 있도록 하는 것도 방법
+                //     qb.where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                //         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
+                //     })
+                // })
+                // await qbMsgDtl.update().set({ KIND: newKind, UDT: curdtObj.DT }).where(bracket).execute()
             } else {
-                msgdtl = this.msgdtlRepo.create()
-                msgdtl.MSGID = msgid
-                msgdtl.CHANID = chanid
-                msgdtl.USERID = userid
-                msgdtl.USERNM = usernm
-                msgdtl.TYP = ''
-                msgdtl.CDT = curdtObj.DT
+                await qbMsgDtl.insert().values({ 
+                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: '', CDT: curdtObj.DT, UDT: curdtObj.DT
+                }).execute()
             }
-            msgdtl.KIND = newKind
-            this.msgdtlRepo.save(msgdtl)
-            // await qbMsgDtl
-            // .update()
-            // .set({ KIND: newKind, UDT: curdtObj.DT })
-            // .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-            //     msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
-            // }).execute()
+            //위의 save()는 kind가 primary key인데 그걸 update하는 것으로서 아래처럼 코딩하면 update가 아닌 insert되어 버리는 문제가 발생함
+            //primary key, unique 인덱스 잘 설정되어 있어야 하고 제대로 사용(primary key는 고치지 않는 것만 사용)해야 문제를 막을 수 있는데 키가 많으면 복잡하고 어려울 것임
+            //따라서, 가장 안전하게 위와 같이 createQueryBuilder로 처리하기로 함
+            // if (msgdtl) { //console.log(msgid, chanid, userid, oldKind, "1111111")
+            //     msgdtl.UDT = curdtObj.DT
+            //     msgdtl.KIND = newKind
+            //     this.msgdtlRepo.save(msgdtl)
+            // } else { //console.log(msgid, chanid, userid, oldKind, "2222222")
+            //     msgdtl = this.msgdtlRepo.create()
+            //     msgdtl.MSGID = msgid
+            //     msgdtl.CHANID = chanid
+            //     msgdtl.USERID = userid
+            //     msgdtl.USERNM = usernm
+            //     msgdtl.TYP = ''
+            //     msgdtl.CDT = curdtObj.DT
+            //     msgdtl.KIND = newKind
+            //     this.msgdtlRepo.save(msgdtl)
+            // }
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1023,7 +1036,7 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateAllWithNewKind')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
-            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgDtl
             .update()
             .set({ KIND: newKind, UDT: curdtObj.DT })
@@ -1046,7 +1059,7 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleAction')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
-            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             const msgdtl = await qbMsgDtl
             .select("COUNT(*) CNT")
             .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
@@ -1080,7 +1093,7 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>changeAction')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
-            const curdtObj = await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             if (kind == 'later' || kind == 'stored' || kind == 'finished') {
                 const msgdtlforuser = await qbMsgDtl
                 .select("KIND")
@@ -1151,7 +1164,7 @@ export class ChanmsgService {
                 if (arr.length > 1) fileExt = arr[arr.length - 1].toLowerCase()
             }                
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
-            const curdtObj = await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
                 MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, FILEEXT: fileExt, CDT: curdtObj.DT, 
                 BUFFER: (kind != 'L') ? Buffer.from(new Uint8Array(file.buffer)) : null 
@@ -1222,7 +1235,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
             const { GR_ID, CHANID, CHANNM, STATE, MEMBER } = dto
-            const unidObj = await this.chanmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
+            const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.chanmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let chanmst: ChanMst
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
@@ -1321,7 +1334,7 @@ export class ChanmsgService {
                 return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
             }
             /*아래는 S_CHANMSTDEL_TBL로의 백업 시작
-            const curdtObj = await this.chanmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chanmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANMSTDEL_TBL WHERE CHANID = ? "
             const delchanmst = await this.dataSource.query(sqlDel, [CHANID])
             if (delchanmst[0].CNT > 0) {
@@ -1356,7 +1369,7 @@ export class ChanmsgService {
             if (chanmst.KIND != 'admin') {
                 return hush.setResJson(resJson, '해당 채널 관리자만 멤버저장 가능합니다.' + fv, hush.Code.NOT_OK, null, 'usechanmsgr>saveChanMember')
             }
-            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (crud == 'U') {
                 if (!chandtl) {
@@ -1415,7 +1428,7 @@ export class ChanmsgService {
                 return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>deleteChanMember')
             }
             /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
-            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
             const deldtl = await this.dataSource.query(sqlDel, [CHANID, USERID])
             if (deldtl[0].CNT > 0) {
@@ -1477,7 +1490,7 @@ export class ChanmsgService {
     //         }
     //         await this.saveMsg(param)
     //         //발송후엔 참여대기로 상태가 변경
-    //         const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+    //         const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
     //         chandtl.STATE = 'W'
     //         chandtl.MODR = userid
     //         chandtl.UDT = curdtObj.DT
@@ -1498,7 +1511,7 @@ export class ChanmsgService {
             const { CHANID, CHANNM, USERIDS } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>inviteToMember')
-            const curdtObj = await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const chanmst = rs.data.chanmst
             const grid = chanmst.GR_ID
             const mailTo = [], nmTo = []

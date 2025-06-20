@@ -88,7 +88,7 @@ export class UserService {
             // }
             const [user, retStr] = await this.chkUser(uid, otpNum)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
-            const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
             this.userRepo.save(user)
@@ -114,7 +114,7 @@ export class UserService {
             if (otpNum != user.OTP_NUM) {
                 return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req, 'user>verifyOtp')
             }
-            const curdtObj = await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const minDiff = hush.getDateTimeDiff(user.OTP_DT, curdtObj.DT, 'M')
             if (minDiff > hush.cons.otpDiffMax) {
                 return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다.' + fv, hush.Code.OTP_TIMEOVER, this.req, 'user>verifyOtp')
@@ -361,7 +361,7 @@ export class UserService {
             fv = hush.addFieldValue(dto, null, [userid, useridToProc]) //console.log(useridToProc, crud, USERID, SYNC, EMAIL)
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveMember>chkUserRightForGroup')
-            const curdtObj = await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc }) //2) 여기서부터는 처리할 멤버(useridToProc)를 대상으로 체크
             if (crud == 'U') {                
                 if (!grdtl) {
@@ -452,7 +452,7 @@ export class UserService {
             if (grmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
             } /*아래는 S_GRDTLDEL_TBL로의 백업 시작
-            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
             const deluser = await this.dataSource.query(sqlDel, [GR_ID, USERID])
             if (deluser[0].CNT > 0) {
@@ -488,7 +488,7 @@ export class UserService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
             const { GR_ID, GR_NM } = dto
-            const unidObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
+            const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.grmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let grmst: GrMst
             if (GR_ID != 'new') {
                 const [grmst1, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
@@ -560,7 +560,7 @@ export class UserService {
             await this.dataSource.query("DELETE FROM S_GRDTL_TBL WHERE GR_ID = ? ", [GR_ID])
             await this.dataSource.query("DELETE FROM S_GRMST_TBL WHERE GR_ID = ? ", [GR_ID])
             /*아래는 S_GRMSTDEL_TBL로의 백업 시작
-            const curdtObj = await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_GRMSTDEL_TBL WHERE GR_ID = ? "
             const delgrmst = await this.dataSource.query(sqlDel, [GR_ID])
             if (delgrmst[0].CNT > 0) {

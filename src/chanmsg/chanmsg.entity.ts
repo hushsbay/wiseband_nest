@@ -71,10 +71,10 @@ export class MsgSub {
 export class MsgDtl {
 
     @PrimaryColumn()
-    CHANID: string
+    MSGID: string
 
     @PrimaryColumn()
-    MSGID: string
+    CHANID: string    
 
     @PrimaryColumn()
     USERID: string

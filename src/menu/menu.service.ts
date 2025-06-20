@@ -251,9 +251,9 @@ export class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let { member } = dto
-            member.sort((a: string, b: string) => a.localeCompare(b)) //오름차순 정렬
-            if (!member.includes(userid)) member.push(userid)
-            console.log(userid, member.length, member.join(','))
+            if (!member.includes(userid)) member.push(userid) //소팅전에 추가
+            member.sort((a: string, b: string) => a.localeCompare(b)) //오름차순 정렬            
+            //console.log(userid, member.length, member.join(','))
             let sql = "SELECT CHANID, CNT, MEM "
             sql += "     FROM (SELECT A.CHANID, "
             sql += "                  (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, "
