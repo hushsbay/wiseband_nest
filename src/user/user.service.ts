@@ -408,6 +408,8 @@ export class UserService {
                 grdtl.SYNC = SYNC //수동입력시는 빈칸. 조직도에서 넘어오면 Y
                 grdtl.ISUR = userid
                 grdtl.CDT = curdtObj.DT
+                grdtl.MODR = userid
+                grdtl.UDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
             }
             if (SYNC == '') { //수동입력시 사용자테이블 연동 처리
@@ -512,6 +514,8 @@ export class UserService {
                 grmst.MASTERNM = usernm
                 grmst.ISUR = userid
                 grmst.CDT = unidObj.DT
+                grmst.MODR = userid
+                grmst.UDT = unidObj.DT
             }
             if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
                 hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroup>grmst')
@@ -526,6 +530,8 @@ export class UserService {
                 grdtl.SYNC = 'Y'
                 grdtl.ISUR = userid
                 grdtl.CDT = unidObj.DT
+                grdtl.MODR = userid
+                grdtl.UDT = unidObj.DT
                 await this.grdtlRepo.save(grdtl)
                 resJson.data.grid = unidObj.ID
             }            

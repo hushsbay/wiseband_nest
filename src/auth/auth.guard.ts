@@ -33,13 +33,15 @@ export class AuthGuard implements CanActivate {
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate) //무조건 갱신함
             response.cookie('token', tokenToUpdate)
         } catch (ex) {
+            const payload = JSON.parse(payloadStr)
+            const userInfoStr = payload.userid + '/' + payload.usernm + '/' + payload.orgcd 
             if (ex.name == 'TokenExpiredError') {
-                const strErr = hush.Msg.JWT_EXPIRED + '\n' + payloadStr
+                const strErr = hush.Msg.JWT_EXPIRED + ' ' + userInfoStr
                 this.logger.error(strErr, hush.Code.JWT_EXPIRED);
                 hush.throwHttpEx(strErr, hush.Code.JWT_EXPIRED);
             }
             else {
-                const strErr = hush.Msg.JWT_ETC + ' (' + ex.name + ') ' + ex.message + ' ' + payloadStr
+                const strErr = hush.Msg.JWT_ETC + ' (' + ex.name + ') ' + ex.message + ' ' + userInfoStr
                 this.logger.error(strErr, hush.Code.JWT_ETC);
                 hush.throwHttpEx(strErr, hush.Code.JWT_ETC);
             }

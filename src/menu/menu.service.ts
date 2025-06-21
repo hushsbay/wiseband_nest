@@ -191,7 +191,7 @@ export class MenuService {
             const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                console.log(row.CHANID, row.STATE, row.MASTERID, userid)
+                //console.log(row.CHANID, row.STATE, row.MASTERID, userid)
                 if (row.STATE == 'M') { //DM방이 맨 처음 만들어지고 아직 메시지가 없을 때는 방을 만든 마스터에게만 보이기로 함
                     //만들 때 먼저 중복체크해서 이미 동일한 멤버들이 있는 방이 존재하면 안만들면 베스트인데 현재 멤버 한명씩 추가시마다 저장되는 로직이므로
                     //처음 추가시 없을 때는 저장하다가 뒤에 추가시 있으면 그때 없애야 하는 구조임 (아니면 최종 방만들기 버튼 별도로 있어야 함 - 사용자불편) 

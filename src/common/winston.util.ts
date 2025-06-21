@@ -2,6 +2,8 @@ import { WinstonModule, utilities } from 'nest-winston'
 import * as winston from 'winston'
 import * as winstonDaily from 'winston-daily-rotate-file'
 
+import * as hush from 'src/common/common'
+
 const dailyOption = (level: string) => {
     return {
         level,
@@ -28,7 +30,9 @@ export const winstonLogger = WinstonModule.createLogger({
                     format: 'YYYY-MM-DD HH:mm:ss'
                 }),
                 winston.format.ms(),
-                utilities.format.nestLike('nest', { colors: true, prettyPrint: true, processId: true, appName: true })
+                utilities.format.nestLike(hush.cons.appName, { 
+                    colors: true, prettyPrint: true, processId: true, appName: true
+                })
             )
         }),
         new winstonDaily(dailyOption('warn')),

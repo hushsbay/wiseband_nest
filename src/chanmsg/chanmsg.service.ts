@@ -814,7 +814,8 @@ export class ChanmsgService {
                 msgid = unidObj.ID
                 await qbMsgMst
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, BODYTEXT: bodytext, CDT: unidObj.DT
+                    MSGID: msgid, CHANID: chanid, AUTHORID: userid, AUTHORNM: usernm, REPLYTO: replyto ? replyto : '', BODY: body, BODYTEXT: bodytext, 
+                    CDT: unidObj.DT, UDT: unidObj.DT
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
                 let arr = []
@@ -846,7 +847,7 @@ export class ChanmsgService {
                     const strKind = (item.USERID == userid) ? 'read' : 'notyet'
                     await qbMsgDtl
                     .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, USERNM: item.USERNM
+                        MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
                     }).execute()
                 })
                 resJson.data.msgid = msgid
@@ -1074,7 +1075,7 @@ export class ChanmsgService {
             } else {                
                 await qbMsgDtl
                 .insert().values({ 
-                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, USERNM: usernm, TYP: 'react'
+                    MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm, TYP: 'react'
                 }).execute()
             }
             return resJson
@@ -1103,7 +1104,7 @@ export class ChanmsgService {
                 if (!msgdtlforuser) {
                     await qbMsgDtl
                     .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
                     }).execute()
                     resJson.data.work = "create"
                 } else {
@@ -1132,7 +1133,7 @@ export class ChanmsgService {
                 if (!msgdtlforuser) {
                     await qbMsgDtl
                     .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, USERNM: usernm
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
                     }).execute()
                     resJson.data.work = "create"
                 } else {
@@ -1166,7 +1167,7 @@ export class ChanmsgService {
             const qbMsgSub = this.msgsubRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgSub.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgSub.insert().values({
-                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, FILEEXT: fileExt, CDT: curdtObj.DT, 
+                MSGID: userid, CHANID: chanid, KIND: kind, BODY: body, FILESIZE: filesize, FILEEXT: fileExt, CDT: curdtObj.DT, UDT: curdtObj.DT, 
                 BUFFER: (kind != 'L') ? Buffer.from(new Uint8Array(file.buffer)) : null 
             }).execute()
             resJson.data.cdt = curdtObj.DT
@@ -1271,6 +1272,8 @@ export class ChanmsgService {
                 chanmst.STATE = GR_ID ? STATE : 'M' //DM은 무조건 M=마스터만열람으로 설정후 메시지 저장시 P(비공개)로 변경됨
                 chanmst.ISUR = userid
                 chanmst.CDT = unidObj.DT
+                chanmst.MODR = userid
+                chanmst.UDT = unidObj.DT
             }
             if (GR_ID) {
                 if (!CHANNM || CHANNM.trim() == '' || CHANNM.trim().length > 50) {
@@ -1287,6 +1290,8 @@ export class ChanmsgService {
                 chandtl.SYNC = 'Y' //채널 생성은 Y만 가능 (그룹도 마찬가지임)
                 chandtl.ISUR = userid
                 chandtl.CDT = unidObj.DT
+                chandtl.MODR = userid
+                chandtl.UDT = unidObj.DT
                 await this.chandtlRepo.save(chandtl)
                 if (MEMBER && Array.isArray(MEMBER) && MEMBER.length > 0) {
                     for (let i = 0; i < MEMBER.length; i++) {
@@ -1299,6 +1304,8 @@ export class ChanmsgService {
                         chandtl.SYNC = MEMBER[i].SYNC
                         chandtl.ISUR = userid
                         chandtl.CDT = unidObj.DT
+                        chandtl.MODR = userid
+                        chandtl.UDT = unidObj.DT
                         await this.chandtlRepo.save(chandtl)
                     }
                 }
@@ -1395,6 +1402,8 @@ export class ChanmsgService {
                 chandtl.SYNC = SYNC
                 chandtl.ISUR = userid
                 chandtl.CDT = curdtObj.DT
+                chandtl.MODR = userid
+                chandtl.UDT = curdtObj.DT
             }
             await this.chandtlRepo.save(chandtl)
             return resJson

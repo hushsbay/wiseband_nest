@@ -18,7 +18,7 @@ import { MailModule } from 'src/mail/mail.module'
                 return {
                     global: true,
                     secret: config.jwt.key, //sendjay에 맞춘 것임
-                    signOptions: { algorithm: 'HS256', expiresIn: '4h' } //HS512도 있으나 sendjay에 맞춘 것임. expiryIn 예) "59s", "1h", "365 days"
+                    signOptions: { algorithm: 'HS256', expiresIn: '4h' } //HS512도 있으나 기존 환경에 맞추는 목적. expiryIn 예) "59s", "1h", "365 days"
                 }
             }            
         }),

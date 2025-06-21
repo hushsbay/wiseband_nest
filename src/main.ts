@@ -13,6 +13,7 @@ async function bootstrap() {
 
     initializeTransactionalContext()
 
+    //https://cdragon.tistory.com/entry/NestJS-Logging-%EC%95%8C%EC%95%84%EB%B3%B4%EA%B8%B0-feat-winston
     const app = await NestFactory.create(AppModule, {
         logger: winstonLogger,      
         bufferLogs: true // 부트스트래핑 과정까지 nest-winston 로거 사용

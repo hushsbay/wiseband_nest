@@ -13,12 +13,13 @@ export class LoggerMiddleware implements NestMiddleware {
         const userAgent = req.get('user-agent')
         res.on('finish', () => {
             const { statusCode } = res
+            const str = `[${method}]${originalUrl}(${statusCode}) ${ip} ${userAgent}`
             if (statusCode >= 400 && statusCode < 500) {
-                winstonLogger.warn(`[${method}]${originalUrl}(${statusCode}) ${ip} ${userAgent}`)
+                winstonLogger.warn(str)
             } else if (statusCode >= 500) {
-                winstonLogger.error(`[${method}]${originalUrl}(${statusCode}) ${ip} ${userAgent}`)
+                winstonLogger.error(str)
             } else {
-                winstonLogger.log(`[${method}]${originalUrl}(${statusCode}) ${ip} ${userAgent}`)
+                winstonLogger.log(str)
             }
         })
         next()
