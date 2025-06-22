@@ -163,18 +163,25 @@ export class UserService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {
-            const { myteam } = dto //console.log(myteam, "@@@@@")
+            const { myteam, mycomp } = dto
             let maxLevel = -1
-            const orglist = await this.dataSource.createQueryBuilder()
-            .select('A.ORG_CD', 'ORG_CD')
-            .addSelect('A.ORG_NM', 'ORG_NM')
-            .addSelect('A.SEQ', 'SEQ')
-            .addSelect('A.LVL', 'LVL')
-            .addSelect((subQuery) => {
-                return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")
-            }, 'CNT')
-            .from(Org, 'A')
-            .orderBy('A.SEQ', 'ASC').getRawMany()
+            // const orglist = await this.dataSource.createQueryBuilder()
+            // .select('A.ORG_CD', 'ORG_CD')
+            // .addSelect('A.ORG_NM', 'ORG_NM')
+            // .addSelect('A.SEQ', 'SEQ')
+            // .addSelect('A.LVL', 'LVL')
+            // .addSelect((subQuery) => {
+            //     return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")
+            // }, 'CNT')
+            // .from(Org, 'A')
+            // .orderBy('A.SEQ', 'ASC').getRawMany()
+            let sql = "SELECT ORG_CD, ORG_NM, TOP_ORG_CD, SEQ, LVL, (SELECT COUNT(*) FROM S_USER_TBL WHERE ORG_CD = A.ORG_CD) CNT "
+            sql += "     FROM S_ORG_TBL A "
+            if (mycomp) {
+                sql += "WHERE TOP_ORG_CD = '" + mycomp + "' "
+            }
+            sql += "    ORDER BY SEQ "
+            const orglist = await this.dataSource.query(sql, null)
             if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
             }
