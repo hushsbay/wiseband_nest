@@ -35,7 +35,7 @@ export class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
-            //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
+            console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
@@ -138,7 +138,7 @@ export class ChanmsgService {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
                     data.chanmst.USERID = item.USERID //아래 사용
                     data.chanmst.KIND = item.KIND //admin/member/guest
-                    data.chanmst.STATEDTL = item.STATE //S_CHANDTL_TBL의 STATE=STATEDTL임 : 초대전(C)/참여대기(W)
+                    //data.chanmst.STATEDTL = item.STATE //S_CHANDTL_TBL의 STATE=STATEDTL임 : 초대전(C)/참여대기(W)
                 }
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
@@ -173,11 +173,7 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (P)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl')
                 }
             }
-            data.chandtl = chandtl
-            if (data.chanmst.STATEDTL == 'C' || data.chanmst.STATEDTL == 'W') { //초청받고 초대전이나 참여대기시엔 메시지는 안보여주기
-                resJson.data = data
-                return resJson
-            }
+            data.chandtl = chandtl            
             //////////c) S_MSGMST_TBL
             if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
@@ -187,15 +183,19 @@ export class ChanmsgService {
                 }).getOne()
                 if (!msgmst) {
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>msgmst')
-                } //console.log(chkAuthor, userid, msgmst.AUTHORID)
+                } 
                 if (chkAuthor && userid != msgmst.AUTHORID) { //편집저장삭제 등의 경우임
                     return hush.setResJson(resJson, '작성자가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>chkAuthor')
                 }
+                // if (data.chanmst.STATEDTL == 'C' || data.chanmst.STATEDTL == 'W') { //초청받고 초대전이나 참여대기시엔 메시지는 안보여주기 => 어차피 초대했는데 굳이 그럴 필요없음
+                //     resJson.data = data
+                //     return resJson
+                // }
                 data.msgmst = msgmst
             } else if (chkGuest) {
                 if (data.chanmst.KIND != 'admin' && data.chanmst.KIND != 'member') {
                     return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>chkAcl>chkGuest')    
-                }
+                }                
             }
             resJson.data = data
             return resJson
@@ -507,9 +507,9 @@ export class ChanmsgService {
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanMstDtl')
             resJson.data.chanmst = rs.data.chanmst
-            if (state == 'C' || state == 'W') { //초대전(초대필요),참여대기 : 위 chkAcl은 권한 체크모듈이므로 거기서 처리하지 않고 여기서 안전하게 처리 
-                resJson.data.chandtl = rs.data.chandtl.filter((item: ChanDtl) => (item.STATE == state))
-            } else { //All
+            //if (state == 'C' || state == 'W') { //초대전(초대필요),참여대기 : 위 chkAcl은 권한 체크모듈이므로 거기서 처리하지 않고 여기서 안전하게 처리 
+            //    resJson.data.chandtl = rs.data.chandtl.filter((item: ChanDtl) => (item.STATE == state))
+            //} else { //All
                 resJson.data.chandtl = rs.data.chandtl 
                 if (rs.data.chanmst.TYP == "GS") { //멤버중복 체크하는 루틴 (DM방에 대해서만. 미리 체크해 방지하면 최선이나 멤버추가시 마다 체크하는 루틴이므로 쉽지 않아 일단 사후경고만 하고 있음)
                     let sql = "SELECT (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
@@ -532,7 +532,7 @@ export class ChanmsgService {
                         if (otherchan.length > 0) resJson.data.chanidAlready = otherchan[0].CHANID
                     }
                 }
-            }
+            //}
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv) 
@@ -807,7 +807,7 @@ export class ChanmsgService {
                     rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
                 }
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveMsg')
-                if (rs.data.chanmst.STATE == 'M') {
+                if (rs.data.chanmst.STATE == 'M') { //DM의 경우에 한해 메시지가 보내지기 직전에 방이 M상태가 되고 처음 보낸 후엔 P상태가 됨
                     await this.chanmstRepo.createQueryBuilder()
                     .update()
                     .set({ STATE: 'P' })
@@ -871,7 +871,10 @@ export class ChanmsgService {
                     msgid: msgid, chanid: chanid
                 }).execute()
             }
-            const logObj = { cdt: unidObj.DT, msgid: msgid, chanid: chanid, userid: userid, usernm: usernm, cud: crud, kind: 'msg', subkind: crud == 'C' ? 'msgall' : 'msgmst' }
+            const logObj = { 
+                cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, userid: userid, usernm: usernm, 
+                cud: crud, kind: 'msg', subkind: crud == 'C' ? 'msgall' : 'msgmst' 
+            }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
             return resJson
@@ -916,6 +919,13 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')  
             const msgReply = await this.msgmstRepo.findOneBy({ REPLYTO: msgid, CHANID: chanid })
             if (msgReply) return hush.setResJson(resJson, '댓글이 있습니다.', hush.Code.NOT_OK, this.req, 'chanmsg>delMsg')  
+            let msgidParent = ''
+            let msgmst = await this.msgmstRepo.createQueryBuilder('A')
+            .select(['A.REPLYTO'])
+            .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
+                msgid: msgid, chanid: chanid
+            }).getOne()
+            if (msgmst) msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
             let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT) "
             sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT "
             sql += "     FROM S_MSGMST_TBL "
@@ -944,7 +954,10 @@ export class ChanmsgService {
                 msgid: msgid, chanid: chanid
             }).execute()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            const logObj = { cdt: curdtObj.DT, msgid: msgid, chanid: chanid, userid: userid, usernm: usernm, cud: 'D', kind: 'msg', subkind: 'msgall' }
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: msgid, replyto: msgidParent, chanid: chanid, userid: userid, usernm: usernm, 
+                cud: 'D', kind: 'msg', subkind: 'msgall' 
+            }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
             return resJson
@@ -1595,11 +1608,16 @@ export class ChanmsgService {
         try {
             const { logdt, kind, chanid } = dto
             console.log(logdt, kind, chanid)
-            let sql = "SELECT CDT, MSGID, CHANID, USERID, USERNM, CUD, KIND "
+            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND "
             sql += "     FROM S_DATALOG_TBL A "
             sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
             sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게하려면 ASC로 소팅하기
             const list = await this.dataSource.query(sql, [logdt, kind, chanid])
+            for (let i = 0; i < list.length; i++) {
+                //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
+                const parentMsgid = (list[i].CUD == 'D' && list[i].REPLYTO != list[i].MSGID) ? list[i].REPLYTO : list[i].MSGID
+                list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid })
+            }
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             resJson.data.logdt = curdtObj.DT
             resJson.list = list

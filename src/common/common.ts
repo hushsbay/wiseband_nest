@@ -180,15 +180,15 @@ export async function getMysqlUnid(dataSource: DataSource): Promise<any> {
 }
 
 export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> {
-    let { cdt, msgid, chanid, userid, usernm, cud, kind, subkind } = obj
+    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, subkind } = obj
     try {        
-        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, CHANID, USERID, USERNM, CUD, KIND, SUBKIND) "
-        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
-        await dataSource.query(sql, [cdt, msgid, chanid, userid, usernm, cud, kind, subkind])
+        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, SUBKIND) "
+        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, subkind])
         return ''
     } catch (ex) {
         return ex.message
-    }    
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
