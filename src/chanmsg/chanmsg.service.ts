@@ -780,7 +780,7 @@ export class ChanmsgService {
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
+            let { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
             if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
                 if (!chanid || (!body && num_file == 0 && num_image == 0 && num_link == 0)) {
@@ -808,9 +808,10 @@ export class ChanmsgService {
             } else {
                 return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
             }
+            const unidObj = await hush.getMysqlUnid(this.dataSource)
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
             if (crud == 'C') {                
-                const unidObj = await hush.getMysqlUnid(this.dataSource) //await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
+                //const unidObj = await hush.getMysqlUnid(this.dataSource) //await qbMsgMst.select(hush.cons.unidMySqlStr).getRawOne()
                 msgid = unidObj.ID
                 await qbMsgMst
                 .insert().values({ 
@@ -849,17 +850,20 @@ export class ChanmsgService {
                     .insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
                     }).execute()
-                })
+                })                
                 resJson.data.msgid = msgid
             } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
-                const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
+                //const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
                 await qbMsgMst
                 .update()
-                .set({ BODY: body, BODYTEXT: bodytext, UDT: curdtObj.DT })
+                .set({ BODY: body, BODYTEXT: bodytext, UDT: unidObj.DT })
                 .where("MSGID = :msgid and CHANID = :chanid ", {
                     msgid: msgid, chanid: chanid
                 }).execute()
             }
+            const logObj = { cdt: unidObj.DT, msgid: msgid, chanid: chanid, userid: userid, usernm: usernm, cud: crud, kind: 'msg', subkind: crud == 'C' ? 'msgall' : 'msgmst' }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1563,6 +1567,24 @@ export class ChanmsgService {
             await this.saveMsg({ //const param: Record<string, any> = { crud: 'C'.. }
                 crud: 'C', chanid: CHANID, body : str, bodytext : str.replaceAll('<br>', '\n') 
             })
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async qryDataLog(dto: Record<string, any>): Promise<any> { //insertDataLog()는 common.ts에 있음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
+            const { logdt, kind } = dto
+            let sql = "SELECT CDT, MSGID, CHANID, USERID, USERNM, CUD, KIND "
+            sql += "     FROM S_DATALOG_TBL A "
+            sql += "    WHERE CDT > ? AND KIND = ? "
+            sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게하려면 ASC로 소팅하기
+            const list = await this.dataSource.query(sql, [logdt, kind])
+            resJson.list = list
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

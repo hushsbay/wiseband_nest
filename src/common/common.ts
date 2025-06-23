@@ -179,6 +179,18 @@ export async function getMysqlUnid(dataSource: DataSource): Promise<any> {
     return list[0]
 }
 
+export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> {
+    let { cdt, msgid, chanid, userid, usernm, cud, kind, subkind } = obj
+    try {        
+        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, CHANID, USERID, USERNM, CUD, KIND, SUBKIND) "
+        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+        await dataSource.query(sql, [cdt, msgid, chanid, userid, usernm, cud, kind, subkind])
+        return ''
+    } catch (ex) {
+        return ex.message
+    }    
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //아래는 nest.js와는 무관하게 사용 가능한 일반적인 메소드임
 
