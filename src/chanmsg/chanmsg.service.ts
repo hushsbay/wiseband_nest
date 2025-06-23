@@ -343,7 +343,7 @@ export class ChanmsgService {
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
             let data = { 
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
-                msgidParent: '', msgidChild: '', vipStr: null 
+                msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
             const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
@@ -356,7 +356,7 @@ export class ChanmsgService {
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
-            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']
+            const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'] //qryMsg()와 동일한 필드값이여야 함
             let msglist: MsgMst[]
             if (firstMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') {
@@ -405,7 +405,7 @@ export class ChanmsgService {
                 sql += "             ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
-                console.log(sql)
+                //console.log(sql)
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
@@ -447,7 +447,8 @@ export class ChanmsgService {
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
             if (msglist.length > 0) data.msglist = msglist
-            ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4)
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후에 시각을 리얼타임 반영의 기준으로 보기
+            ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
@@ -483,7 +484,13 @@ export class ChanmsgService {
                         data.templinklist = msgsub
                     }
                 }
-            }            
+            }
+            data.logdt = curdtObj.DT
+            let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
+            const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
+            resJson.list = realLastList //atHome 등에서 조회시는 그 채널의 마지막 메시지는 가져오지 않는 경우도 많을텐데 이 때 마지막 메시지를 별도로 가져와서 
+            //리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기
+            //realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 추가분을 배열에 추가해 화면에 보이도록 하면 됨
             resJson.data = data
             return resJson
         } catch (ex) {
@@ -707,7 +714,8 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { 
-                msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null 
+                msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgdtlmention: null,
+                msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null 
             }
             const { chanid, msgid } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
@@ -716,17 +724,19 @@ export class ChanmsgService {
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL
-            const msgmst = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'])
+            const msgmst = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']) //qry()와 동일한 필드값이여야 함
             .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
                 msgid: msgid, chanid: chanid
             }).getOne()
             data.msgmst = msgmst
-            ////////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////////// => qryMsg()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
             data.act_later = msgdtlforuser.act_later
             data.act_fixed = msgdtlforuser.act_fixed
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
             data.msgdtl = (msgdtl.length > 0) ? msgdtl : []
+            const msgdtlmention = await this.qryMsgDtlMention(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (멘션)
+            data.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
             const msgsub = await this.qryMsgSub(qbSub, msgid, chanid) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
             data.msgfile = msgsub.msgfile
             data.msgimg = msgsub.msgimg
@@ -898,6 +908,7 @@ export class ChanmsgService {
     async delMsg(dto: Record<string, any>): Promise<any> { 
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])       
         try { //메시지 마스터를 삭제하면 거기에 딸려 있는 서브와 디테일 테이블 정보는 소용없으므로 모두 삭제함 (DEL_TBL로 이동시킴)
             const { msgid, chanid } = dto
@@ -932,6 +943,10 @@ export class ChanmsgService {
             .delete().where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
             }).execute()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            const logObj = { cdt: curdtObj.DT, msgid: msgid, chanid: chanid, userid: userid, usernm: usernm, cud: 'D', kind: 'msg', subkind: 'msgall' }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1578,12 +1593,15 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { logdt, kind } = dto
+            const { logdt, kind, chanid } = dto
+            console.log(logdt, kind, chanid)
             let sql = "SELECT CDT, MSGID, CHANID, USERID, USERNM, CUD, KIND "
             sql += "     FROM S_DATALOG_TBL A "
-            sql += "    WHERE CDT > ? AND KIND = ? "
+            sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
             sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게하려면 ASC로 소팅하기
-            const list = await this.dataSource.query(sql, [logdt, kind])
+            const list = await this.dataSource.query(sql, [logdt, kind, chanid])
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            resJson.data.logdt = curdtObj.DT
             resJson.list = list
             return resJson
         } catch (ex) {
