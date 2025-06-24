@@ -204,7 +204,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any> { //d-0) S_MSGDTL_TBL
+    async qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any> { //d-0) S_MSGDTL_TBL 본인 액션만 가져오기
         const retObj = { act_later: null, act_fixed: null }
         const msgdtlforuser = await qb //예) "later","stored","finished"는 한몸으로서 해당 사용자만 조회해 보여줘야 하는 데이터임. 필요할 경우 CASE WHEN으로 추가해 관리해야 함
         .select([
@@ -226,7 +226,7 @@ export class ChanmsgService {
         return retObj
     }
 
-    async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
+    async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL 다른 사용자가 처리한 것도 가져오기
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM', 'GROUP_CONCAT(B.USERID ORDER BY B.USERID SEPARATOR ", ") ID'])
         .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP in ('', 'react') ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
@@ -256,8 +256,8 @@ export class ChanmsgService {
             msgid: msgid, chanid: chanid
         }).orderBy('C.KIND', 'ASC').addOrderBy('C.CDT', 'ASC').getMany()
         if (msgsub.length > 0) {
-            const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f')
-            const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i')
+            const msgfile = msgsub.filter((val) => val.KIND == 'F' || val.KIND == 'f') //소문자는 예비용(파일링크?)
+            const msgimg = msgsub.filter((val) => val.KIND == 'I' || val.KIND == 'i') //소문자는 예비용(이미지링크?)
             const msglink = msgsub.filter((val) => val.KIND == 'L')
             return { msgfile: msgfile, msgimg: msgimg, msglink: msglink }
         } else {
@@ -265,7 +265,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any> { //d-3) S_MSGMST_TBL
+    async qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any> { //d-3) S_MSGMST_TBL 사용자별 정보
         // const reply = await qb.select(['A.MSGID MSGID', 'A.AUTHORID AUTHORID', 'A.AUTHORNM AUTHORNM', '(CASE WHEN A.CDT > A.UDT THEN A.CDT ELSE A.UDT END) DT']) //3) 댓글
         // .where("A.CHANID = :chanid and A.REPLYTO = :msgid ", { 
         //     chanid: chanid, msgid: item.MSGID 
@@ -280,7 +280,7 @@ export class ChanmsgService {
         return (reply.length > 0) ? reply : []
     }
 
-    async qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any> { //d-4) S_MSGMST_TBL
+    async qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any> { //d-4) S_MSGMST_TBL 댓글 갯수, 안읽은갯수, 최종업데이트일시
         let sql = "SELECT SUM(CNT) CNT_BY_USER, "
         sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
         sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
@@ -361,20 +361,20 @@ export class ChanmsgService {
             if (nextMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') {
                     msglist = await qb.select(fldArr)
-                    .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: nextMsgMstCdt
+                    .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
+                        chanid: chanid, nextcdt: nextMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').getMany()
                 } else {
                     msglist = await qb.select(fldArr)
-                    .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: nextMsgMstCdt
+                    .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
+                        chanid: chanid, nextcdt: nextMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
                 }
                 //console.log("nextMsgMstCdt", nextMsgMstCdt, msglist.length)
             } else if (prevMsgMstCdt) {
                 msglist = await qb.select(fldArr)
-                .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
-                    chanid: chanid, lastcdt: prevMsgMstCdt
+                .where("A.CHANID = :chanid and A.CDT < :prevcdt and A.REPLYTO = '' ", { 
+                    chanid: chanid, prevcdt: prevMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
                 //console.log("prevMsgMstCdt", prevMsgMstCdt, msglist.length)
             } else if (msgid && kind == 'atHome') { 
@@ -451,10 +451,10 @@ export class ChanmsgService {
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
-                const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+                const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid) //d-0) S_MSGDTL_TBL (본인 액션만 가져오기)
                 item.act_later = msgdtlforuser.act_later
                 item.act_fixed = msgdtlforuser.act_fixed
-                const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
+                const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘 - 다른 사용자가 처리한 것도 가져오기)
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []                
                 const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid) //d-1) S_MSGDTL_TBL (멘션)
                 item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
@@ -462,9 +462,9 @@ export class ChanmsgService {
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
                 item.msglink = msgsub.msglink
-                const reply = await this.qryReply(qb, item.MSGID, chanid) //d-3) S_MSGMST_TBL (댓글-스레드)
+                const reply = await this.qryReply(qb, item.MSGID, chanid) //d-3) S_MSGMST_TBL (댓글-스레드) - 사용자별 정보
                 item.reply = (reply.length > 0) ? reply : []
-                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드)
+                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드) - 댓글 갯수, 안읽은갯수, 최종업데이트일시
                 item.replyinfo = replyInfo
             }
             ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
@@ -472,7 +472,7 @@ export class ChanmsgService {
             for (let i = 0; i < arr.length; i++) {
                 const msgsub = await qbSub
                 .select(['C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
-                .where("C.MSGID = :userid and C.CHANID = :chanid and C.KIND = :kind ", { 
+                .where("C.MSGID = :userid and C.CHANID = :chanid and C.KIND = :kind ", { //MSGID에 userid 조회하고 있음
                     userid: userid, chanid: chanid, kind: arr[i]
                 }).orderBy('C.CDT', 'ASC').getMany()
                 if (msgsub.length > 0) {
@@ -485,12 +485,12 @@ export class ChanmsgService {
                     }
                 }
             }
-            data.logdt = curdtObj.DT
+            data.logdt = curdtObj.DT //실시간반영 폴링을 위한 로그일시 (데이터 가져올후록 커짐)
             let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
             const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
-            resJson.list = realLastList //atHome 등에서 조회시는 그 채널의 마지막 메시지는 가져오지 않는 경우도 많을텐데 이 때 마지막 메시지를 별도로 가져와서 
-            //리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기
-            //realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 추가분을 배열에 추가해 화면에 보이도록 하면 됨
+            resJson.list = realLastList //실제로 제일 최근인 일시. atHome 등에서 조회시는 그 채널의 마지막 메시지는 가져오지 않는 경우도 많을텐데 
+            //이 때 realLastList처럼 마지막 메시지를 별도로 가져와서, 리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 
+            //사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기. realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 그냥 추가분을 배열에 추가해 화면에 뿌리면 됨
             resJson.data = data
             return resJson
         } catch (ex) {
