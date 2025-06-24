@@ -44,7 +44,8 @@ export enum Msg {
 export const cons = {
     appName : 'WiSEBand',
     otpDiffMax : 1, //분
-    rowsCnt : 10,
+    rowsCnt : 20, //20개 이하는 설정하지 말기. 예) 10개로 줄이면 새창 띄우기 할 때 위 5개 아래 5개 가져와서 맨 위내 맨 아래 메시지 기준으로 하면 스크롤이 생기지 않음
+    rowsCntForNotyet : 1000,
     replyCntLimit : 2, //댓글표시할 때 사진 보여주기 Max값
     //아래 2개는 chanmsg_working_tanstack, chanmsg_before_refactoring에 들어 있는 것으로서 이 폴더가 제거되면 아래 2개 변수도 제거하기
     unidMySqlStr : "", //"CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",

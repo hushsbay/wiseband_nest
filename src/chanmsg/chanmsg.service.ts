@@ -443,7 +443,7 @@ export class ChanmsgService {
                 sql += "                               WHERE A.CHANID = ? AND A.REPLYTO <> '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ?) "
                 sql += "              AND A.CHANID = ?) Z "
                 sql += "    ORDER BY Z.CDT DESC "
-                sql += "    LIMIT 1000 " //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정 (처음 못읽은 것은 두번째 클릭하면 읽힘)
+                sql += "    LIMIT " + hush.cons.rowsCntForNotyet //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정 (처음 못읽은 것은 두번째 클릭하면 읽힘)
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
             if (msglist.length > 0) data.msglist = msglist
