@@ -44,13 +44,15 @@ export enum Msg {
 export const cons = {
     appName : 'WiSEBand',
     otpDiffMax : 1, //분
-    rowsCnt : 30,
+    rowsCnt : 10,
     replyCntLimit : 2, //댓글표시할 때 사진 보여주기 Max값
     //아래 2개는 chanmsg_working_tanstack, chanmsg_before_refactoring에 들어 있는 것으로서 이 폴더가 제거되면 아래 2개 변수도 제거하기
     unidMySqlStr : "", //"CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     curdtMySqlStr : "", //"DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT",
     tempdir : 'd:/temp/', //파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임
     picCnt : 4, //picCnt명까지만 사진 등 보여주기 (클라이언트 고려해 4명까지만 가능)
+    cdtAtFirst : "1111-11-11",
+    cdtAtLast : "9999-99-99",
 }
 
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용

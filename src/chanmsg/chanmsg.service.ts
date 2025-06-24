@@ -345,7 +345,7 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, lastMsgMstCdt, firstMsgMstCdt, msgid, kind } = dto //console.log("qry", lastMsgMstCdt, firstMsgMstCdt, msgid, kind)
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind } = dto //console.log("qry", prevMsgMstCdt, nextMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -358,25 +358,25 @@ export class ChanmsgService {
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
             const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'] //qryMsg()와 동일한 필드값이여야 함
             let msglist: MsgMst[]
-            if (firstMsgMstCdt) { //ASC임을 유의
+            if (nextMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') {
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: firstMsgMstCdt
+                        chanid: chanid, firstcdt: nextMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').getMany()
                 } else {
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :firstcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, firstcdt: firstMsgMstCdt
+                        chanid: chanid, firstcdt: nextMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
                 }
-                //console.log("firstMsgMstCdt", firstMsgMstCdt, msglist.length)
-            } else if (lastMsgMstCdt) {
+                //console.log("nextMsgMstCdt", nextMsgMstCdt, msglist.length)
+            } else if (prevMsgMstCdt) {
                 msglist = await qb.select(fldArr)
                 .where("A.CHANID = :chanid and A.CDT < :lastcdt and A.REPLYTO = '' ", { 
-                    chanid: chanid, lastcdt: lastMsgMstCdt
+                    chanid: chanid, lastcdt: prevMsgMstCdt
                 }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
-                //console.log("lastMsgMstCdt", lastMsgMstCdt, msglist.length)
+                //console.log("prevMsgMstCdt", prevMsgMstCdt, msglist.length)
             } else if (msgid && kind == 'atHome') { 
                 //댓글에 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기. 클라이언트에서 넘어와도 되지만 복잡해서 서버에서 처리함
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
@@ -563,9 +563,9 @@ export class ChanmsgService {
     //     try {
     //         const resJson = new ResJson()
     //         const userid = this.req['user'].userid
-    //         const { chanid, lastMsgMstCdt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
+    //         const { chanid, prevMsgMstCdt, kind, fileName, fileExt, frYm, toYm, authorNm, bodyText } = dto
     //         const kindStr = kind.substr(0, 1).toUpperCase()
-    //         console.log("searchMedia", chanid, lastMsgMstCdt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
+    //         console.log("searchMedia", chanid, prevMsgMstCdt, kindStr, fileName, fileExt, frYm, toYm, authorNm, bodyText)
     //         const rs = await this.chkAcl({ userid: userid, chanid: chanid })
     //         if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>searchMedia')
     //         const bufferField = kind == 'image' ? ', A.BUFFER ' : ''
@@ -586,7 +586,7 @@ export class ChanmsgService {
     //         sql += "    ORDER BY A.CDT DESC "
     //         sql += "    LIMIT " + hush.cons.rowsCnt
     //         console.log(sql)
-    //         const list = await this.dataSource.query(sql, [chanid, kindStr, lastMsgMstCdt])
+    //         const list = await this.dataSource.query(sql, [chanid, kindStr, prevMsgMstCdt])
     //         resJson.list = list
     //         return resJson
     //     } catch (ex) {
@@ -599,10 +599,10 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { chanid, lastMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, searchText } = dto
+            const { chanid, prevMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, searchText } = dto
             const kindStr = kind.substr(0, 1).toUpperCase()
-            //console.log("searchMedia", chanid, lastMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
-            let frDash = '0000-00-00', toDash = '9999-99-99'
+            //console.log("searchMedia", chanid, prevMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
+            let frDash = hush.cons.cdtAtFirst, toDash = hush.cons.cdtAtLast
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
             const bufferFieldA = kind == 'image' ? ', A.BUFFER ' : ''
@@ -642,7 +642,7 @@ export class ChanmsgService {
             sql += "    ORDER BY R.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
             console.log(sql)
-            const list = await this.dataSource.query(sql, [lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
@@ -655,9 +655,9 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
-            //console.log("searchMsg", chanid, lastMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
-            let frDash = '0000-00-00', toDash = '9999-99-99'
+            const { chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
+            //console.log("searchMsg", chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
+            let frDash = hush.cons.cdtAtFirst, toDash = hush.cons.cdtAtLast
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
             const sqlWs = this.getSqlWs(userid)
@@ -692,7 +692,7 @@ export class ChanmsgService {
             sql += " ORDER BY R.CDT DESC "
             sql += " LIMIT " + hush.cons.rowsCnt
             //console.log(sql)
-            const list = await this.dataSource.query(sql, [lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             for (let i = 0; i < list.length; i++) {
                 const item = list[i]
@@ -1583,7 +1583,7 @@ export class ChanmsgService {
                 } else {
                     nmTo.push(rec.USERNM + '/' + rec.ORG)
                 }
-                chandtl.STATE = 'W' //발송후엔 참여대기로 상태가 변경
+                chandtl.STATE = '' //발송후엔 참여상태로 변경
                 chandtl.MODR = userid
                 chandtl.UDT = curdtObj.DT
                 await this.chandtlRepo.save(chandtl)

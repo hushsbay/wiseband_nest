@@ -161,7 +161,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
-            const { kind, search, lastMsgMstCdt, chanid } = dto //all,notyet
+            const { kind, search, prevMsgMstCdt, chanid } = dto //all,notyet
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.STATE, Z.MASTERID, Z.CDT, Z.LASTMSGDT " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, B.STATE, B.MASTERID, A.BOOKMARK, A.NOTI, A.CDT, "
@@ -186,9 +186,9 @@ export class MenuService {
             }
             sql += "ORDER BY Z.LASTMSGDT DESC, Z.CDT DESC "
             sql += "LIMIT " + hush.cons.rowsCnt
-            //console.log(sql, userid, lastMsgMstCdt)
+            //console.log(sql, userid, prevMsgMstCdt)
             const arr = [] //list가 아닌 arr가 저장 (중간에 빠지는 행이 있음)
-            const list = await this.dataSource.query(sql, [userid, lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [userid, prevMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 //console.log(row.CHANID, row.STATE, row.MASTERID, userid)
@@ -275,7 +275,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, lastMsgMstCdt, msgid } = dto //kind = later, stored, finished
+            const { kind, prevMsgMstCdt, msgid } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
@@ -289,7 +289,7 @@ export class MenuService {
             }
             sql += "    ORDER BY A.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
-            const list = await this.dataSource.query(sql, [userid, kind, lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [userid, kind, prevMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TYP == 'GS') { //DM은 GS, 채널은 WS(슬랙의 워크스페이스)
@@ -331,7 +331,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, notyet, lastMsgMstCdt, msgid } = dto
+            const { kind, notyet, prevMsgMstCdt, msgid } = dto
             //공통 sql
             let sqlSelect = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, "
             let sqlFrom = "FROM S_MSGMST_TBL A "
@@ -395,7 +395,7 @@ export class MenuService {
             sql += "    WHERE Z.CDT < ? "
             sql += "    ORDER BY Z.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
-            const list = await this.dataSource.query(sql, [lastMsgMstCdt])
+            const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             resJson.list = list
             return resJson
         } catch (ex) {
