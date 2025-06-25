@@ -102,7 +102,8 @@ export function throwCatchedEx(ex: any, req?: Request, fv?: string) { //, logger
     }
     const [msgStr, bracket] = setMsgBracket(codeMsg.msg, codeMsg.code, req)
     comLog.error(msgStr, bracket) //comLog.error(codeMsg.msg, codeMsg.code)
-    if (ex.stack && !msgStr.includes('SQL syntax')) comLog.error(ex.stack) //SQL 오류시 해당 파일(.ts)을 못찾고 있어서 stack 표시해도 현재 도움이 안됨
+    //if (ex.stack && !msgStr.includes('SQL syntax')) comLog.error(ex.stack) //SQL 오류시 해당 파일(.ts)을 못찾고 있어서 stack 표시해도 현재 도움이 안됨
+    if (ex.stack) comLog.error(ex.stack) //SQL 오류시 해당 파일(.ts)을 못찾고 있어서 stack 표시해도 현재 도움이 안됨
     throwHttpEx(codeMsg.msg + fv, codeMsg.code) //userid, ip를 오류표시하면서 화면에 굳이 노출하지 말기
 }
 

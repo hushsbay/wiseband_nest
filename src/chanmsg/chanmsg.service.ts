@@ -35,7 +35,7 @@ export class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
-            console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
+            //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
@@ -345,7 +345,7 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind } = dto //console.log("qry", prevMsgMstCdt, nextMsgMstCdt, msgid, kind)
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto //console.log("qry", prevMsgMstCdt, nextMsgMstCdt, msgid, kind)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -415,13 +415,19 @@ export class ChanmsgService {
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
-                let sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
-                sql += "    UNION ALL "
-                sql += "   SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? "    
-                sql += "    ORDER BY CDT ASC "
-                msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
-                if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
+                let sql = ""
+                if (msgidReply) {
+                    sql = "SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? AND MSGID = ? "    
+                    msglist = await this.dataSource.query(sql, [msgid, chanid, msgidReply]) //자식의 MSGID 1개만 리턴됨을 유의
+                } else {
+                    sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
+                    sql += "    UNION ALL "
+                    sql += "   SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? "    
+                    sql += "    ORDER BY CDT ASC "
+                    msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
+                    if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
+                        return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
+                    }
                 }
             } else if (kind == 'notyet' || kind == 'unread') { //안읽은 댓글의 경우, 댓글이 아닌 부모글을 보여줘야 하는데 부모글도 댓글도 모두 안읽은 경우는 한개만 보여줘야 함
                 const curDt = new Date()
@@ -446,8 +452,10 @@ export class ChanmsgService {
                 sql += "    LIMIT " + hush.cons.rowsCntForNotyet //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정 (처음 못읽은 것은 두번째 클릭하면 읽힘)
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
-            if (msglist.length > 0) data.msglist = msglist
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후에 시각을 리얼타임 반영의 기준으로 보기
+            let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
+            const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
+            if (msglist.length > 0) data.msglist = msglist            
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
@@ -484,10 +492,8 @@ export class ChanmsgService {
                         data.templinklist = msgsub
                     }
                 }
-            }
-            data.logdt = curdtObj.DT //실시간반영 폴링을 위한 로그일시 (데이터 가져올후록 커짐)
-            let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
-            const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
+            }            
+            data.logdt = curdtObj.DT //실시간반영 폴링을 위한 로그일시 (데이터 가져올후록 커짐) => 무조건 내려주긴 하되, 클라이언트에서 받아서 한번만 사용함
             resJson.list = realLastList //실제로 제일 최근인 일시. atHome 등에서 조회시는 그 채널의 마지막 메시지는 가져오지 않는 경우도 많을텐데 
             //이 때 realLastList처럼 마지막 메시지를 별도로 가져와서, 리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 
             //사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기. realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 그냥 추가분을 배열에 추가해 화면에 뿌리면 됨
@@ -497,6 +503,24 @@ export class ChanmsgService {
             hush.throwCatchedEx(ex, this.req, fv)
         }
     }
+
+    // async qryNewCount(dto: Record<string, any>): Promise<any> { //권한체크 필요없음
+    //     const resJson = new ResJson()
+    //     const userid = this.req['user'].userid
+    //     let fv = hush.addFieldValue(dto, null, [userid])
+    //     try {
+    //         const { chanid, frdt } = dto
+    //         const msgmst = await this.msgmstRepo.createQueryBuilder('A')
+    //         .select("COUNT(*) CNT")
+    //         .where("A.CHANID = :chanid and A.CDT > :frdt and A.REPLYTO = '' ", { 
+    //             chanid: chanid, frdt: frdt
+    //         }).getRawOne()
+    //         resJson.data.cnt = msgmst.CNT
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req, fv)
+    //     }
+    // }
     
     async qryChanMstDtl(dto: Record<string, any>): Promise<any> { //1) MemberList에서 사용 2) MsgList에서 채널 정보만 읽어서 새로고침 용도로 사용
         const resJson = new ResJson()
@@ -851,7 +875,7 @@ export class ChanmsgService {
                 const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
                 const chandtl = await this.chandtlRepo.createQueryBuilder('A')
                 .select(['A.USERID', 'A.USERNM'])
-                .where("A.CHANID = :chanid and A.STATE = '' ", { 
+                .where("A.CHANID = :chanid ", { 
                     chanid: chanid
                 }).getMany()
                 chandtl.forEach(async (item) => {
@@ -871,10 +895,13 @@ export class ChanmsgService {
                     msgid: msgid, chanid: chanid
                 }).execute()
             }
-            const logObj = { 
-                cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, userid: userid, usernm: usernm, 
-                cud: crud, kind: 'msg', subkind: crud == 'C' ? 'msgall' : 'msgmst' 
+            let cud = crud
+            let subkind = (crud == 'C') ? 'msgall' : 'msgmst' 
+            if (replyto && crud == 'C') { //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(addreply)라는 표시를 해서 U로 로깅 추가함
+                cud = "U"
+                subkind = 'addreply'
             }
+            const logObj = { cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, userid: userid, usernm: usernm, cud: cud, kind: 'msg', subkind: subkind }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
             return resJson
@@ -1606,20 +1633,22 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { logdt, kind, chanid } = dto
+            const { logdt, kind, chanid } = dto 
             console.log(logdt, kind, chanid)
-            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND "
+            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, SUBKIND "
             sql += "     FROM S_DATALOG_TBL A "
             sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
-            sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게하려면 ASC로 소팅하기
+            sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게 하려면 ASC로 소팅하기
             const list = await this.dataSource.query(sql, [logdt, kind, chanid])
             for (let i = 0; i < list.length; i++) {
                 //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
                 const parentMsgid = (list[i].CUD == 'D' && list[i].REPLYTO != list[i].MSGID) ? list[i].REPLYTO : list[i].MSGID
-                list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid })
+                if (list[i].CUD != 'C') list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //C는 클라이언트에서 getList()로 다시 부름
+                console.log(chanid, parentMsgid, "qryDataLog")
             }
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            resJson.data.logdt = curdtObj.DT
+            //const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            //resJson.data.logdt = curdtObj.DT
+            resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].CDT
             resJson.list = list
             return resJson
         } catch (ex) {

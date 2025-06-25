@@ -14,6 +14,9 @@ export class ChanmsgController {
 
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
+
+    // @Post('qryNewCount')
+    // qryNewCount(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryNewCount(dto) }    
     
     @Post('qryChanMstDtl')
     qryChanMstDtl(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanMstDtl(dto) }
