@@ -455,7 +455,7 @@ export class ChanmsgService {
             let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
             const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
-            if (msglist.length > 0) data.msglist = msglist            
+            if (msglist && msglist.length > 0) data.msglist = msglist            
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
@@ -872,19 +872,19 @@ export class ChanmsgService {
                         }).execute()
                     }
                 }
-                const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
-                const chandtl = await this.chandtlRepo.createQueryBuilder('A')
-                .select(['A.USERID', 'A.USERNM'])
-                .where("A.CHANID = :chanid ", { 
-                    chanid: chanid
-                }).getMany()
-                chandtl.forEach(async (item) => {
-                    const strKind = (item.USERID == userid) ? 'read' : 'notyet'
-                    await qbMsgDtl
-                    .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: '', CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
-                    }).execute()
-                })                
+                // const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+                // const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+                // .select(['A.USERID', 'A.USERNM'])
+                // .where("A.CHANID = :chanid ", { 
+                //     chanid: chanid
+                // }).getMany()
+                // chandtl.forEach(async (item) => { //INSERT 한번에 할 수도 있으나 일단 그래도 둠
+                //     const strKind = (item.USERID == userid) ? 'read' : 'notyet'
+                //     await qbMsgDtl
+                //     .insert().values({ 
+                //         MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: 'new', CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
+                //     }).execute()
+                // })
                 resJson.data.msgid = msgid
             } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
                 //const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
@@ -894,14 +894,34 @@ export class ChanmsgService {
                 .where("MSGID = :msgid and CHANID = :chanid ", {
                     msgid: msgid, chanid: chanid
                 }).execute()
-            }
+                let sql = "DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND KIND IN ('notyet', 'read', 'unread') "
+                await this.dataSource.query(sql, [msgid, chanid]) //편집저장후엔 멤버들이 새로 읽어야 함
+            } 
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+            const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+            .select(['A.USERID', 'A.USERNM'])
+            .where("A.CHANID = :chanid ", { 
+                chanid: chanid
+            }).getMany()
+            chandtl.forEach(async (item) => { //INSERT 한번에 할 수도 있으나 일단 그래도 둠
+                const strKind = (item.USERID == userid) ? 'read' : 'notyet'
+                const typ = hush.getTypeForMsgDtl(strKind)
+                await qbMsgDtl
+                .insert().values({ 
+                    MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
+                }).execute()
+            }) //아래는 로깅
             let cud = crud
-            let subkind = (crud == 'C') ? 'msgall' : 'msgmst' 
+            const kind = 'msg'
+            let typ = hush.getTypeForMsgDtl(kind)
             if (replyto && crud == 'C') { //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(addreply)라는 표시를 해서 U로 로깅 추가함
-                cud = "U"
-                subkind = 'addreply'
+                cud = 'U'
+                typ = 'addreply'
             }
-            const logObj = { cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, userid: userid, usernm: usernm, cud: cud, kind: 'msg', subkind: subkind }
+            const logObj = { 
+                cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ 
+            }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
             return resJson
@@ -979,11 +999,13 @@ export class ChanmsgService {
             await this.msgdtlRepo.createQueryBuilder()
             .delete().where("MSGID = :msgid and CHANID = :chanid ", {
                 msgid: msgid, chanid: chanid
-            }).execute()
+            }).execute() //아래는 로깅
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            const kind = 'msg'
+            const typ = hush.getTypeForMsgDtl(kind)
             const logObj = { 
-                cdt: curdtObj.DT, msgid: msgid, replyto: msgidParent, chanid: chanid, userid: userid, usernm: usernm, 
-                cud: 'D', kind: 'msg', subkind: 'msgall' 
+                cdt: curdtObj.DT, msgid: msgid, replyto: msgidParent, chanid: chanid, 
+                userid: userid, usernm: usernm, cud: 'D', kind: kind, typ: typ
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1033,6 +1055,7 @@ export class ChanmsgService {
     }
 
     async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        //현재는 읽기 관련 처리만 하므로 로킹 필요없으나 향후 추가시 로깅 처리 여부 체크 필요
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1088,6 +1111,8 @@ export class ChanmsgService {
     }
 
     async updateAllWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        //현재는 읽기 관련 처리만 하므로 로킹 필요없으나 향후 추가시 로깅 처리 여부 체크 필요
+        //모두읽음처리 : 1) notyet -> read 2) unread -> read
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])       
@@ -1108,8 +1133,9 @@ export class ChanmsgService {
             hush.throwCatchedEx(ex, this.req, fv)
         }
     }
-    
-    async toggleAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : checked, done, watching
+
+    @Transactional({ propagation: Propagation.REQUIRED })    
+    async toggleReaction(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1117,9 +1143,10 @@ export class ChanmsgService {
         try {            
             const { msgid, chanid, kind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleAction')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleReaction')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            let cud = ''
             const msgdtl = await qbMsgDtl
             .select("COUNT(*) CNT")
             .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
@@ -1131,19 +1158,28 @@ export class ChanmsgService {
                 .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                     msgid: msgid, chanid: chanid, userid: userid, kind: kind
                 }).execute()
+                cud = 'D'
             } else {                
                 await qbMsgDtl
                 .insert().values({ 
                     MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm, TYP: 'react'
                 }).execute()
+                cud = 'C'
+            } //아래는 로깅 (changeAction과 동일)
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: msgid, replyto: rs.data.msgmst.REPLYTO ? rs.data.msgmst.REPLYTO : '', chanid: chanid, 
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind)
             }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
         }
     }
 
-    async changeAction(dto: Record<string, any>): Promise<any> { //TX 필요없음 : later, stored, finished, fixed
+    @Transactional({ propagation: Propagation.REQUIRED })
+    async changeAction(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1154,6 +1190,7 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>changeAction')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
+            let cud = ''
             if (kind == 'later' || kind == 'stored' || kind == 'finished') {
                 const msgdtlforuser = await qbMsgDtl
                 .select("KIND")
@@ -1165,7 +1202,7 @@ export class ChanmsgService {
                     .insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
                     }).execute()
-                    resJson.data.work = "create"
+                    cud = 'C' //resJson.data.work = "create"
                 } else {
                     if (job == 'delete') {
                         await qbMsgDtl
@@ -1181,7 +1218,7 @@ export class ChanmsgService {
                             msgid: msgid, chanid: chanid, userid: userid, kind: kind
                         }).execute()
                     }
-                    resJson.data.work = "delete" //LaterPanel 탭에 보이는 행을 제거하기
+                    cud = 'D' //resJson.data.work = "delete" //LaterPanel 탭에 보이는 행을 제거하기
                 }
             } else if (kind == 'fixed') {
                 const msgdtlforuser = await qbMsgDtl
@@ -1194,16 +1231,23 @@ export class ChanmsgService {
                     .insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
                     }).execute()
-                    resJson.data.work = "create"
+                    cud = 'C' //resJson.data.work = "create"
                 } else {
                     await qbMsgDtl
                     .delete()
                     .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: kind
                     }).execute()
-                    resJson.data.work = "delete"
+                    cud = 'D' //resJson.data.work = "delete"
                 }
+            } //아래는 로깅 (changeReaction과 동일)
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: msgid, replyto: rs.data.msgmst.REPLYTO ? rs.data.msgmst.REPLYTO : '', chanid: chanid, 
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind) 
             }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
+            resJson.data.work = (cud == 'D') ? 'delete' : 'create'
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1635,7 +1679,7 @@ export class ChanmsgService {
         try {
             const { logdt, kind, chanid } = dto 
             console.log(logdt, kind, chanid)
-            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, SUBKIND "
+            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP "
             sql += "     FROM S_DATALOG_TBL A "
             sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
             sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게 하려면 ASC로 소팅하기
@@ -1644,7 +1688,7 @@ export class ChanmsgService {
                 //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
                 const parentMsgid = (list[i].CUD == 'D' && list[i].REPLYTO != list[i].MSGID) ? list[i].REPLYTO : list[i].MSGID
                 if (list[i].CUD != 'C') list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //C는 클라이언트에서 getList()로 다시 부름
-                console.log(chanid, parentMsgid, "qryDataLog")
+                //console.log(chanid, parentMsgid, "qryDataLog")
             }
             //const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             //resJson.data.logdt = curdtObj.DT

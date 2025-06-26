@@ -183,12 +183,35 @@ export async function getMysqlUnid(dataSource: DataSource): Promise<any> {
     return list[0]
 }
 
-export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> {
-    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, subkind } = obj
+export function getTypeForMsgDtl(strKind: string): string {
+    switch (strKind) { //break 안쓰고 바로 return
+        case 'later':
+        case 'stored':
+        case 'finished':
+        case 'fixed':
+            return 'user'
+        case 'done':
+        case 'checked':
+        case 'watching':
+            return 'react'
+        case 'notyet':
+        case 'read':
+        case 'unread':
+            return 'read'
+        case 'msg':
+            return 'msg'
+        default:
+            return 'error'         
+    }
+}
+
+export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> { 
+    //로깅은 2가지 역할 : 1) 로그 자체의 역할 (사용자 동선 추적) 2) 리얼타임 화면 데이터 반영
+    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ } = obj
     try {        
-        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, SUBKIND) "
+        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP) "
         sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
-        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, subkind])
+        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ])
         return ''
     } catch (ex) {
         return ex.message
