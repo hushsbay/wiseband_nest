@@ -1771,14 +1771,19 @@ export class ChanmsgService {
             const list = await this.dataSource.query(sql, [logdt, chanid, logdt, chanid, logdt, chanid, logdt, chanid])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                if (row.CUD == 'U' || row.CUD == 'D' || row.CUD == 'X') {
-                    //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
-                    const parentMsgid = (row.CUD == 'D' && row.REPLYTO != row.MSGID) ? row.REPLYTO : row.MSGID
+                //클라이언트인 chkDataLog()에서 필요로 하는 메시지정보를 바로 아래에서 읽어옴 (부모메시지는 당연히 본인 정보 읽어 오고 자식메시지일 경우는 부모메시지 정보만 읽어오기)
+                if (row.CUD == 'U') { //자식메시지 정보는 스레스에서만 getMsg()하면 되므로 부모 및 자식 메시지 정보 필요없고, 부모메시지일 경우만 정보 받으면 됨
+                    if (row.REPLYTO == '') row.msgItem = await this.qryMsg({ chanid: chanid, msgid: row.MSGID }) 
+                } else if (row.CUD == 'X') { //X는 자식메시지이므로 무조건 부모메시지 정보 읽어오기
+                    const parentMsgid = row.REPLYTO
                     row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
+                } else if (row.CUD == 'D') { //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
+                    const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
+                    row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
+                } else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨
+                    row.dtlItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) //qryMsg() 아님
                 } else if (row.CUD == 'C') {
                     //C는 클라이언트에서 getList()로 다시 부름
-                } else if (row.CUD == 'T') {
-                    row.msgItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) 
                 }
             }
             resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].CDT
