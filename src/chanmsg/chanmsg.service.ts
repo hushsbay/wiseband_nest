@@ -209,7 +209,7 @@ export class ChanmsgService {
         const msgdtlforuser = await qb //예) "later","stored","finished"는 한몸으로서 해당 사용자만 조회해 보여줘야 하는 데이터임. 필요할 경우 CASE WHEN으로 추가해 관리해야 함
         .select([
             'B.KIND KIND', 
-            'CASE WHEN KIND in ("later","stored","finished") THEN "act_later" ' +
+            'CASE WHEN KIND in ("later", "stored", "finished") THEN "act_later" ' +
                  'WHEN KIND in ("fixed") THEN "act_fixed" ' +
                  'else "" end KIND_ACTION'
         ])
@@ -732,7 +732,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryMsg(dto: Record<string, any>): Promise<any> {
+    async qryMsg(dto: Record<string, any>): Promise<any> { //리얼타임 반영시에도 사용됨
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -770,6 +770,30 @@ export class ChanmsgService {
             const replyInfo = await this.qryReplyInfo(msgid, chanid, userid) //d-4) S_MSGMST_TBL (댓글-스레드)
             data.replyinfo = replyInfo
             ////////////////////////////////////////////////////////////////////////////////////////////
+            resJson.data = data
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async qryDtlRealTime(dto: Record<string, any>): Promise<any> { //리얼타임 반영시에만 사용됨. controller.ts에서 현재 호출되지 않고 있음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try { //바로 아래 data는 qryMsg()에서 Main은 빠지고 MsgDtl 테이블 관련만 남음 (로직은 바로 위 qryMsg()와 동일하나 리턴항목만 차이남)
+            let data = { act_later: null, act_fixed: null, msgdtl: null, msgdtlmention: null }
+            const { chanid, msgid } = dto
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryDtlRealTime')
+            const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+            data.act_later = msgdtlforuser.act_later
+            data.act_fixed = msgdtlforuser.act_fixed
+            const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
+            data.msgdtl = (msgdtl.length > 0) ? msgdtl : []
+            const msgdtlmention = await this.qryMsgDtlMention(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (멘션)
+            data.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
             resJson.data = data
             return resJson
         } catch (ex) {
@@ -914,9 +938,8 @@ export class ChanmsgService {
             let cud = crud
             const kind = 'msg'
             let typ = hush.getTypeForMsgDtl(kind)
-            if (replyto && crud == 'C') { //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(addreply)라는 표시를 해서 U로 로깅 추가함
-                cud = 'U'
-                typ = 'addreply'
+            if (replyto && crud == 'C') {
+                cud = 'X' //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(X)라는 표시를 해서 넘김
             }
             const logObj = { 
                 cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
@@ -1672,26 +1695,92 @@ export class ChanmsgService {
         }
     }
 
+    // async qryDataLog(dto: Record<string, any>): Promise<any> { //insertDataLog()는 common.ts에 있음
+    //     const resJson = new ResJson()
+    //     const userid = this.req['user'].userid
+    //     let fv = hush.addFieldValue(dto, null, [userid])
+    //     try {
+    //         const { logdt, kind, chanid } = dto 
+    //         console.log(logdt, kind, chanid)
+    //         let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP "
+    //         sql += "     FROM S_DATALOG_TBL A "
+    //         sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
+    //         sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게 하려면 ASC로 소팅하기
+    //         const list = await this.dataSource.query(sql, [logdt, kind, chanid])
+    //         for (let i = 0; i < list.length; i++) {
+    //             //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
+    //             const parentMsgid = (list[i].CUD == 'D' && list[i].REPLYTO != list[i].MSGID) ? list[i].REPLYTO : list[i].MSGID
+    //             if (list[i].CUD != 'C') list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //C는 클라이언트에서 getList()로 다시 부름
+    //             //console.log(chanid, parentMsgid, "qryDataLog")
+    //         }
+    //         //const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+    //         //resJson.data.logdt = curdtObj.DT
+    //         resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].CDT
+    //         resJson.list = list
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req, fv)
+    //     }
+    // }
+
+
     async qryDataLog(dto: Record<string, any>): Promise<any> { //insertDataLog()는 common.ts에 있음
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { logdt, kind, chanid } = dto 
-            console.log(logdt, kind, chanid)
-            let sql = "SELECT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP "
-            sql += "     FROM S_DATALOG_TBL A "
-            sql += "    WHERE CDT > ? AND KIND = ? AND CHANID = ? "
-            sql += "    ORDER BY CDT " //새로운 데이터는 배열에 PUSH 쉽게 하려면 ASC로 소팅하기
-            const list = await this.dataSource.query(sql, [logdt, kind, chanid])
+            //아래 SQL은 크게 1) 메시지 본문(마스터/파일,이미지,링크/댓글포함)과 2) 메시지 디테일(읽음표시,각종리액션 등)로 나눠짐
+            //가능하면 group by로 데이터를 줄이고 반영시에도 메시지 전체를 업데이트 하는 qryMsg()와 디테일정보만 업데이트하는 qryDtlRealTime()으로 나눔
+            //원래는 로깅 데이터를 하나하나 읽어서 그때그때 리얼타임 반영하면 되나 행이 많을수록 qryMsg(), qryDtlRealTime()등이 많이 실행되어 부담됨
+            const { logdt, chanid } = dto
+            //1) 메시지 본문은 CUD값이 생성C/수정U/삭제D로 구분되어 로깅됨. 댓글추가는 X로 구분 (댓글추가는 리얼타임입장에서는 본문에 반영되는 U와 유사)
+            let sql = "SELECT MSGID, REPLYTO, '' USERID, CUD, MAX(CDT) MAX_CDT "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? AND CHANID = ? AND TYP = 'msg' "
+            sql += " GROUP BY MSGID, REPLYTO, CUD "
+            sql += " UNION ALL "
+            //2) 메시지 디테일 : S_MSGDTL_TBL과 S_DATALOG_TBL 2개의 테이블을 읽고 T로 구분
+            //   T는 본문의 C,U,D,X이외 무조건 메시지내 디테일정보만 업데이트하면 되며 아래 3가지 세부정보가 있음 : read,react,user     
+            sql += "SELECT MSGID, REPLYTO, USERID, 'T' CUD, MAX(CDT) MAX_CDT "
+            sql += "  FROM ( "
+            //   - read(읽음 표시)는 메시지 본문이 존재하는 한 (삭제없이) 계속 유지되는 데이터이므로 굳이 로그테이블에 넣을 필요없이 S_MSGDTL_TBL에서 읽어옴
+            //   - 이 경우는 CDT가 아닌 UDT임을 유의 (UDT로만으로도 생성및수정일자 커버됨)
+            //   - 읽음 표시는 멤버 모두 공유되는 정보임
+            sql += "        SELECT MSGID, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, MAX(UDT) CDT "
+            sql += "          FROM S_MSGDTL_TBL A "
+            sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'read' "
+            sql += "         GROUP BY MSGID "
+            sql += "         UNION ALL "
+            //   - react는 메시지에 대한 반응(예:watching)인데 이 역시 멤버 모두 공유되는 정보임
+            //   - 이 정보는 위 읽음 표시와는 다르게 S_MSGDTL_TBL에서 insert/delete되므로 리얼타임 반영을 위해서는 S_DATALOG_TBL에 삭제정보까지도 넣어져야 함
+            sql += "        SELECT MSGID, REPLYTO, '' USERID, MAX(CDT) "
+            sql += "          FROM S_DATALOG_TBL "
+            sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'react' "
+            sql += "         GROUP BY MSGID, REPLYTO "
+            sql += "         UNION ALL "
+            //    - user라는 의미는 위와는 달리 멤버 모두 공유하는 게 아닌 본인만 보면 되는 정보임 (예:later,fixed)
+            //    - USERID로 group by하지 않으면 리얼타임 반영시 사용자가 읽어오지 않아도 되는 정보를 읽어오게 되는 것인데 물론 읽어와서 표시하지 않으면 되지만
+            //      아예 본인이 아니면 읽지않게 하여 서버 부하를 줄이는 것임
+            sql += "        SELECT MSGID, REPLYTO, USERID, MAX(CDT) MAX_CDT"
+            sql += "          FROM S_DATALOG_TBL "
+            sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'user' "
+            sql += "         GROUP BY MSGID, REPLYTO, USERID "
+            sql += ") Z  "
+            sql += " GROUP BY MSGID, REPLYTO, USERID  "
+            sql += " ORDER BY MAX_CDT " //배열에 PUSH 쉽게 하기 위해 ASC로 소팅
+            const list = await this.dataSource.query(sql, [logdt, chanid, logdt, chanid, logdt, chanid, logdt, chanid])
             for (let i = 0; i < list.length; i++) {
-                //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
-                const parentMsgid = (list[i].CUD == 'D' && list[i].REPLYTO != list[i].MSGID) ? list[i].REPLYTO : list[i].MSGID
-                if (list[i].CUD != 'C') list[i].msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //C는 클라이언트에서 getList()로 다시 부름
-                //console.log(chanid, parentMsgid, "qryDataLog")
+                const row = list[i]
+                if (row.CUD == 'U' || row.CUD == 'D' || row.CUD == 'X') {
+                    //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
+                    const parentMsgid = (row.CUD == 'D' && row.REPLYTO != row.MSGID) ? row.REPLYTO : row.MSGID
+                    row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
+                } else if (row.CUD == 'C') {
+                    //C는 클라이언트에서 getList()로 다시 부름
+                } else if (row.CUD == 'T') {
+                    row.msgItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) 
+                }
             }
-            //const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            //resJson.data.logdt = curdtObj.DT
             resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].CDT
             resJson.list = list
             return resJson
