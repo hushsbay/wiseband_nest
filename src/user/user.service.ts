@@ -267,6 +267,7 @@ export class UserService {
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = ? AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
+            console.log(grid, "0000000000")
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
             } //sql += "      AND A.MASTERID = '" + userid + "' "
