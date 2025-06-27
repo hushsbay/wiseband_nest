@@ -183,7 +183,7 @@ export async function getMysqlUnid(dataSource: DataSource): Promise<any> {
     return list[0]
 }
 
-export function getTypeForMsgDtl(strKind: string): string {
+export function getTypeForMsgDtl(strKind: string): string { //서버,클라언트 모두 동일
     switch (strKind) { //break 안쓰고 바로 return
         case 'later':
         case 'stored':

@@ -11,6 +11,9 @@ import { ChanmsgService } from 'src/chanmsg/chanmsg.service'
 export class ChanmsgController {
 
     constructor(private readonly chanmsgSvc: ChanmsgService) {}
+    
+    @Post('qryDbDt')
+    qryDbDt() { return this.chanmsgSvc.qryDbDt() }
 
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
