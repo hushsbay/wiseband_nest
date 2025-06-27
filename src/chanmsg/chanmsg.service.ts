@@ -1734,41 +1734,39 @@ export class ChanmsgService {
             //원래는 로깅 데이터를 하나하나 읽어서 그때그때 리얼타임 반영하면 되나 행이 많을수록 qryMsg(), qryDtlRealTime()등이 많이 실행되어 부담됨
             const { logdt, chanid } = dto
             //1) 메시지 본문은 CUD값이 생성C/수정U/삭제D로 구분되어 로깅됨. 댓글추가는 X로 구분 (댓글추가는 리얼타임입장에서는 본문에 반영되는 U와 유사)
-            let sql = "SELECT MSGID, REPLYTO, '' USERID, CUD, MAX(CDT) MAX_CDT "
+            let sql = "SELECT MSGID, REPLYTO, CUD, MAX(CDT) MAX_CDT "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? AND CHANID = ? AND TYP = 'msg' "
             sql += " GROUP BY MSGID, REPLYTO, CUD "
             sql += " UNION ALL "
             //2) 메시지 디테일 : S_MSGDTL_TBL과 S_DATALOG_TBL 2개의 테이블을 읽고 T로 구분
             //   T는 본문의 C,U,D,X이외 무조건 메시지내 디테일정보만 업데이트하면 되며 아래 3가지 세부정보가 있음 : read,react,user     
-            sql += "SELECT MSGID, REPLYTO, USERID, 'T' CUD, MAX(CDT) MAX_CDT "
+            sql += "SELECT MSGID, REPLYTO, 'T' CUD, MAX(CDT) MAX_CDT "
             sql += "  FROM ( "
             //   - read(읽음 표시)는 메시지 본문이 존재하는 한 (삭제없이) 계속 유지되는 데이터이므로 굳이 로그테이블에 넣을 필요없이 S_MSGDTL_TBL에서 읽어옴
             //   - 이 경우는 CDT가 아닌 UDT임을 유의 (UDT로만으로도 생성및수정일자 커버됨)
             //   - 읽음 표시는 멤버 모두 공유되는 정보임
-            sql += "        SELECT MSGID, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, MAX(UDT) CDT "
+            sql += "        SELECT MSGID, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, MAX(UDT) CDT "
             sql += "          FROM S_MSGDTL_TBL A "
             sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'read' "
             sql += "         GROUP BY MSGID "
             sql += "         UNION ALL "
             //   - react는 메시지에 대한 반응(예:watching)인데 이 역시 멤버 모두 공유되는 정보임
             //   - 이 정보는 위 읽음 표시와는 다르게 S_MSGDTL_TBL에서 insert/delete되므로 리얼타임 반영을 위해서는 S_DATALOG_TBL에 삭제정보까지도 넣어져야 함
-            sql += "        SELECT MSGID, REPLYTO, '' USERID, MAX(CDT) "
+            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) "
             sql += "          FROM S_DATALOG_TBL "
             sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'react' "
             sql += "         GROUP BY MSGID, REPLYTO "
             sql += "         UNION ALL "
             //    - user라는 의미는 위와는 달리 멤버 모두 공유하는 게 아닌 본인만 보면 되는 정보임 (예:later,fixed)
-            //    - USERID로 group by하지 않으면 리얼타임 반영시 사용자가 읽어오지 않아도 되는 정보를 읽어오게 되는 것인데 물론 읽어와서 표시하지 않으면 되지만
-            //      아예 본인이 아니면 읽지않게 하여 서버 부하를 줄이는 것임
-            sql += "        SELECT MSGID, REPLYTO, USERID, MAX(CDT) MAX_CDT"
+            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) MAX_CDT"
             sql += "          FROM S_DATALOG_TBL "
-            sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'user' "
-            sql += "         GROUP BY MSGID, REPLYTO, USERID "
+            sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'user' AND USERID = ? "
+            sql += "         GROUP BY MSGID, REPLYTO "
             sql += ") Z  "
-            sql += " GROUP BY MSGID, REPLYTO, USERID  "
+            sql += " GROUP BY MSGID, REPLYTO  "
             sql += " ORDER BY MAX_CDT " //배열에 PUSH 쉽게 하기 위해 ASC로 소팅
-            const list = await this.dataSource.query(sql, [logdt, chanid, logdt, chanid, logdt, chanid, logdt, chanid])
+            const list = await this.dataSource.query(sql, [logdt, chanid, logdt, chanid, logdt, chanid, logdt, chanid, userid])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 //클라이언트인 chkDataLog()에서 필요로 하는 메시지정보를 바로 아래에서 읽어옴 (부모메시지는 당연히 본인 정보 읽어 오고 자식메시지일 경우는 부모메시지 정보만 읽어오기)
@@ -1780,8 +1778,8 @@ export class ChanmsgService {
                 } else if (row.CUD == 'D') { //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
                     const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
                     row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
-                } else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨
-                    row.dtlItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) //qryMsg() 아님
+                } else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨. 부모메시지일 경우만 정보 받으면 됨(U참조)
+                    if (row.REPLYTO == '') row.dtlItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) //msgItem 아님. qryMsg() 아님
                 } else if (row.CUD == 'C') {
                     //C는 클라이언트에서 getList()로 다시 부름
                 }
