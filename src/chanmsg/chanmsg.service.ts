@@ -1767,7 +1767,7 @@ export class ChanmsgService {
             //가능하면 group by로 데이터를 줄이고 반영시에도 메시지 전체를 업데이트 하는 qryMsg()와 디테일정보만 업데이트하는 qryDtlRealTime()으로 나눔
             //원래는 로깅 데이터를 하나하나 읽어서 그때그때 리얼타임 반영하면 되나 행이 많을수록 qryMsg(), qryDtlRealTime()등이 많이 실행되어 부담됨
             const { logdt, chanid } = dto
-            //console.log(logdt, chanid, "@@@@@@@")
+            console.log(logdt, chanid, "!!!!")
             //1) 메시지 본문은 CUD값이 생성C/수정U/삭제D로 구분되어 로깅됨. 댓글추가는 X로 구분 (댓글추가는 리얼타임입장에서는 본문에 반영되는 U와 유사)
             let sql = "SELECT MSGID, REPLYTO, CUD, MAX(CDT) MAX_CDT " //본문에서의 MAX_CDT는 C,D는 유일하게 1개일 것이며 U정도만 효용성이 있음
             sql += "  FROM S_DATALOG_TBL " //##00 C인 경우, 클라이언트에서 한번에 읽어오기 때문에 MSGID없이 C로만 group by 처리하면 편리하나 MsgList.vue의 newParentAdded/newChildAdded 때문에 안됨
