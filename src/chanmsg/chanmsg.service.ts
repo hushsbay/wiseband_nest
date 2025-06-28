@@ -11,6 +11,15 @@ import { MailService } from 'src/mail/mail.service'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 import { User } from 'src/user/user.entity'
 
+interface IDataLog {
+    MSGID: string, 
+    REPLYTO: string, 
+    CUD: string, 
+    MAX_CDT: string, 
+    msgItem: any,
+    SKIP: boolean
+}
+
 @Injectable({ scope: Scope.REQUEST })
 export class ChanmsgService {
     
@@ -370,7 +379,8 @@ export class ChanmsgService {
             const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'] //qryMsg()와 동일한 필드값이여야 함
             let msglist: MsgMst[]
             if (nextMsgMstCdt) { //ASC임을 유의
-                if (kind == 'scrollToBottom') {
+                if (kind == 'scrollToBottom') { //limit없이 마지막까지 모두 가져오므로 큰 데이터를 가져오는지 미리 체크 필요
+                    //다만, 클라이언트가 메시지를 보내면 바로 scrollToBottom을 호출하는데 이때 큰 데이터가 있으면 어찌할 지 고민해야 함
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, nextcdt: nextMsgMstCdt
@@ -1748,7 +1758,6 @@ export class ChanmsgService {
     //     }
     // }
 
-
     async qryDataLog(dto: Record<string, any>): Promise<any> { //insertDataLog()는 common.ts에 있음
         const resJson = new ResJson()
         const userid = this.req['user'].userid
@@ -1760,14 +1769,14 @@ export class ChanmsgService {
             const { logdt, chanid } = dto
             //console.log(logdt, chanid, "@@@@@@@")
             //1) 메시지 본문은 CUD값이 생성C/수정U/삭제D로 구분되어 로깅됨. 댓글추가는 X로 구분 (댓글추가는 리얼타임입장에서는 본문에 반영되는 U와 유사)
-            let sql = "SELECT MSGID, REPLYTO, CUD, MAX(CDT) MAX_DT "
-            sql += "  FROM S_DATALOG_TBL "
+            let sql = "SELECT MSGID, REPLYTO, CUD, MAX(CDT) MAX_CDT " //본문에서의 MAX_CDT는 C,D는 유일하게 1개일 것이며 U정도만 효용성이 있음
+            sql += "  FROM S_DATALOG_TBL " //##00 C인 경우, 클라이언트에서 한번에 읽어오기 때문에 MSGID없이 C로만 group by 처리하면 편리하나 MsgList.vue의 newParentAdded/newChildAdded 때문에 안됨
             sql += " WHERE CDT > ? AND CHANID = ? AND TYP = 'msg' "
             sql += " GROUP BY MSGID, REPLYTO, CUD "
             sql += " UNION ALL "
             //2) 메시지 디테일 : S_MSGDTL_TBL과 S_DATALOG_TBL 2개의 테이블을 읽고 T로 구분
             //   T는 본문의 C,U,D,X이외 무조건 메시지내 디테일정보만 업데이트하면 되며 아래 3가지 세부정보가 있음 : read,react,user     
-            sql += "SELECT MSGID, REPLYTO, 'T' CUD, MAX(CDT) MAX_DT "
+            sql += "SELECT MSGID, REPLYTO, 'T' CUD, MAX(CDT) MAX_CDT "
             sql += "  FROM ( "
             //   - read(읽음 표시)는 메시지 본문이 존재하는 한 (삭제없이) 계속 유지되는 데이터이므로 굳이 로그테이블에 넣을 필요없이 S_MSGDTL_TBL에서 읽어옴
             //   - 이 경우는 CDT가 아닌 UDT임을 유의 (UDT로만으로도 생성및수정일자 커버됨)
@@ -1779,20 +1788,20 @@ export class ChanmsgService {
             sql += "         UNION ALL "
             //   - react는 메시지에 대한 반응(예:watching)인데 이 역시 멤버 모두 공유되는 정보임
             //   - 이 정보는 위 읽음 표시와는 다르게 S_MSGDTL_TBL에서 insert/delete되므로 리얼타임 반영을 위해서는 S_DATALOG_TBL에 삭제정보까지도 넣어져야 함
-            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) "
+            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) CDT "
             sql += "          FROM S_DATALOG_TBL "
             sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'react' "
             sql += "         GROUP BY MSGID, REPLYTO "
             sql += "         UNION ALL "
             //    - user라는 의미는 위와는 달리 멤버 모두 공유하는 게 아닌 본인만 보면 되는 정보임 (예:later,fixed)
-            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) MAX_DT"
+            sql += "        SELECT MSGID, REPLYTO, MAX(CDT) CDT "
             sql += "          FROM S_DATALOG_TBL "
             sql += "         WHERE CDT > ? AND CHANID = ? AND TYP = 'user' AND USERID = ? "
             sql += "         GROUP BY MSGID, REPLYTO "
             sql += ") Z  "
             sql += " GROUP BY MSGID, REPLYTO  "
-            sql += " ORDER BY MAX_DT " //배열에 PUSH 쉽게 하기 위해 ASC로 소팅
-            //console.log(sql)
+            sql += " ORDER BY MAX_CDT " //배열에 PUSH 쉽게 하기 위해 ASC로 소팅
+            //console.log(sql)            
             const list = await this.dataSource.query(sql, [logdt, chanid, logdt, chanid, logdt, chanid, logdt, chanid, userid])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
@@ -1800,14 +1809,25 @@ export class ChanmsgService {
                 //S_DATALOG_TBL
                 const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
                 if (row.CUD == 'U') { //자식메시지 정보는 스레스에서만 getMsg()하면 되므로 부모 및 자식 메시지 정보 필요없고, 부모메시지일 경우만 정보 받으면 됨
-                    //if (row.REPLYTO == '') row.msgItem = await this.qryMsg({ chanid: chanid, msgid: row.MSGID })
-                    row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //자식의 경우라도 부모의 안읽음처리까지 반영해야 함
+                    const rowPrev = list.find((item: IDataLog) => (item.MSGID == row.MSGID && (row.CUD == 'C' || row.CUD == 'X')))
+                    if (rowPrev) { //메시지 생성(C)후 바로 수정(U)된 경우 : 클라이언트에서 C처리시 서버호출함
+                        row.SKIP = true //rowPrev가 아닌 row임. 여기서 배열 삭제는 부담되니 클라이언트로 내려서 loop시 skip하기로 함
+                    } else {
+                        //if (row.REPLYTO == '') row.msgItem = await this.qryMsg({ chanid: chanid, msgid: row.MSGID })
+                        row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) //자식의 경우라도 부모의 안읽음처리까지 반영해야 함
+                    }
                 } else if (row.CUD == 'X') { //X는 자식메시지이므로 무조건 부모메시지 정보 읽어오기
                     //const parentMsgid = row.REPLYTO
                     row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
                 } else if (row.CUD == 'D') { //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
-                    //const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
-                    row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
+                    const rowPrev = list.find((item: IDataLog) => (item.MSGID == row.MSGID && (row.CUD == 'C' || row.CUD == 'X')))
+                    if (rowPrev) { //메시지 생성(C)후 바로 삭제(D)된 경우 : 클라이언트에서 C처리시 서버호출함
+                        rowPrev.SKIP = true //여기서 배열 삭제는 부담되니 클라이언트로 내려서 loop시 skip하기로 함
+                        row.SKIP = true //rowPrev,row 둘 다 skip
+                    } else {
+                        const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
+                        row.msgItem = await this.qryMsg({ chanid: chanid, msgid: parentMsgid }) 
+                    }
                 } else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨. 부모메시지일 경우만 정보 받으면 됨(U참조)
                     //if (row.REPLYTO == '') row.dtlItem = await this.qryDtlRealTime({ chanid: chanid, msgid: row.MSGID }) //msgItem 아님. qryMsg() 아님
                     //if (row.REPLYTO == '') 
@@ -1816,7 +1836,7 @@ export class ChanmsgService {
                     //C는 클라이언트에서 getList()로 다시 부름
                 }
             }
-            resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].MAX_DT
+            resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].MAX_CDT
             resJson.list = list
             return resJson
         } catch (ex) {
