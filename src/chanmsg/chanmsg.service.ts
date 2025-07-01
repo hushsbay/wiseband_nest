@@ -365,7 +365,8 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto //console.log("qry", prevMsgMstCdt, nextMsgMstCdt, msgid, kind)
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
+            console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
             data.chanmst = rs.data.chanmst
@@ -381,10 +382,17 @@ export class ChanmsgService {
             if (nextMsgMstCdt) { //ASC임을 유의
                 if (kind == 'scrollToBottom') { //limit없이 마지막까지 모두 가져오므로 큰 데이터를 가져오는지 미리 체크 필요
                     //다만, 클라이언트가 메시지를 보내면 바로 scrollToBottom을 호출하는데 이때 큰 데이터가 있으면 어찌할 지 고민해야 함
-                    msglist = await qb.select(fldArr)
-                    .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
-                        chanid: chanid, nextcdt: nextMsgMstCdt
-                    }).orderBy('A.CDT', 'ASC').getMany()
+                    if (msgidReply) {
+                        msglist = await qb.select(fldArr)
+                        .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = :msgidReply ", { 
+                            chanid: chanid, nextcdt: nextMsgMstCdt, msgidReply: msgidReply
+                        }).orderBy('A.CDT', 'ASC').getMany()
+                    } else {
+                        msglist = await qb.select(fldArr)
+                        .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
+                            chanid: chanid, nextcdt: nextMsgMstCdt
+                        }).orderBy('A.CDT', 'ASC').getMany()
+                    }
                 } else {
                     msglist = await qb.select(fldArr)
                     .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
@@ -437,10 +445,10 @@ export class ChanmsgService {
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 let sql = ""
-                if (msgidReply) {
-                    sql = "SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? AND MSGID = ? "    
-                    msglist = await this.dataSource.query(sql, [msgid, chanid, msgidReply]) //자식의 MSGID 1개만 리턴됨을 유의
-                } else {
+                //if (msgidReply) {
+                //    sql = "SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? AND MSGID = ? "    
+                //    msglist = await this.dataSource.query(sql, [msgid, chanid, msgidReply]) //자식의 MSGID 1개만 리턴됨을 유의
+                //} else {
                     sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
                     sql += "    UNION ALL "
                     sql += "   SELECT " + fields + tbl + " WHERE REPLYTO = ? AND CHANID = ? "    
@@ -449,7 +457,7 @@ export class ChanmsgService {
                     if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
                         return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
                     }
-                }
+                //}
             } else if (kind == 'notyet' || kind == 'unread') { //안읽은 댓글의 경우, 댓글이 아닌 부모글을 보여줘야 하는데 부모글도 댓글도 모두 안읽은 경우는 한개만 보여줘야 함
                 const curDt = new Date()
                 const dtMinus = new Date(curDt.getFullYear() - 1, curDt.getMonth(), curDt.getDate())
@@ -865,6 +873,7 @@ export class ChanmsgService {
         try {            
             let { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
+            const bodyForLog = (bodytext.length > hush.cons.bodyLenForLog) ? bodytext.substring(0, hush.cons.bodyLenForLog) : bodytext
             if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
                 if (!chanid || (!body && num_file == 0 && num_image == 0 && num_link == 0)) {
                     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
@@ -935,6 +944,7 @@ export class ChanmsgService {
                 //     }).execute()
                 // })
                 resJson.data.msgid = msgid
+                resJson.data.replyto = replyto
             } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
                 //const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgMst.select(hush.cons.curdtMySqlStr).getRawOne()
                 await qbMsgMst
@@ -968,7 +978,7 @@ export class ChanmsgService {
             }
             const logObj = { 
                 cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
-                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ 
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ, bodytext: bodyForLog
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1851,7 +1861,7 @@ export class ChanmsgService {
         try {
             const { logdt } = dto
             console.log(logdt, "qryDataLogEach")
-            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, BODYTEXT "
+            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, IFNULL(BODYTEXT, '') "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? "
             sql += " UNION ALL "

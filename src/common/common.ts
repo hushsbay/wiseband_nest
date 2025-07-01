@@ -54,6 +54,7 @@ export const cons = {
     picCnt : 4, //picCnt명까지만 사진 등 보여주기 (클라이언트 고려해 4명까지만 가능)
     cdtAtFirst : "1111-11-11",
     cdtAtLast : "9999-99-99",
+    bodyLenForLog : 200,
 }
 
 //Controller, Service 등에 모두 사용하도록 함. throw되면 무조건 클라이언트까지 전달됨. 그게 아니면 CodeMsg class 사용
@@ -207,11 +208,11 @@ export function getTypeForMsgDtl(strKind: string): string { //서버,클라언�
 
 export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> { 
     //로깅은 2가지 역할 : 1) 로그 자체의 역할 (사용자 동선 추적) 2) 리얼타임 화면 데이터 반영
-    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ } = obj
-    try {        
-        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP) "
-        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
-        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ])
+    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext } = obj
+    try {
+        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP, BODYTEXT) "
+        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext])
         return ''
     } catch (ex) {
         return ex.message
