@@ -17,7 +17,7 @@ interface IDataLog {
     CUD: string, 
     MAX_CDT: string, 
     msgItem: any,
-    SKIP: boolean
+    SKIP: boolean //~Each로 정해지면 이건 막기로 함 (필요없어짐)
 }
 
 @Injectable({ scope: Scope.REQUEST })
@@ -345,16 +345,16 @@ export class ChanmsgService {
 
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
-    async qryDbDt(): Promise<any> { //클라이언트에서 서버시각 받을 때 사용 
-        const resJson = new ResJson()
-        const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-        try {
-            resJson.data.dbdt = curdtObj.DT
-            return resJson
-        } catch (ex) {
-            hush.throwCatchedEx(ex, this.req, 'qryDbDt') 
-        }
-    }
+    // async qryDbDt(): Promise<any> { //클라이언트에서 서버시각 받을 때 사용 
+    //     const resJson = new ResJson()
+    //     const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+    //     try {
+    //         resJson.data.dbdt = curdtObj.DT
+    //         return resJson
+    //     } catch (ex) {
+    //         hush.throwCatchedEx(ex, this.req, 'qryDbDt') 
+    //     }
+    // }
 
     async qry(dto: Record<string, any>): Promise<any> { //채널내 메시지 리스트를 무한스크롤로 가져 오는 경우에도 마스터 정보는 어차피 ACL때문이라도 읽어야 함
         const resJson = new ResJson()
@@ -1837,6 +1837,44 @@ export class ChanmsgService {
                 }
             }
             resJson.data.logdt = (list.length == 0) ? logdt : list[list.length - 1].MAX_CDT
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async qryDataLogEach(dto: Record<string, any>): Promise<any> { //insertDataLog()는 common.ts에 있음
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try {
+            const { logdt } = dto
+            console.log(logdt, "qryDataLogEach")
+            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, BODYTEXT "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? "
+            sql += " UNION ALL "
+            sql += "SELECT UDT CDT, MSGID, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, CHANID, USERID, USERNM, 'T' CUD, KIND, TYP, '' BODYTEXT "
+            sql += "  FROM S_MSGDTL_TBL A "
+            sql += " WHERE UDT > ? AND TYP = 'read' "
+            sql += " ORDER BY CDT "
+            const list = await this.dataSource.query(sql, [logdt, logdt])
+            const len = list.length
+            for (let i = 0; i < len; i++) {
+                const row = list[i]
+                const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
+                if (row.CUD == 'C') {
+                    //C는 클라이언트에서 getList()로 다시 부름
+                } else {
+                    row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //아래 모두 부모메시지 정보만 있으면 됨
+                    //if (row.CUD == 'X') { //X는 자식메시지 추가이므로 무조건 부모메시지 정보 읽어오기
+                    //} else if (row.CUD == 'U') { //자식메시지 정보는 스레드에서만 getMsg()하면 되므로 부모 및 자식 메시지 정보 필요없고, 부모메시지일 경우만 정보 받으면 됨
+                    //} else if (row.CUD == 'D') { //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
+                    //} else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨. 부모메시지일 경우만 정보 받으면 됨(U참조)
+                }
+            }
+            resJson.data.logdt = (len == 0) ? logdt : list[len - 1].CDT
             resJson.list = list
             return resJson
         } catch (ex) {

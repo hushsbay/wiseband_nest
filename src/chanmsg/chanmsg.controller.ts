@@ -12,8 +12,8 @@ export class ChanmsgController {
 
     constructor(private readonly chanmsgSvc: ChanmsgService) {}
     
-    @Post('qryDbDt')
-    qryDbDt() { return this.chanmsgSvc.qryDbDt() }
+    // @Post('qryDbDt')
+    // qryDbDt() { return this.chanmsgSvc.qryDbDt() }
 
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
@@ -92,6 +92,9 @@ export class ChanmsgController {
 
     @Post('qryDataLog')
     qryDataLog(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryDataLog(dto) }
+
+    @Post('qryDataLogEach')
+    qryDataLogEach(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryDataLogEach(dto) }
             
     /////////////////////////////////////////////////////////////////////////////////////
     //readBlob1보다 안정적임. 파일 만들지 않고 바로 res.download로 가는 pipe는 메소드는 아직 구현하지 못함 (가능한지도 아직 모름)

@@ -70,6 +70,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         try {            
             const { kind } = dto //바로 아래에서 개인메뉴 없으면 생성하기
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
@@ -86,6 +87,7 @@ export class MenuService {
             sql += "    ORDER BY A.SEQ "
             const list = await this.dataSource.query(sql, [userid, kind, kind])
             resJson.list = list
+            resJson.data.dbdt = curdtObj.DT
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req) 
@@ -270,7 +272,7 @@ export class MenuService {
         }
     }
 
-    async qryPanel(dto: Record<string, any>): Promise<any> {
+    async qryPanel(dto: Record<string, any>): Promise<any> { //사용자 본인만 조회
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -340,32 +342,32 @@ export class MenuService {
             let sqlLeft = "LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
             let sqlWhere = "WHERE B.TYP = 'WS' AND C.USERID = 'oldclock' "
             //mention
-            let sqlMention = sqlSelect + "'' KIND, 0 CNT, D.USERNM PARENT_BODY, 'mention' TITLE "
+            let sqlMention = sqlSelect + "D.USERID, D.USERNM, '' KIND, 0 CNT, D.USERNM PARENT_BODY, 'mention' TITLE "
             sqlMention += (sqlFrom + sqlLeft + sqlWhere)
             sqlMention += "AND D.USERID = '" + userid + "' AND D.KIND = 'mention' "
             if (msgid) sqlMention += "AND A.MSGID = '" + msgid + "' "
             //vip
-            let sqlVip = sqlSelect + "'' KIND, 0 CNT, '' PARENT_BODY, 'vip' TITLE "
+            let sqlVip = sqlSelect + "'' USERID, '' USERNM, '' KIND, 0 CNT, '' PARENT_BODY, 'vip' TITLE "
             sqlVip += (sqlFrom + sqlWhere)
             sqlVip += "AND A.AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') "
             if (msgid) sqlVip += "AND A.MSGID = '" + msgid + "' "
             //thread
-            let sqlThread = sqlSelect + "'' KIND, " //현재 부모글은 내려주고 있으나 클라이언트에서 자리부족으로 표시하고 있지는 않음
+            let sqlThread = sqlSelect + "'' USERID, '' USERNM, '' KIND, " //현재 부모글은 내려주고 있으나 클라이언트에서 자리부족으로 표시하고 있지는 않음
             sqlThread += "(SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.REPLYTO AND CHANID = A.CHANID) CNT, "
             sqlThread += "(SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = A.REPLYTO AND CHANID = A.CHANID) PARENT_BODY, 'thread' TITLE "
             sqlThread += (sqlFrom + sqlWhere)
             sqlThread += "AND A.AUTHORID = '" + userid + "' AND A.REPLYTO <> '' "
             if (msgid) sqlThread += "AND A.MSGID = '" + msgid + "' "
             //myreact
-            let sqlMyreact = sqlSelect + "D.KIND, 0 CNT, D.USERNM PARENT_BODY, 'myreact' TITLE "
+            let sqlMyreact = sqlSelect + "D.USERID, D.USERNM, D.KIND, 0 CNT, D.USERNM PARENT_BODY, 'myreact' TITLE "
             sqlMyreact += (sqlFrom + sqlLeft + sqlWhere)
             sqlMyreact += "AND D.USERID = '" + userid + "' AND D.TYP = 'react' "
             if (msgid) sqlMyreact += "AND A.MSGID = '" + msgid + "' "
             //otherreact
-            let sqlOtherreact = sqlSelect + "D.KIND, COUNT(*) CNT, GROUP_CONCAT(D.USERNM) PARENT_BODY, 'otherreact' TITLE "
+            let sqlOtherreact = sqlSelect + "D.USERID, D.USERNM, D.KIND, COUNT(*) CNT, GROUP_CONCAT(D.USERNM) PARENT_BODY, 'otherreact' TITLE "
             sqlOtherreact += (sqlFrom + sqlLeft + sqlWhere)
             sqlOtherreact += "AND A.AUTHORID = '" + userid + "' AND D.USERID <> '" + userid + "' AND D.TYP = 'react' "
-            sqlOtherreact += "GROUP BY A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, D.KIND "
+            sqlOtherreact += "GROUP BY A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, D.USERID, D.USERNM, D.KIND "
             if (msgid) sqlOtherreact += "AND A.MSGID = '" + msgid + "' "
             //아래에서 전체조회도 구성
             let sqlMain = ''
@@ -380,12 +382,12 @@ export class MenuService {
             } else if (kind == 'otherreact') {
                 sqlMain = sqlOtherreact
             } else { //전체 조회
-                sqlMain = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE "
+                sqlMain = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.USERID, Z.USERNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE "
                 sqlMain += " FROM ( "
                 sqlMain += sqlMention + " UNION ALL " + sqlVip + " UNION ALL " + sqlThread + " UNION ALL " + sqlMyreact + " UNION ALL " + sqlOtherreact 
                 sqlMain += ") Z "
             }
-            let sql = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE, E.PICTURE "
+            let sql = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.USERID, Z.USERNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE, E.PICTURE "
             sql += "     FROM ( " + sqlMain + ") Z "
             if (notyet == 'Y') {
                 sql += "INNER JOIN (SELECT DISTINCT CHANID, MSGID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') X "
