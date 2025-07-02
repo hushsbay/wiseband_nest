@@ -134,6 +134,7 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
+            console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 if (list[i].DEPTH == 2) list[i].mynotyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')

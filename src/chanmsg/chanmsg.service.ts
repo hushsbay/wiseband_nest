@@ -1879,6 +1879,7 @@ export class ChanmsgService {
             sql += "  FROM S_MSGDTL_TBL A "
             sql += " WHERE UDT > ? AND TYP = 'read' "
             sql += " ORDER BY CDT "
+            console.log(sql)
             const list = await this.dataSource.query(sql, [logdt, logdt])
             const len = list.length
             for (let i = 0; i < len; i++) {
