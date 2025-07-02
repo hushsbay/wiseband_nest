@@ -503,6 +503,16 @@ export class ChanmsgService {
                 item.reply = (reply.length > 0) ? reply : []
                 const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //S_MSGMST_TBL (댓글-스레드) - 댓글 갯수, 안읽은댓글갯수, 최종업데이트일시
                 item.replyinfo = replyInfo
+                //1밀리섹(1000분의1초)간격으로 양쪽에서 saveMsg()해서 순서가 흐트러지지 않고 잘 가져오는지 테스트함 : OK
+                //처음엔 한행이 n x 순서 횟수만큼 조회되는 오류 발생 - scrollToBottom을 나중에 모아서 한번에 해야 하고 그 한번이 완료될 때까지 또 그대로 조회(실행)되면 안되게 막고 있어야 함
+                if (kind == 'scrollToBottom') { //운영 적용전까지는 막지 말기
+                    const logObj = { 
+                        cdt: curdtObj.DT.replace('2025-', '1111-'), msgid: item.MSGID, replyto: '', chanid: chanid, 
+                        userid: userid, usernm: '', cud: 'Z', kind: '', typ: '', bodytext: ''
+                    }
+                    const ret = await hush.insertDataLog(this.dataSource, logObj)
+                    if (ret != '') throw new Error(ret)
+                }
             }
             ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             const arr = ['F', 'I', 'L'] //파일,이미지,링크
