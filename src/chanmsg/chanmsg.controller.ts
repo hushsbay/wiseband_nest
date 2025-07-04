@@ -57,6 +57,9 @@ export class ChanmsgController {
     @Post('updateWithNewKind')
     updateWithNewKind(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateWithNewKind(dto) }
 
+    @Post('updateNotyetToRead')
+    updateNotyetToRead(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateNotyetToRead(dto) }
+    
     @Post('updateAllWithNewKind')
     updateAllWithNewKind(@Body() dto: Record<string, any>) { return this.chanmsgSvc.updateAllWithNewKind(dto) }
 

@@ -1123,8 +1123,9 @@ export class ChanmsgService {
     }
 
     @Transactional({ propagation: Propagation.REQUIRED })
-    async updateWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
-        //현재는 읽기 관련 처리만 하므로 로킹 필요없으나 향후 추가시 로깅 처리 여부 체크 필요
+    async updateWithNewKind(dto: Record<string, any>): Promise<any> {
+        //원래는 읽음처리 전용으로 사용하려 했으나 문제가 있어 이건 msgdtl 처리용 일반용으로 사용하기로 하고 여기 로직은 새로 updateNotyetToRead()로 만들어 대체함 
+        //그래서, 현재는 이 메소드 미사용중이나 나중에 필요하면 그냥 사용해도 무방할 것임
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1135,9 +1136,11 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
-            const msgdtlNew = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind })
-            if (msgdtlNew) {
-                this.msgdtlRepo.delete(msgdtlNew) //아래에서 update하면 같은 newKind가 생길 수 있으므로 미리 check and delete
+            let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+            const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
+            if (ret[0].CNT > 0) {
+                sql = " DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+                await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
                 console.log(msgid, chanid, userid, newKind, '000')
             } else {
                 console.log(msgid, chanid, userid, newKind, '111')
@@ -1182,6 +1185,50 @@ export class ChanmsgService {
             //     msgdtl.KIND = newKind
             //     this.msgdtlRepo.save(msgdtl)
             // }
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    @Transactional({ propagation: Propagation.REQUIRED })
+    async updateNotyetToRead(dto: Record<string, any>): Promise<any> { //읽음처리중 notyet -> read 처리 전용 (워낙 빈도수가 많으므로 별도 구현)
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
+        let fv = hush.addFieldValue(dto, null, [userid])       
+        try {            
+            const { msgid, chanid } = dto
+            const oldKind = 'notyet'
+            const newKind = 'read'
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateNotyetToRead')
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+            const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
+            if (ret[0].CNT > 0) {
+                //read가 이미 있으면 굳이 다시 처리할 필요없음
+                console.log(msgid, chanid, userid, newKind, '000')
+            } else {
+                console.log(msgid, chanid, userid, newKind, '111')
+                let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
+                if (msgdtl) {
+                    console.log(msgid, chanid, userid, newKind, '222')
+                    await qbMsgDtl.update()
+                    .set({ KIND: newKind, UDT: curdtObj.DT })
+                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                        msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
+                    }).execute()
+                    console.log(msgid, chanid, userid, newKind, '333')
+                } else { //원래 notyet은 기본적으로 insert되어 있으므로 여기로 들어오면 로직 이상이나 일단 처리해주는 것으로 함
+                    console.log(msgid, chanid, userid, newKind, '444')
+                    await qbMsgDtl.insert().values({ 
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: '', CDT: curdtObj.DT, UDT: curdtObj.DT
+                    }).execute()
+                    console.log(msgid, chanid, userid, newKind, '555')
+                }
+            }
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
