@@ -981,11 +981,11 @@ export class ChanmsgService {
                 }).execute()
             }) //아래는 로깅
             let cud = crud
-            const kind = 'msg'
+            const kind = replyto ? 'child' : 'parent'
             let typ = hush.getTypeForMsgDtl(kind)
-            if (replyto && crud == 'C') {
-                cud = 'X' //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(X)라는 표시를 해서 넘김
-            }
+            //if (replyto && crud == 'C') {
+            //    cud = 'X' //댓글 추가인 경우 로깅 입장에서는 부모글에 대한 업데이트이므로 댓글추가(X)라는 표시를 해서 넘김
+            //}
             const logObj = { 
                 cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
                 userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ, bodytext: bodyForLog
@@ -1041,8 +1041,8 @@ export class ChanmsgService {
                 msgid: msgid, chanid: chanid
             }).getOne()
             if (msgmst) msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
-            let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT) "
-            sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, REPLYTO, KIND, CDT, UDT "
+            let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, REPLYTO, KIND, CDT, UDT) "
+            sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, REPLYTO, KIND, CDT, UDT "
             sql += "     FROM S_MSGMST_TBL "
             sql += "    WHERE MSGID = ? AND CHANID = ? AND AUTHORID = ? "
             await this.dataSource.query(sql, [msgid, chanid, userid])
@@ -1069,11 +1069,11 @@ export class ChanmsgService {
                 msgid: msgid, chanid: chanid
             }).execute() //아래는 로깅
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            const kind = 'msg'
+            const kind = msgmst.REPLYTO ? 'child' : 'parent'
             const typ = hush.getTypeForMsgDtl(kind)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: msgid, replyto: msgmst.REPLYTO ? msgmst.REPLYTO : '', chanid: chanid, 
-                userid: userid, usernm: usernm, cud: 'D', kind: kind, typ: typ
+                userid: userid, usernm: usernm, cud: 'D', kind: kind, typ: typ, bodytext: ''
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1293,7 +1293,7 @@ export class ChanmsgService {
             } //아래는 로깅 (changeAction과 동일)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: msgid, replyto: rs.data.msgmst.REPLYTO ? rs.data.msgmst.REPLYTO : '', chanid: chanid, 
-                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind)
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind), bodytext: ''
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1368,7 +1368,7 @@ export class ChanmsgService {
             } //아래는 로깅 (changeReaction과 동일)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: msgid, replyto: rs.data.msgmst.REPLYTO ? rs.data.msgmst.REPLYTO : '', chanid: chanid, 
-                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind) 
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: hush.getTypeForMsgDtl(kind), bodytext: ''
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1918,28 +1918,28 @@ export class ChanmsgService {
         try {
             const { logdt } = dto
             console.log(logdt, "qryDataLogEach")
-            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, IFNULL(BODYTEXT, '') BODYTEXT "
+            let sql = "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
             sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? "
+            sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
-            sql += "SELECT UDT CDT, MSGID, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, CHANID, USERID, USERNM, 'T' CUD, KIND, TYP, '' BODYTEXT "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? AND TYP = 'user' AND USERID = ? "
+            sql += " UNION ALL "
+            sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT "
             sql += "  FROM S_MSGDTL_TBL A "
-            sql += " WHERE UDT > ? AND TYP = 'read' "
+            sql += " WHERE UDT > ? AND TYP = 'read' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
+            sql += " GROUP BY MSGID, CHANID "
             sql += " ORDER BY CDT "
-            console.log(sql)
-            const list = await this.dataSource.query(sql, [logdt, logdt])
+            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt])
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
-                const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
-                if (row.CUD == 'C') {
-                    //C는 클라이언트에서 getList()로 다시 부름
+                if (row.CUD == 'C' && row.TYP == 'msg') {
+                    //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
                 } else {
-                    row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //아래 모두 부모메시지 정보만 있으면 됨
-                    //if (row.CUD == 'X') { //X는 자식메시지 추가이므로 무조건 부모메시지 정보 읽어오기
-                    //} else if (row.CUD == 'U') { //자식메시지 정보는 스레드에서만 getMsg()하면 되므로 부모 및 자식 메시지 정보 필요없고, 부모메시지일 경우만 정보 받으면 됨
-                    //} else if (row.CUD == 'D') { //클라이언트에서 삭제로그 리얼타임 반영시 댓글삭제라면 부모글을 조회함. 부모글 삭제후 반영시는 스레드 닫으므로 부모글 정보가 없어도 됨
-                    //} else if (row.CUD == 'T') { //메시지 본문(Body,파일,이미지,링크,딸린댓글정보등)정보가 필요없고 S_MSGDTL_TBL 정보만 업데이트하면 됨. 부모메시지일 경우만 정보 받으면 됨(U참조)
+                    const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
+                    row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (S_MSGDTL_TBL 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
                 }
             }
             resJson.data.logdt = (len == 0) ? logdt : list[len - 1].CDT
