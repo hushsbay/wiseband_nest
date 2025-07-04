@@ -1918,7 +1918,7 @@ export class ChanmsgService {
         try {
             const { logdt } = dto
             console.log(logdt, "qryDataLogEach")
-            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, IFNULL(BODYTEXT, '') "
+            let sql = "SELECT CDT CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CASE WHEN TYP = 'msg' THEN CUD ELSE 'T' END CUD, KIND, TYP, IFNULL(BODYTEXT, '') BODYTEXT "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? "
             sql += " UNION ALL "
