@@ -1917,7 +1917,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { logdt } = dto
-            console.log(logdt, "qryDataLogEach")
+            //console.log(logdt, "qryDataLogEach")
             let sql = "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
@@ -1935,7 +1935,7 @@ export class ChanmsgService {
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
-                if (row.CUD == 'C' && row.TYP == 'msg') {
+                if (row.CUD == 'C' && row.KIND == 'parent') { //child는 부모정보가 필요해서 아래 else로 읽어옴
                     //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
                 } else {
                     const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
