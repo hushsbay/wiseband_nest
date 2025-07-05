@@ -1918,7 +1918,9 @@ export class ChanmsgService {
         try {
             const { logdt } = dto
             //console.log(logdt, "qryDataLogEach")
-            let sql = "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            sql += "  FROM ( "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
@@ -1930,8 +1932,9 @@ export class ChanmsgService {
             sql += "  FROM S_MSGDTL_TBL A "
             sql += " WHERE UDT > ? AND TYP = 'read' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
             sql += " GROUP BY MSGID, CHANID "
+            sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
             sql += " ORDER BY CDT "
-            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt])
+            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt, userid])
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
