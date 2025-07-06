@@ -1223,10 +1223,22 @@ export class ChanmsgService {
                         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                     }).execute()
                     console.log(msgid, chanid, userid, newKind, '333')
+                    //아래는 MsgList.vue에서의 newParentAdded/newChildAdded배열에 들어 있는 msgid 항목을 제거하기 위해 로깅하는 것임 (CUD=D가 필요함)
+                    //여기서는 기본창이든 새창이든 notyet->read처리된 것이 msgid가 있어야 제거처리가 가능한데 로깅테이블에서 읽어올 때는
+                    //부하 고려해서 group by로 읽어와 msgid가 없음. 그래서 notyet->read인 경우만 여기서 로깅추가해 처리하고자 함 
+                    const replyto = rs.data.msgmst.REPLYTO
+                    const kind = newKind
+                    const typ = hush.getTypeForMsgDtl(kind)
+                    const logObj = { 
+                        cdt: curdtObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
+                        userid: userid, usernm: usernm, cud: 'D', kind: newKind, typ: typ, bodytext: ''
+                    }
+                    const ret = await hush.insertDataLog(this.dataSource, logObj)
+                    if (ret != '') throw new Error(ret)
                 } else { //원래 notyet은 기본적으로 insert되어 있으므로 여기로 들어오면 로직 이상이나 일단 처리해주는 것으로 함
                     console.log(msgid, chanid, userid, newKind, '444')
                     await qbMsgDtl.insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: '', CDT: curdtObj.DT, UDT: curdtObj.DT
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: 'read', CDT: curdtObj.DT, UDT: curdtObj.DT
                     }).execute()
                     console.log(msgid, chanid, userid, newKind, '555')
                 }
@@ -1932,8 +1944,8 @@ export class ChanmsgService {
             sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
-            sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP = 'user' AND USERID = ? "
+            sql += "  FROM S_DATALOG_TBL " //read는 원래 S_MSGDTL_TBL에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
+            sql += " WHERE CDT > ? AND TYP IN ('user', 'read') AND USERID = ? " //그래서, updateNotyetToRead()에서 로깅처리중임 (내가 읽은 메시지를 배열에서 제거하면 됨)
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT "
             sql += "  FROM S_MSGDTL_TBL A "
