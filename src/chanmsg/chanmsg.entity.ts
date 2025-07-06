@@ -82,6 +82,9 @@ export class MsgDtl {
     @PrimaryColumn()
     KIND: string    
 
+    @PrimaryColumn()
+    SUBKIND: string   
+
     @Column()
     TYP: string    
 

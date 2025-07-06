@@ -867,7 +867,7 @@ export class ChanmsgService {
             const { chanid, msgid } = dto
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
-            resJson.data = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
+            resJson.list = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1125,7 +1125,7 @@ export class ChanmsgService {
     @Transactional({ propagation: Propagation.REQUIRED })
     async updateWithNewKind(dto: Record<string, any>): Promise<any> {
         //원래는 읽음처리 전용으로 사용하려 했으나 문제가 있어 이건 msgdtl 처리용 일반용으로 사용하기로 하고 여기 로직은 새로 updateNotyetToRead()로 만들어 대체함 
-        //그래서, 현재는 이 메소드 미사용중이나 나중에 필요하면 그냥 사용해도 무방할 것임
+        //그래서, 현재는 이 메소드 미사용중이나 나중에 필요하면 그냥 사용해도 무방할 것임 (리얼타임을 위한 로깅처리 여부는 검토해야 함)
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1185,6 +1185,8 @@ export class ChanmsgService {
             //     msgdtl.KIND = newKind
             //     this.msgdtlRepo.save(msgdtl)
             // }
+            msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid)
+            resJson.data.msgdtl = msgdtl
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1229,6 +1231,8 @@ export class ChanmsgService {
                     console.log(msgid, chanid, userid, newKind, '555')
                 }
             }
+            const msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid)
+            resJson.data.msgdtl = msgdtl
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1248,8 +1252,8 @@ export class ChanmsgService {
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgDtl
-            .update()
-            .set({ KIND: newKind, UDT: curdtObj.DT })
+            .update() //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
+            .set({ KIND: newKind, SUBKIND: 'readall', UDT: curdtObj.DT })
             .where("CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                 chanid: chanid, userid: userid, kind: oldKind
             }).execute()
@@ -1269,10 +1273,10 @@ export class ChanmsgService {
             const { msgid, chanid, kind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleReaction')
-            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+            let qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             let cud = ''
-            const msgdtl = await qbMsgDtl
+            let msgdtl = await qbMsgDtl
             .select("COUNT(*) CNT")
             .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                 msgid: msgid, chanid: chanid, userid: userid, kind: kind
@@ -1297,6 +1301,9 @@ export class ChanmsgService {
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
+            qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
+            msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid)
+            resJson.data.msgdtl = msgdtl
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1930,16 +1937,23 @@ export class ChanmsgService {
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT "
             sql += "  FROM S_MSGDTL_TBL A "
-            sql += " WHERE UDT > ? AND TYP = 'read' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
+            sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = '' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
             sql += " GROUP BY MSGID, CHANID "
+            sql += " UNION ALL "
+            sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, 'readall' BODYTEXT "
+            sql += "  FROM S_MSGDTL_TBL " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
+            sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = 'readall' " //UDT에 유의
+            sql += " GROUP BY CHANID, UDT " //UDT에 유의
             sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
             sql += " ORDER BY CDT "
-            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt, userid])
+            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt, logdt, userid])
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
                 if (row.CUD == 'C' && row.KIND == 'parent') { //child는 부모정보가 필요해서 아래 else로 읽어옴
                     //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
+                } else if (row.BODYTEXT == 'readall') {
+                    //qryMsg() 필요없음
                 } else {
                     const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
                     row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (S_MSGDTL_TBL 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
