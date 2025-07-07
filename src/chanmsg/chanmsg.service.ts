@@ -777,7 +777,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { 
-                msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgdtlmention: null,
+                chanmst: null, chandtl: [], msgmst: null, act_later: null, act_fixed: null, msgdtl: null, msgdtlmention: null,
                 msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null 
             }
             //excludeMsgSub은 리얼타임 반영등에서 polling 부담을 조금이라도 줄이기 위해 본문 업데이트가 아니면 이미지는 빼고 내리는 옵션을 개발자에게 부여함
@@ -785,6 +785,8 @@ export class ChanmsgService {
             const { chanid, msgid } = dto //const { chanid, msgid, excludeMsgSub } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryMsg')
+            data.chanmst = rs.data.chanmst
+            data.chandtl = rs.data.chandtl
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
