@@ -1956,7 +1956,7 @@ export class ChanmsgService {
             sql += "  FROM S_MSGDTL_TBL " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = 'readall' " //UDT에 유의
             sql += " GROUP BY CHANID, UDT " //UDT에 유의
-            sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
+            sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //#$ 사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
             sql += " ORDER BY CDT "
             const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt, logdt, userid])
             const len = list.length
@@ -1971,8 +1971,17 @@ export class ChanmsgService {
                     row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (S_MSGDTL_TBL 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
                 }
             }
+            sql = "SELECT Z.TYP, SUM(Y.CNT) SUM "
+            sql += " FROM (SELECT CHANID, COUNT(*) CNT FROM S_MSGDTL_TBL WHERE USERID = ? AND KIND = 'notyet' GROUP BY CHANID) Y "
+            sql += "INNER JOIN (SELECT A.CHANID, A.TYP FROM S_CHANMST_TBL A "
+            sql += "             INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID WHERE B.USERID = ?) Z "
+            sql += "   ON Y.CHANID = Z.CHANID "
+            sql += "GROUP BY Z.TYP "
+            sql += "ORDER BY Z.TYP "
+            const listByMenu = await this.dataSource.query(sql, [userid, userid])
             resJson.data.logdt = (len == 0) ? logdt : list[len - 1].CDT
             resJson.list = list
+            resJson.data.listByMenu = listByMenu //사이드메뉴에 안읽은 메시지 카운트 표시 (내가 포함되지 않은 공개 채널은 매번 알림이 뜨는 건 불편하므로 제외. 바로 위 #$ sql 참조)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
