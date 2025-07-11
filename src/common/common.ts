@@ -108,15 +108,6 @@ export function throwCatchedEx(ex: any, req?: Request, fv?: string) { //, logger
     throwHttpEx(codeMsg.msg + fv, codeMsg.code) //userid, ip를 오류표시하면서 화면에 굳이 노출하지 말기
 }
 
-// export function chkResJson(json: ResJson, okFilter?: string) {
-//     if (okFilter === Code.NOT_FOUND) { //목록조회시 데이터가 없어도 오류로 표시하지 않을 때 사용
-//         if (json.code === Code.OK || json.code === Code.NOT_FOUND) return true
-//     } else {
-//         if (json.code === Code.OK) return true
-//     }
-//     return false
-// }
-
 export function setResJson(json: ResJson, msg: string, code?: string, req?: Request, smallTitle?: string) {
     if (req) { //req가 전달되면 로깅하겠다는 의도로 보면 됨
         const [msgStr, bracket] = setMsgBracket(msg, code, req, smallTitle)
@@ -169,7 +160,7 @@ export function setPageInfo(perPage: number, curPage: number, totalCnt: number, 
     resJson.offsetPos = (curPage - 1) * perPage //offsetPos를 resJson에 넣은 것은 별도 객체 안 만들고 resJson으로 한번에 이용하려는 단순한 목적임
     resJson.totalCnt = totalCnt
     resJson.totalPage = Math.ceil(totalCnt / perPage)
-    console.log(perPage, curPage, resJson.offsetPos, "=====================", resJson.offsetPos, resJson.totalCnt, resJson.totalPage)
+    console.log(perPage, curPage, resJson.offsetPos, "====", resJson.offsetPos, resJson.totalCnt, resJson.totalPage)
 }
 
 export async function getMysqlCurdt(dataSource: DataSource): Promise<any> {

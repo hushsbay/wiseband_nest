@@ -1,4 +1,4 @@
-import { Controller, HttpCode, HttpStatus, Post, Get, Body, Query } from '@nestjs/common'
+import { Controller, Post, Body } from '@nestjs/common'
 
 import { Unauth } from 'src/common/unauth.decorator'
 import { AuthService } from 'src/auth/auth.service'
@@ -9,7 +9,6 @@ export class AuthController {
     constructor(private authSvc: AuthService) {}
 
     @Unauth()
-    //@HttpCode(HttpStatus.OK)
     @Post('login')
     login(@Body() dto: Record<string, any>) { return this.authSvc.login(dto) }
 
@@ -20,9 +19,5 @@ export class AuthController {
     @Unauth()
     @Post('verifyOtp')
     verifyOtp(@Body() dto: Record<string, any>) { return this.authSvc.verifyOtp(dto) }
-
-    // @Unauth()
-    // @Get('logintest')
-    // logintest(@Query() dto: Record<string, any>) { return this.authSvc.logintest(dto) }
 
 }

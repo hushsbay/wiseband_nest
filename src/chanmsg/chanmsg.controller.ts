@@ -12,15 +12,9 @@ export class ChanmsgController {
 
     constructor(private readonly chanmsgSvc: ChanmsgService) {}
     
-    // @Post('qryDbDt')
-    // qryDbDt() { return this.chanmsgSvc.qryDbDt() }
-
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
 
-    // @Post('qryNewCount')
-    // qryNewCount(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryNewCount(dto) }    
-    
     @Post('qryChanMstDtl')
     qryChanMstDtl(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanMstDtl(dto) }
 
@@ -92,10 +86,7 @@ export class ChanmsgController {
 
     @Post('inviteToMember')
     inviteToMember(@Body() dto: Record<string, any>) { return this.chanmsgSvc.inviteToMember(dto) }
-
-    @Post('qryDataLog')
-    qryDataLog(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryDataLog(dto) }
-
+    
     @Post('qryDataLogEach')
     qryDataLogEach(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryDataLogEach(dto) }
             
