@@ -42,13 +42,13 @@ export class AuthGuard implements CanActivate {
             }
             if (ex.name == 'TokenExpiredError') {
                 const strErr = hush.Msg.JWT_EXPIRED + ' ' + userInfoStr
-                this.logger.error(strErr, hush.Code.JWT_EXPIRED);
-                hush.throwHttpEx(strErr, hush.Code.JWT_EXPIRED);
+                this.logger.error(strErr, hush.Code.JWT_EXPIRED)
+                hush.throwHttpEx(strErr, hush.Code.JWT_EXPIRED)
             }
             else {
                 const strErr = hush.Msg.JWT_ETC + ' (' + ex.name + ') ' + ex.message + ' ' + userInfoStr
-                this.logger.error(strErr, hush.Code.JWT_ETC);
-                hush.throwHttpEx(strErr, hush.Code.JWT_ETC);
+                this.logger.error(strErr, hush.Code.JWT_ETC)
+                hush.throwHttpEx(strErr, hush.Code.JWT_ETC)
             }
         }
         return true
