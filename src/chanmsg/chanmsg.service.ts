@@ -1374,12 +1374,14 @@ export class ChanmsgService {
             const { GR_ID, CHANID, CHANNM, STATE, MEMBER } = dto
             const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.chanmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let chanmst: ChanMst
+            let kind = ''
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
                 if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
                 if (rs.data.chanmst.KIND != 'admin') {
                     return hush.setResJson(resJson, '해당 관리자만 저장 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
+                kind = 'mst'
                 if (rs.data.chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
                 chanmst = await this.chanmstRepo.findOneBy({ CHANID: CHANID }) //chanmst = rs.data.chanmst
                 chanmst.CHANNM = CHANNM
@@ -1446,7 +1448,14 @@ export class ChanmsgService {
                     }
                 }
                 resJson.data.chanid = unidObj.ID
+                kind = 'new'
             }
+            const logObj = { 
+                cdt: unidObj.DT, msgid: '', replyto: '', chanid: (CHANID != 'new') ? CHANID : unidObj.ID, 
+                userid: userid, usernm: usernm, cud: (CHANID != 'new') ? 'U' : 'C', kind: kind, typ: 'chan', bodytext: '', subkind: GR_ID ? 'WS' : 'GS'
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1458,6 +1467,7 @@ export class ChanmsgService {
         const methodName = 'chanmsg>deleteChan'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { CHANID } = dto
@@ -1495,6 +1505,13 @@ export class ChanmsgService {
             //await this.dataSource.query(sql, [CHANID]) //더 위로 올라가면 안됨
             await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
             await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
+                userid: userid, usernm: usernm, cud: 'D', kind: 'mst', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1505,6 +1522,7 @@ export class ChanmsgService {
         const methodName = 'chanmsg>saveChanMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { crud, CHANID, USERID, USERNM, KIND, SYNC } = dto
@@ -1544,6 +1562,12 @@ export class ChanmsgService {
                 chandtl.UDT = curdtObj.DT
             }
             await this.chandtlRepo.save(chandtl)
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
+                userid: userid, usernm: usernm, cud: crud, kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {            
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1555,6 +1579,7 @@ export class ChanmsgService {
         const methodName = 'chanmsg>deleteChanMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { CHANID, USERID } = dto
@@ -1590,6 +1615,13 @@ export class ChanmsgService {
             await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID, USERID])
             //S_GRDTLDEL_TBL로의 백업 종료*/
             await this.chandtlRepo.delete(chandtl) //더 위로 올라가면 안됨
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            const logObj = { 
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
+                userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -1667,7 +1699,7 @@ export class ChanmsgService {
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
+            sql += " WHERE CDT > ? AND TYP IN ('chan', 'msg', 'react') "
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL " //read는 원래 S_MSGDTL_TBL에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
