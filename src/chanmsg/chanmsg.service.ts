@@ -1452,7 +1452,7 @@ export class ChanmsgService {
             }
             const logObj = { 
                 cdt: unidObj.DT, msgid: '', replyto: '', chanid: (CHANID != 'new') ? CHANID : unidObj.ID, 
-                userid: userid, usernm: usernm, cud: (CHANID != 'new') ? 'U' : 'C', kind: kind, typ: 'chan', bodytext: '', subkind: GR_ID ? 'WS' : 'GS'
+                userid: userid, usernm: usernm, cud: (CHANID != 'new') ? 'U' : 'C', kind: kind, typ: 'chan', bodytext: '', subkind: chanmst.TYP
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1508,7 +1508,7 @@ export class ChanmsgService {
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
-                userid: userid, usernm: usernm, cud: 'D', kind: 'mst', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+                userid: userid, usernm: usernm, cud: 'D', kind: 'mst', typ: 'chan', bodytext: '', subkind: chanmst.TYP
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1564,7 +1564,7 @@ export class ChanmsgService {
             await this.chandtlRepo.save(chandtl)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
-                userid: userid, usernm: usernm, cud: crud, kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+                userid: userid, usernm: usernm, cud: crud, kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1618,7 +1618,7 @@ export class ChanmsgService {
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
-                userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.GR_ID ? 'WS' : 'GS'
+                userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -1699,7 +1699,11 @@ export class ChanmsgService {
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP IN ('chan', 'msg', 'react') "
+            sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND <> 'mst' AND CUD <> 'D' " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
+            sql += " UNION ALL "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL " //read는 원래 S_MSGDTL_TBL에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
@@ -1711,20 +1715,32 @@ export class ChanmsgService {
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = '' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
             sql += " GROUP BY MSGID, CHANID "
             sql += " UNION ALL "
-            sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, 'readall' BODYTEXT, '' SUBKIND "
+            sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT, SUBKIND "
             sql += "  FROM S_MSGDTL_TBL " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = 'readall' " //UDT에 유의
             sql += " GROUP BY CHANID, UDT " //UDT에 유의
             sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //#$ 사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
+            sql += " UNION ALL "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND = 'mst' AND CUD = 'D' " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
             sql += " ORDER BY CDT "
-            const list = await this.dataSource.query(sql, [logdt, logdt, userid, logdt, logdt, userid])
+            const list = await this.dataSource.query(sql, [logdt, logdt, logdt, userid, logdt, logdt, userid, logdt])
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
-                if (row.CUD == 'C' && row.KIND == 'parent') { //child는 부모정보가 필요해서 아래 else로 읽어옴
-                    //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
-                } else if (row.BODYTEXT == 'readall') {
+                if (row.SUBKIND == 'readall') {
                     //qryMsg() 필요없음
+                } else if (row.TYP == 'chan') {
+                    if (row.KIND == 'mst' && row.CUD == 'D') {
+                        //S_CHANDTL_TBL에 INNERJOIN할 데이터 없어 권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
+                    } else {
+                        const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID, includeBlob: true })
+                        row.chanmst = rs.data.chanmst
+                        row.chandtl = rs.data.chandtl
+                    }
+                } else if (row.CUD == 'C' && row.KIND == 'parent') { //child는 부모정보가 필요해서 아래 else로 읽어옴
+                    //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
                 } else {
                     const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
                     row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (S_MSGDTL_TBL 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
