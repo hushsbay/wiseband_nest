@@ -200,11 +200,11 @@ export function getTypeForMsgDtl(strKind: string): string { //서버,클라언�
 
 export async function insertDataLog(dataSource: DataSource, obj: any): Promise<any> { 
     //로깅은 2가지 역할 : 1) 로그 자체의 역할 (사용자 동선 추적) 2) 리얼타임 화면 데이터 반영
-    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext } = obj
+    let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext, subkind } = obj
     try {
-        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP, BODYTEXT) "
-        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext])
+        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND) "
+        sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext, subkind ?? ''])
         return ''
     } catch (ex) {
         return ex.message

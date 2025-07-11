@@ -38,6 +38,7 @@ export class ChanmsgService {
     ) {}
 
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
+        const methodName = 'chanmsg>chkAcl'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -52,7 +53,7 @@ export class ChanmsgService {
                 chanid: chanid 
             }).getOne()
             if (!chanmst) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chanmst')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst')
             }
             let grnm = ''
             if (chanmst.TYP == 'GS') {
@@ -60,7 +61,7 @@ export class ChanmsgService {
             } else {
                 if (grid) {
                     if (grid != chanmst.GR_ID) {
-                        return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>grid')
+                        return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, methodName + '>grid')
                     }
                 }
                 const gr = await this.grmstRepo.createQueryBuilder('A')
@@ -70,7 +71,7 @@ export class ChanmsgService {
                     grid: chanmst.GR_ID, userid: userid 
                 }).getOne()
                 if (!gr) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>gr')
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName + '>gr')
                 }
                 grnm = gr.GR_NM
             }
@@ -140,7 +141,7 @@ export class ChanmsgService {
             sql += "    ORDER BY USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
             if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chandtl')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chandtl')
             }
             for (let item of chandtl) {
                 if (item.USERID == userid) { //현재 사용자와 같으면 현재 사용자의 정보를 CHANMST에 표시
@@ -173,11 +174,11 @@ export class ChanmsgService {
                 //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음 (DM은 무조건 M,P이므로 여기에 해당안됨)
             } else if (data.chanmst.STATE == 'M') { //DM방이 맨 처음 만들어지고 아직 메시지가 없을 때는 방을 만든 마스터에게만 보이기로 함
                 if (data.chanmst.MASTERID != userid) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (M)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl')
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (M)' + fv, hush.Code.NOT_AUTHORIZED, null, methodName)
                 }
             } else { //비공개(Private)
                 if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (P)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl')
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (P)' + fv, hush.Code.NOT_AUTHORIZED, null, methodName)
                 }
             }
             data.chandtl = chandtl            
@@ -189,15 +190,15 @@ export class ChanmsgService {
                     msgid: msgid, chanid: chanid
                 }).getOne()
                 if (!msgmst) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>msgmst')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>msgmst')
                 } 
                 if (chkAuthor && userid != msgmst.AUTHORID) { //편집저장삭제 등의 경우임
-                    return hush.setResJson(resJson, '작성자가 다릅니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>chkAcl>chkAuthor')
+                    return hush.setResJson(resJson, '작성자가 다릅니다.' + fv, hush.Code.NOT_OK, null, methodName + 'chkAuthor')
                 }
                 data.msgmst = msgmst
             } else if (chkGuest) {
                 if (data.chanmst.KIND != 'admin' && data.chanmst.KIND != 'member') {
-                    return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>chkAcl>chkGuest')    
+                    return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, methodName + 'chkGuest')    
                 }                
             }
             resJson.data = data
@@ -332,6 +333,7 @@ export class ChanmsgService {
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async qry(dto: Record<string, any>): Promise<any> { //채널내 메시지 리스트를 무한스크롤로 가져 오는 경우에도 마스터 정보는 어차피 ACL때문이라도 읽어야 함
+        const methodName = 'chanmsg>qry'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -343,7 +345,7 @@ export class ChanmsgService {
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
             //console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qry')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
             const viplist = await this.qryVipList(userid)
@@ -389,7 +391,7 @@ export class ChanmsgService {
                     msgid: msgid, chanid: chanid
                 }).getOne()
                 if (!msgmst) {
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>qry>atHome>MsgMst')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName)
                 } 
                 const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
@@ -411,7 +413,7 @@ export class ChanmsgService {
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
                 //console.log(sql)
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>atHome')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
                 data.msgidParent = msgidParent //MsgList.vue의 getList()에서 사용
                 data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
@@ -426,7 +428,7 @@ export class ChanmsgService {
                 sql += "    ORDER BY CDT ASC "
                 msglist = await this.dataSource.query(sql, [msgid, chanid, msgid, chanid])
                 if (msglist.length == 0) { //사용자가 마스터 선택했으므로 데이터가 반드시 있어야 함
-                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'menu>qry>withReply')
+                    return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
                 }
             } else if (kind == 'notyet' || kind == 'unread') { //안읽은 댓글의 경우, 댓글이 아닌 부모글을 보여줘야 하는데 부모글도 댓글도 모두 안읽은 경우는 한개만 보여줘야 함
                 const curDt = new Date()
@@ -514,13 +516,14 @@ export class ChanmsgService {
     }
     
     async qryChanMstDtl(dto: Record<string, any>): Promise<any> { //1) MemberList에서 사용 2) MsgList에서 채널 정보만 읽어서 새로고침 용도로 사용
+        const methodName = 'chanmsg>qryChanMstDtl'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //DM아닌 채널인 경우 그룹도 체크하는데 내가 멤버로 들어가 있는 그룹만 조회 가능. 비공개채널은 채널멤버로 들어가 있어야만 열람 가능
             const { chanid, state } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryChanMstDtl')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             resJson.data.chanmst = rs.data.chanmst
             resJson.data.chandtl = rs.data.chandtl 
             if (rs.data.chanmst.TYP == "GS") { //멤버중복 체크하는 루틴 (DM방에 대해서만. 미리 체크해 방지하면 최선이나 멤버추가시 마다 체크하는 루틴이므로 쉽지 않아 일단 사후경고만 하고 있음)
@@ -685,6 +688,7 @@ export class ChanmsgService {
     }
 
     async qryMsg(dto: Record<string, any>): Promise<any> { //리얼타임 반영시에도 사용됨
+        const methodName = 'chanmsg>qryMsg'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -697,7 +701,7 @@ export class ChanmsgService {
             //원래는 qryMsg() 간단 버전으로 qryDtlRealTime() 만들어 이미지, 댓글정보 등을 제외하고 가져왔는데 댓글정보는 쓰임이 많은 등 이미지 등 제외하고는 모두 가져와도 되서 걍 qryDtlRealTime() 안쓰고 여기 옵션으로 해결함
             const { chanid, msgid } = dto //const { chanid, msgid, excludeMsgSub } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>qryMsg')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
             const qb = this.msgmstRepo.createQueryBuilder('A')
@@ -765,6 +769,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveMsg(dto: Record<string, any>): Promise<any> {
+        const methodName = 'chanmsg>saveMsg'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -773,9 +778,10 @@ export class ChanmsgService {
             let { crud, chanid, replyto, body, bodytext, num_file, num_image, num_link } = dto //crud는 C or U만 처리 
             let msgid = dto.msgid //console.log(userid, msgid, chanid, crud, replyto, body, num_file, num_image)
             const bodyForLog = (bodytext.length > hush.cons.bodyLenForLog) ? bodytext.substring(0, hush.cons.bodyLenForLog) : bodytext
+            let subkind = ''
             if (crud == 'C' || crud == 'U') { //replyto(댓글)는 신규 작성일 경우만 존재
                 if (!chanid || (!body && num_file == 0 && num_image == 0 && num_link == 0)) {
-                    return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'chanmsg>saveMsg')    
+                    return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, methodName)
                 }
                 let rs: ResJson
                 if (crud == 'C') {
@@ -787,7 +793,7 @@ export class ChanmsgService {
                 } else {
                     rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
                 }
-                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveMsg')
+                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
                 if (rs.data.chanmst.STATE == 'M') { //DM의 경우에 한해 메시지가 보내지기 직전에 방이 M상태가 되고 처음 보낸 후엔 P상태가 됨
                     await this.chanmstRepo.createQueryBuilder()
                     .update()
@@ -796,8 +802,9 @@ export class ChanmsgService {
                         chanid: chanid
                     }).execute()
                 }
+                subkind = rs.data.chanmst.TYP
             } else {
-                return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>saveMsg')
+                return hush.setResJson(resJson, 'crud값은 C/U중 하나여야 합니다.' + fv, hush.Code.NOT_OK, this.req, methodName)
             }
             const unidObj = await hush.getMysqlUnid(this.dataSource)
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
@@ -859,7 +866,7 @@ export class ChanmsgService {
             let typ = hush.getTypeForMsgDtl(kind)
             const logObj = { 
                 cdt: unidObj.DT, msgid: msgid, replyto: replyto ? replyto : '', chanid: chanid, 
-                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ, bodytext: bodyForLog
+                userid: userid, usernm: usernm, cud: cud, kind: kind, typ: typ, bodytext: bodyForLog, subkind: subkind
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
@@ -870,6 +877,7 @@ export class ChanmsgService {
     }
 
     async forwardToChan(dto: Record<string, any>): Promise<any> {
+        const methodName = 'chanmsg>forwardToChan'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -877,9 +885,9 @@ export class ChanmsgService {
         try {
             const { chanid, msgid, targetChanid } = dto
             let rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan') 
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             rs = await this.chkAcl({ userid: userid, chanid: targetChanid, chkGuest: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>forwardToChan>targetChanid') 
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.msgmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
             let sql = "INSERT INTO S_MSGMST_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, KIND, CDT, UDT) " //REPLYTO는 없음
             sql += "   SELECT ?, ?, ?, ?, BODY, BODYTEXT, KIND, ?, '' " 
@@ -895,6 +903,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async delMsg(dto: Record<string, any>): Promise<any> { 
+        const methodName = 'chanmsg>delMsg'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -902,9 +911,9 @@ export class ChanmsgService {
         try { //메시지 마스터를 삭제하면 거기에 딸려 있는 서브와 디테일 테이블 정보는 소용없으므로 모두 삭제함 (DEL_TBL로 이동시킴)
             const { msgid, chanid } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid, chkAuthor: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delMsg')  
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const msgReply = await this.msgmstRepo.findOneBy({ REPLYTO: msgid, CHANID: chanid })
-            if (msgReply) return hush.setResJson(resJson, '댓글이 있습니다.', hush.Code.NOT_OK, this.req, 'chanmsg>delMsg')  
+            if (msgReply) return hush.setResJson(resJson, '댓글이 있습니다.', hush.Code.NOT_OK, this.req, methodName)
             let msgidParent = ''
             let msgmst = await this.msgmstRepo.createQueryBuilder('A')
             .select(['A.REPLYTO'])
@@ -955,13 +964,14 @@ export class ChanmsgService {
     }
 
     async toggleChanOption(dto: Record<string, any>): Promise<any> { //TX 필요없음
+        const methodName = 'chanmsg>toggleChanOption'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
             const { chanid, kind, job } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleChanOption')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbChanDtl = this.chandtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbChanDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             const chandtl = await qbChanDtl
@@ -970,7 +980,7 @@ export class ChanmsgService {
                 chanid: chanid, userid: userid
             }).getRawOne()
             if (chandtl.CNT == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>toggleChanOption')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
             } else {
                 let obj = { MODR: userid, UDT: curdtObj.DT }
                 if (kind == "noti") { //job=X/빈값
@@ -978,7 +988,7 @@ export class ChanmsgService {
                 } else if (kind == "bookmark") { //job=Y/빈값
                     Object.assign(obj, { BOOKMARK: job })
                 } else {
-                    return hush.setResJson(resJson, 'kind값이 잘못되었습니다.' + fv, hush.Code.NOT_OK, this.req, 'chanmsg>toggleChanOption')
+                    return hush.setResJson(resJson, 'kind값이 잘못되었습니다.' + fv, hush.Code.NOT_OK, this.req, methodName)
                 }
                 await qbChanDtl
                 .update()
@@ -997,6 +1007,7 @@ export class ChanmsgService {
     async updateWithNewKind(dto: Record<string, any>): Promise<any> {
         //원래는 읽음처리 전용으로 사용하려 했으나 문제가 있어 이건 msgdtl 처리용 일반용으로 사용하기로 하고 여기 로직은 새로 updateNotyetToRead()로 만들어 대체함 
         //그래서, 현재는 이 메소드 미사용중이나 나중에 필요하면 그냥 사용해도 무방할 것임 (리얼타임을 위한 로깅처리 여부는 검토해야 함)
+        const methodName = 'chanmsg>updateWithNewKind'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1004,7 +1015,7 @@ export class ChanmsgService {
         try {            
             const { msgid, chanid, oldKind, newKind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateWithNewKind')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
@@ -1066,6 +1077,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async updateNotyetToRead(dto: Record<string, any>): Promise<any> { //읽음처리중 notyet -> read 처리 전용 (워낙 빈도수가 많으므로 별도 구현)
+        const methodName = 'chanmsg>updateNotyetToRead'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1075,7 +1087,7 @@ export class ChanmsgService {
             const oldKind = 'notyet'
             const newKind = 'read'
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateNotyetToRead')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
@@ -1121,16 +1133,17 @@ export class ChanmsgService {
         }
     }
 
-    async updateAllWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음
+    async updateAllWithNewKind(dto: Record<string, any>): Promise<any> { //TX 필요없음        
         //현재는 읽기 관련 처리만 하므로 로킹 필요없으나 향후 추가시 로깅 처리 여부 체크 필요
         //모두읽음처리 : 1) notyet -> read 2) unread -> read
+        const methodName = 'chanmsg>updateAllWithNewKind'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])       
         try {            
             const { chanid, oldKind, newKind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>updateAllWithNewKind')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             await qbMsgDtl
@@ -1147,6 +1160,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })    
     async toggleReaction(dto: Record<string, any>): Promise<any> {
+        const methodName = 'chanmsg>toggleReaction'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1154,7 +1168,7 @@ export class ChanmsgService {
         try {            
             const { msgid, chanid, kind } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>toggleReaction')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             let qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             let cud = ''
@@ -1194,6 +1208,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async changeAction(dto: Record<string, any>): Promise<any> {
+        const methodName = 'chanmsg>changeAction'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1201,7 +1216,7 @@ export class ChanmsgService {
         try {            
             const { msgid, chanid, kind, job } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>changeAction')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
             let cud = ''
@@ -1269,13 +1284,14 @@ export class ChanmsgService {
     }
 
     async uploadBlob(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
+        const methodName = 'chanmsg>uploadBlob'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])        
         try {
             const { msgid, chanid, kind, body, filesize } = dto //console.log(userid, msgid, chanid, kind, body, filesize)
             const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true, chkGuest: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>uploadBlob')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             let fileExt = '' //파일 검색에서 사용됨
             if (kind == 'F') {
                 const arr = body.split('.')
@@ -1302,6 +1318,7 @@ export class ChanmsgService {
     }
 
     async delBlob(dto: Record<string, any>): Promise<any> { //temp일 상태와 msgid가 있는 상태 모두 여기서 처리하는 것임   
+        const methodName = 'chanmsg>delBlob'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])            
@@ -1309,7 +1326,7 @@ export class ChanmsgService {
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
             const { chanid, kind, cdt } = dto //console.log(userid, msgid, chanid, kind, cdt)
             const rs = await this.chkAcl({ userid: userid, msgid: msgid, chanid: chanid, chkAuthor: true })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>delBlob')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             await this.msgsubRepo.createQueryBuilder()
             .delete()
             .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt ", {
@@ -1322,6 +1339,7 @@ export class ChanmsgService {
     }
 
     async readBlob(dto: Record<string, any>): Promise<any> { //파일,이미지 읽어서 다운로드. 파일의 경우 파일시스템이 아닌 db에 저장하는 것을 전제로 한 것임
+        const methodName = 'chanmsg>readBlob'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])        
@@ -1329,14 +1347,14 @@ export class ChanmsgService {
             const msgid = (dto.msgid == 'temp') ? userid : dto.msgid //temp는 채널별로 사용자가 메시지 저장(발송)전에 미리 업로드한 것임
             const { chanid, kind, cdt, name } = dto //console.log('readBlob', userid, msgid, chanid, kind, cdt, name)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>readBlob')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const msgsub = await this.msgsubRepo.createQueryBuilder('A')
             .select(['A.BUFFER'])
             .where("MSGID = :msgid and CHANID = :chanid and KIND = :kind and CDT = :cdt ", { //and BODY = :name ", { //Image도 조회해야 해서 name은 막음
                 msgid: msgid, chanid: chanid, kind: kind, cdt: cdt //, name: name //name은 없어도 될 것이나 더 정확한 조회 목적임
             }).getOne()
             if (!msgsub) {                
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>readBlob')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
             }
             resJson.data = msgsub
             return resJson
@@ -1347,6 +1365,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveChan(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const methodName = 'chanmsg>saveChan'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1357,9 +1376,9 @@ export class ChanmsgService {
             let chanmst: ChanMst
             if (CHANID != 'new') {
                 const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChan')
+                if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
                 if (rs.data.chanmst.KIND != 'admin') {
-                    return hush.setResJson(resJson, '해당 관리자만 저장 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChan')
+                    return hush.setResJson(resJson, '해당 관리자만 저장 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 if (rs.data.chanmst.TYP != 'WS') return //채널만 마스터정보 수정,저장되고 DM은 그럴 필요없음 (수정,저장할 정보 없음)
                 chanmst = await this.chanmstRepo.findOneBy({ CHANID: CHANID }) //chanmst = rs.data.chanmst
@@ -1376,7 +1395,7 @@ export class ChanmsgService {
                         grid: GR_ID, userid: userid 
                     }).getOne()
                     if (!gr) {
-                        return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChan>gr')
+                        return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName)
                     }
                 }
                 chanmst = this.chanmstRepo.create()
@@ -1394,7 +1413,7 @@ export class ChanmsgService {
             }
             if (GR_ID) {
                 if (!CHANNM || CHANNM.trim() == '' || CHANNM.trim().length > 50) {
-                    return hush.setResJson(resJson, '채널명은 공란없이 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveChan>chanmst')
+                    return hush.setResJson(resJson, '채널명은 공란없이 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
             }
             await this.chanmstRepo.save(chanmst)
@@ -1436,26 +1455,27 @@ export class ChanmsgService {
     
     @Transactional({ propagation: Propagation.REQUIRED })
     async deleteChan(dto: Record<string, any>): Promise<any> { //채널 및 멤버 삭제시 백업테이블은 사용하지 않고 로그로 대체함 
+        const methodName = 'chanmsg>deleteChan'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { CHANID } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>deleteChan')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             let sql = "SELECT COUNT(*) CNT FROM S_MSGMST_TBL WHERE CHANID = ? "
             const msgmst = await this.dataSource.query(sql, [CHANID])
             if (msgmst[0].CNT > 0) {
-                return hush.setResJson(resJson, '해당 채널(또는 DM)에서 생성된 메시지가 있습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
+                return hush.setResJson(resJson, '해당 채널(또는 DM)에서 생성된 메시지가 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             // sql = "SELECT COUNT(*) CNT FROM S_CHANDTL_TBL WHERE CHANID = ? "
             // const chandtl = await this.dataSource.query(sql, [CHANID])
             // if (chandtl[0].CNT > 0) {
-            //     return hush.setResJson(resJson, '해당 채널(또는 DM)의의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
+            //     return hush.setResJson(resJson, '해당 채널(또는 DM)의의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, methodName)
             // }
             const chanmst = rs.data.chanmst
             if (chanmst.MASTERID != userid) {
-                return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChan')
+                return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             /*아래는 S_CHANMSTDEL_TBL로의 백업 시작
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chanmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -1482,25 +1502,26 @@ export class ChanmsgService {
     }
 
     async saveChanMember(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const methodName = 'chanmsg>saveChanMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { crud, CHANID, USERID, USERNM, KIND, SYNC } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>saveChanMember')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const chanmst = rs.data.chanmst
             if (chanmst.KIND != 'admin') {
-                return hush.setResJson(resJson, '해당 채널 관리자만 멤버저장 가능합니다.' + fv, hush.Code.NOT_OK, null, 'usechanmsgr>saveChanMember')
+                return hush.setResJson(resJson, '해당 채널 관리자만 멤버저장 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (crud == 'U') {
                 if (!chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 if (KIND != 'admin' && chanmst.MASTERID == USERID) {
-                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 chandtl.USERNM = USERNM
                 chandtl.KIND = KIND
@@ -1508,7 +1529,7 @@ export class ChanmsgService {
                 chandtl.UDT = curdtObj.DT
             } else { //crud=C
                 if (chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>saveChanMember')
+                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 chandtl = this.chandtlRepo.create()
                 chandtl.CHANID = CHANID
@@ -1531,27 +1552,28 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async deleteChanMember(dto: Record<string, any>): Promise<any> { //채널 및 멤버 삭제시 백업테이블은 사용하지 않고 로그로 대체함 
+        const methodName = 'chanmsg>deleteChanMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { CHANID, USERID } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>deleteChanMember')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const chanmst = rs.data.chanmst
             if (chanmst.KIND != 'admin') {
                 if (USERID == userid) {
                     //본인이 방에서 나가려고 하는 것임
                 } else { //멤버삭제=강제퇴장
-                    return hush.setResJson(resJson, '해당 관리자만 멤버삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
+                    return hush.setResJson(resJson, '해당 관리자만 멤버삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
             }
             if (chanmst.MASTERID == USERID) {
-                return hush.setResJson(resJson, '해당 채널 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'chanmsg>deleteChanMember')
+                return hush.setResJson(resJson, '해당 채널 생성자는 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID })
             if (!chandtl) {
-                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'chanmsg>deleteChanMember')
+                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
             }
             /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
@@ -1576,6 +1598,7 @@ export class ChanmsgService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async inviteToMember(dto: Record<string, any>): Promise<any> {
+        const methodName = 'chanmsg>inviteToMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -1583,7 +1606,7 @@ export class ChanmsgService {
         try {
             const { CHANID, CHANNM, USERIDS } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, 'chanmsg>inviteToMember')
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const chanmst = rs.data.chanmst
             const grid = chanmst.GR_ID
@@ -1595,7 +1618,7 @@ export class ChanmsgService {
                 const useridMem = USERIDS[i]
                 const chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: useridMem })
                 if (!chandtl) {
-                    return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+                    return hush.setResJson(resJson, '해당 사용자의 채널 멤버 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 let rec: any
                 if (chandtl.SYNC == 'Y') {
@@ -1604,10 +1627,10 @@ export class ChanmsgService {
                     rec = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: useridMem })
                 }
                 if (!rec) {
-                    return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>inviteToMember')
+                    return hush.setResJson(resJson, '해당 사용자의 정보가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 if (!rec.EMAIL.includes('@')) { //정확하게 체크하려면 정규식 사용해야 하나 일단 @ 체크로 처리
-                    return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>inviteToMember')
+                    return hush.setResJson(resJson, '해당 사용자의 이메일 주소에 문제가 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 mailTo.push(rec.EMAIL)                
                 if (chandtl.SYNC == 'Y') {
@@ -1640,22 +1663,23 @@ export class ChanmsgService {
         try {
             const { logdt } = dto
             //console.log(logdt, "qryDataLogEach")
-            let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM ( "
-            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
-            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL " //read는 원래 S_MSGDTL_TBL에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
             sql += " WHERE CDT > ? AND TYP IN ('user', 'read') AND USERID = ? " //그래서, updateNotyetToRead()에서 로깅처리중임 (내가 읽은 메시지를 배열에서 제거하면 됨)
             sql += " UNION ALL "
-            sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT "
+            sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, "
+            sql += "       '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT, '' SUBKIND "
             sql += "  FROM S_MSGDTL_TBL A "
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = '' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
             sql += " GROUP BY MSGID, CHANID "
             sql += " UNION ALL "
-            sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, 'readall' BODYTEXT "
+            sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, 'readall' BODYTEXT, '' SUBKIND "
             sql += "  FROM S_MSGDTL_TBL " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = 'readall' " //UDT에 유의
             sql += " GROUP BY CHANID, UDT " //UDT에 유의

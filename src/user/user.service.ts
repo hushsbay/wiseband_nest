@@ -99,6 +99,7 @@ export class UserService {
     }
 
     async verifyOtp(uid: string, otpNum: string): Promise<ResJson> {
+        const methodName = 'user>login'
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
@@ -110,14 +111,14 @@ export class UserService {
             //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>verifyOtp')
             // }
             const [user, retStr] = await this.chkUser(uid, otpNum)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             if (otpNum != user.OTP_NUM) {
-                return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req, 'user>verifyOtp')
+                return hush.setResJson(resJson, hush.Msg.OTP_MISMATCH + fv, hush.Code.OTP_MISMATCH, this.req, methodName)
             }
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             const minDiff = hush.getDateTimeDiff(user.OTP_DT, curdtObj.DT, 'M')
             if (minDiff > hush.cons.otpDiffMax) {
-                return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다.' + fv, hush.Code.OTP_TIMEOVER, this.req, 'user>verifyOtp')
+                return hush.setResJson(resJson, 'OTP 체크시간(' + hush.cons.otpDiffMax + '분)을 초과했습니다.' + fv, hush.Code.OTP_TIMEOVER, this.req, methodName)
             }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
@@ -128,6 +129,7 @@ export class UserService {
     }
 
     async orgTree(dto: Record<string, any>): Promise<any> {
+        const methodName = 'user>login'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {
@@ -151,7 +153,7 @@ export class UserService {
             sql += "    ORDER BY SEQ "
             const orglist = await this.dataSource.query(sql, null)
             if (orglist.length == 0) {
-                return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, 'user>orgTree')
+                return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, methodName)
             }
             let myOrgArr = []
             const qb = this.userRepo.createQueryBuilder()
@@ -226,6 +228,7 @@ export class UserService {
     }
 
     async qryGroupWithUser(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일하나 user가 있음
+        const methodName = 'user>qryGroupWithUser'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -242,7 +245,7 @@ export class UserService {
             sql += "    ORDER BY GR_NM, GR_ID "
             const list = await this.dataSource.query(sql, [userid])
             if (list.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>qryGroupWithUser')
+                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
@@ -328,6 +331,7 @@ export class UserService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveMember(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const methodName = 'user>saveMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = '' //여기선 특별히 아래에서 읽어오기
@@ -336,26 +340,26 @@ export class UserService {
             const useridToProc = (crud == 'U') ? USERID : (SYNC == 'Y' ? USERID : EMAIL) //수동입력의 경우 EMAIL이 USERID가 됨
             fv = hush.addFieldValue(dto, null, [userid, useridToProc]) //console.log(useridToProc, crud, USERID, SYNC, EMAIL)
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveMember>chkUserRightForGroup')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.grdtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc }) //2) 여기서부터는 처리할 멤버(useridToProc)를 대상으로 체크
             if (crud == 'U') {                
                 if (!grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
-                    return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 if (SYNC != 'Y') {
                     const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND)
-                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, methodName)
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
                     grdtl.TELNO = TELNO
                 } else {
                     const ret = this.chkFieldValidSync(RMKS)
-                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 grdtl.USERNM = USERNM
                 grdtl.KIND = KIND ? KIND : 'member'    
@@ -365,12 +369,12 @@ export class UserService {
                 await this.grdtlRepo.save(grdtl)
             } else { //crud=C (조직도에서 SYNC=Y를 선택해 추가하는 경우도 있음)
                 if (grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 grdtl = this.grdtlRepo.create()
                 if (SYNC != 'Y') {
                     const ret = this.chkFieldValidNoSync(USERNM, ORG, JOB, EMAIL, TELNO, RMKS, KIND)
-                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, 'user>saveMember>grdtl')
+                    if (ret != '') return hush.setResJson(resJson, ret + fv, hush.Code.NOT_OK, null, methodName)
                     grdtl.ORG = ORG
                     grdtl.JOB = JOB
                     grdtl.EMAIL = EMAIL
@@ -416,19 +420,20 @@ export class UserService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async deleteMember(dto: Record<string, any>): Promise<any> { //그룹 멤버를 DELETE하면 그룹에 속한 채널에 대한 권한도 없어지므로 사용자 안내가 필요함 (다시 추가하면 권한 생김)
+        const methodName = 'user>deleteMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { GR_ID, USERID } = dto
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>deleteMember>chkUserRightForGroup')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID }) //2) 여기서부터는 처리할 멤버(USERID)를 대상으로 체크
             if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>deleteMember>grdtl')
+                return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
             }
             if (grmst.MASTERID == USERID) {
-                return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteMember>grdtl')
+                return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName)
             } /*아래는 S_GRDTLDEL_TBL로의 백업 시작
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.grmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             let sqlDel = "SELECT COUNT(*) CNT FROM S_GRDTLDEL_TBL WHERE GR_ID = ? AND USERID = ? "
@@ -460,6 +465,7 @@ export class UserService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async saveGroup(dto: Record<string, any>): Promise<any> { //삭제는 별도 서비스 처리
+        const methodName = 'user>saveGroup'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         const usernm = this.req['user'].usernm
@@ -470,7 +476,7 @@ export class UserService {
             let grmst: GrMst
             if (GR_ID != 'new') {
                 const [grmst1, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
-                if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>saveGroup>chkUserRightForGroup')
+                if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
                 grmst = grmst1                
                 grmst.GR_NM = GR_NM
                 grmst.MODR = userid
@@ -478,10 +484,10 @@ export class UserService {
             } else { //신규
                 const user = await this.userRepo.findOneBy({ USERID: userid })
                 if (!user) {
-                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, 'user>saveGroup>grmst')
+                    return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 if (user.SYNC != 'Y') {
-                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroup>grmst')
+                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 grmst = this.grmstRepo.create()
                 grmst.GR_ID = unidObj.ID
@@ -494,7 +500,7 @@ export class UserService {
                 grmst.UDT = unidObj.DT
             }
             if (!GR_NM || GR_NM.trim() == '' || GR_NM.trim().length > 50) {
-                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>saveGroup>grmst')
+                hush.setResJson(resJson, '그룹명은 50자까지 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             await this.grmstRepo.save(grmst)
             if (GR_ID == 'new') {
@@ -519,17 +525,18 @@ export class UserService {
 
     @Transactional({ propagation: Propagation.REQUIRED })
     async deleteGroup(dto: Record<string, any>): Promise<any> { //멤버는 지워도 마스터가 있으므로 복원이 상대적으로 쉬우나 마스터를 DELETE하면 복구는 어려워짐
+        const methodName = 'user>deleteGroup'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { GR_ID } = dto
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>deleteGroup>chkUserRightForGroup')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             let sql = "SELECT COUNT(*) CNT FROM S_CHANMST_TBL WHERE GR_ID = ? "
             const chanmst = await this.dataSource.query(sql, [GR_ID])
             if (chanmst[0].CNT > 0) {
-                return hush.setResJson(resJson, '해당 그룹에서 생성된 채널이 있습니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
+                return hush.setResJson(resJson, '해당 그룹에서 생성된 채널이 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
             } //채널 여부만 체크해도 되는 것이 채널은 그 안에 메시지 및 멤버 모두 삭제해야 채널마스터도 삭제 가능한 것으로 되어 있음
             // sql = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE GR_ID = ? "
             // const grdtl = await this.dataSource.query(sql, [GR_ID])
@@ -537,7 +544,7 @@ export class UserService {
             //     return hush.setResJson(resJson, '먼저 해당 그룹의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
             // }
             if (grmst.MASTERID != userid) {
-                return hush.setResJson(resJson, '그룹삭제는 해당 그룹 마스터만 가능합니다.' + fv, hush.Code.NOT_OK, null, 'user>deleteGroup')
+                return hush.setResJson(resJson, '그룹삭제는 해당 그룹 마스터만 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
             await this.dataSource.query("DELETE FROM S_GRDTL_TBL WHERE GR_ID = ? ", [GR_ID])
             await this.dataSource.query("DELETE FROM S_GRMST_TBL WHERE GR_ID = ? ", [GR_ID])
