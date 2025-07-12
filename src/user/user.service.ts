@@ -334,6 +334,7 @@ export class UserService {
         const methodName = 'user>saveMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = '' //여기선 특별히 아래에서 읽어오기
         try {
             const { crud, GR_ID, USERID, USERNM, ORG, JOB, EMAIL, TELNO, RMKS, SYNC, KIND } = dto
@@ -412,6 +413,12 @@ export class UserService {
                 user.TELNO = TELNO
                 await this.userRepo.save(user)
             }
+            const logObj = { //그룹은 chanid에 grid 대체
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: GR_ID, userid: userid, usernm: usernm, 
+                cud: crud, kind: 'mem', typ: 'group', bodytext: '', subkind: ''
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {            
             hush.throwCatchedEx(ex, this.req, fv)
@@ -423,6 +430,7 @@ export class UserService {
         const methodName = 'user>deleteMember'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { GR_ID, USERID } = dto
@@ -457,6 +465,13 @@ export class UserService {
                     await this.dataSource.query(sqlChk, [USERID])
                 }
             }
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) 
+            const logObj = { //그룹은 chanid에 grid 대체
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: GR_ID, userid: userid, usernm: usernm, 
+                cud: 'D', kind: 'mem', typ: 'group', bodytext: '', subkind: ''
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -516,7 +531,13 @@ export class UserService {
                 grdtl.UDT = unidObj.DT
                 await this.grdtlRepo.save(grdtl)
                 resJson.data.grid = unidObj.ID
-            }            
+            }    
+            const logObj = { //그룹은 chanid에 grid 대체
+                cdt: unidObj.DT, msgid: '', replyto: '', chanid: (GR_ID == 'new') ? unidObj.ID : GR_ID, userid: userid, usernm: usernm, 
+                cud: (GR_ID == 'new')  ? 'C' : 'U', kind: 'mst', typ: 'group', bodytext: '', subkind: ''
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
@@ -528,6 +549,7 @@ export class UserService {
         const methodName = 'user>deleteGroup'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
+        const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { GR_ID } = dto
@@ -564,6 +586,13 @@ export class UserService {
             //S_GRMSTDEL_TBL로의 백업 종료*/
             //sql = "DELETE FROM S_GRMST_TBL WHERE GR_ID = ? "
             //await this.dataSource.query(sql, [GR_ID]) //더 위로 올라가면 안됨
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource) 
+            const logObj = { //그룹은 chanid에 grid 대체
+                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: GR_ID, userid: userid, usernm: usernm, 
+                cud: 'D', kind: 'mst', typ: 'group', bodytext: '', subkind: ''
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

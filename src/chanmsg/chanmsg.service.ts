@@ -1724,8 +1724,12 @@ export class ChanmsgService {
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
             sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND = 'mst' AND CUD = 'D' " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
+            sql += " UNION ALL "
+            sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
+            sql += "  FROM S_DATALOG_TBL "
+            sql += " WHERE CDT > ? AND TYP = 'group' AND KIND = 'mst' " //group은 S_CHANDTL_TBL에 INNERJOIN할 데이터 없으며 kind가 mem은 리얼타임엔 필요없음. CHANID에 GR_ID가 들어가 있음
             sql += " ORDER BY CDT "
-            const list = await this.dataSource.query(sql, [logdt, logdt, logdt, userid, logdt, logdt, userid, logdt])
+            const list = await this.dataSource.query(sql, [logdt, logdt, logdt, userid, logdt, logdt, userid, logdt, logdt])
             const len = list.length
             for (let i = 0; i < len; i++) {
                 const row = list[i]
@@ -1738,6 +1742,14 @@ export class ChanmsgService {
                         const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID, includeBlob: true })
                         row.chanmst = rs.data.chanmst
                         row.chandtl = rs.data.chandtl
+                    }
+                } else if (row.TYP == 'group') {
+                    if (row.KIND == 'mst' && row.CUD == 'D') {
+                        //권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
+                    } else {
+                        const sqlGr = "SELECT GR_NM FROM S_GRMST_TBL WHERE GR_ID = ? "
+                        const grData = await this.dataSource.query(sqlGr, [row.CHANID]) //실제로는 GR_ID임
+                        row.grnm = (grData.length > 0) ? grData[0].GR_NM : ''
                     }
                 } else if (row.CUD == 'C' && row.KIND == 'parent') { //child는 부모정보가 필요해서 아래 else로 읽어옴
                     //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴

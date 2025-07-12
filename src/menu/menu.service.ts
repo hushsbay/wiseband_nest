@@ -99,35 +99,35 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
-            const { kind } = dto
-            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
+            const { kind } = dto //GRMST_UDT, CHANMST_UDT는 리얼타임용이며 DTL은 필요없이 MST만 사용
+            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
-            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
-            sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM "
+            sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, X.GRMST_UDT, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.CHANMST_UDT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
+            sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT "
             sql += "             FROM S_GRMST_TBL A "
             sql += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "            WHERE B.USERID = '" + userid + "') X "
             if (kind == 'my') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE A.TYP = 'WS' "
                 sql += "                     AND B.USERID = '" + userid + "') Y "
             } else if (kind == 'other') {
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
             } else { //all=my+other
-                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
+                sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
-                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
+                sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
                 sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
@@ -168,7 +168,7 @@ export class MenuService {
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.STATE, Z.MASTERID, Z.CDT, Z.LASTMSGDT, Z.CHANDTL_UDT, Z.CHANMST_UDT  " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, B.STATE, B.MASTERID, A.BOOKMARK, A.NOTI, A.CDT, B.UDT CHANMST_UDT, "
-            sql += "                  (SELECT MAX(UDT) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CHANDTL_UDT, "
+            sql += "                  (SELECT MAX(UDT) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CHANDTL_UDT, " //리얼타임용
             sql += "                  IFNULL((SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID), '9999-99-98') LASTMSGDT " //메시지가 없는 경우 맨 위에 표시
             if (search) {
                 sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEMBERS "
