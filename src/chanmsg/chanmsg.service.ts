@@ -1699,7 +1699,7 @@ export class ChanmsgService {
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND <> 'mst' AND CUD <> 'D' " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
+            sql += " WHERE CDT > ? AND TYP = 'chan' AND NOT (KIND = 'mst' AND CUD = 'D') " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM S_DATALOG_TBL "
