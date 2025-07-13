@@ -211,7 +211,7 @@ export async function insertDataLog(dataSource: DataSource, obj: any): Promise<a
     }
 }
 
-export async function getBasicAclSql(dataSource: DataSource, userid: string, typ: string): Promise<any> { //typ=WS,GS,ALL
+export function getBasicAclSql(userid: string, typ: string): string { //typ=WS,GS,ALL
     //아래는 앱 전체를 관통하는 메시징의 구조 및 권한을 보여주는 sql임. WS(WorkSpace)는 채널메시지. GS(GeneralSpace)는 DM 메시지
     //채널메시지는 1) 내가 속한 그룹의 내가 속한 채널방 것만 열람 가능 (관리자가 그룹에서 제외시키면 채널방에만 있어도 권한 없음)
     //           2) 내가 속하지 않아도 공개(A=All)된 방이면 그룹 멤버라면 누구나 열람 가능
