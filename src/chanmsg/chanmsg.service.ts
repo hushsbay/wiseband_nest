@@ -45,7 +45,6 @@ export class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
-            //console.log('chkAcl', userid, chanid, msgid, includeBlob, chkAuthor)
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
