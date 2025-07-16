@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core'
 import { initializeTransactionalContext } from 'typeorm-transactional'
 import * as cookieParser from 'cookie-parser'
-
 import { AppModule } from 'src/app.module'
 import { winstonLogger } from 'src/common/winston.util'
 

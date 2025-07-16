@@ -13,7 +13,6 @@ import { LoggerMiddleware } from 'src/common/logger.middleware'
 import { AppController } from 'src/app.controller'
 import { AppService } from 'src/app.service'
 import { AuthModule } from 'src/auth/auth.module'
-import { CodeModule } from 'src/code/code.module'
 import { MenuModule } from 'src/menu/menu.module'
 import { UserModule } from 'src/user/user.module'
 import { ChanmsgModule } from 'src/chanmsg/chanmsg.module'
@@ -47,7 +46,7 @@ import { MailModule } from './mail/mail.module';
         //ServeStaticModule.forRoot({ //https://dev.to/zakmiller/how-to-serve-vue-with-nest-1e11 향후 운영서버에서 배포를 위한 기본 설정
         //    rootPath: join(__dirname, '..', 'public') //__dirname이 d:/src/git/nest/dist이므로 rootPath는 d:/src/git/nest/public (dist폴더는 build시마다 리셋됨)
         //}), 여기가 살아나면 localhost에서의 2개 포트 사용을 full test해봐야 함
-        AuthModule, CodeModule, UserModule, MenuModule, ChanmsgModule, MailModule
+        AuthModule, UserModule, MenuModule, ChanmsgModule, MailModule
     ],
     controllers: [AppController],
     providers: [
