@@ -1,5 +1,4 @@
 import { Controller, HttpCode, HttpStatus, Post, Body } from '@nestjs/common'
-
 import { UserService } from 'src/user/user.service'
 
 @Controller('user')

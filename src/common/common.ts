@@ -3,7 +3,6 @@ import { Request, Response } from 'express'
 import { createCipheriv, randomBytes, createDecipheriv } from 'crypto'
 import { DataSource } from 'typeorm'
 //import * as _ from 'lodash' //const keyStr = _.findKey(HttpStatus, (o) => o === statusCode)
-
 import { ResJson } from 'src/common/resjson'
 
 const comLog = new Logger()
@@ -211,23 +210,20 @@ export async function insertDataLog(dataSource: DataSource, obj: any): Promise<a
     }
 }
 
-export function getBasicAclSql(userid: string, typ: string): string { //typ=WS,GS,ALL
+export function getBasicAclSql(userid: string, typ: string): string { //typ=WS,GS,ALL => chanmsg.service.ts의 getSqlWs()/getSqlGs() 참조
     //아래는 앱 전체를 관통하는 메시징의 구조 및 권한을 보여주는 sql임. WS(WorkSpace)는 채널메시지. GS(GeneralSpace)는 DM 메시지
     //채널메시지는 1) 내가 속한 그룹의 내가 속한 채널방 것만 열람 가능 (관리자가 그룹에서 제외시키면 채널방에만 있어도 권한 없음)
     //           2) 내가 속하지 않아도 공개(A=All)된 방이면 그룹 멤버라면 누구나 열람 가능
     //DM은 그룹에 무관하게 DM방이 존재하여 내가 속한 DM방의 메시지는 모두 열람 가능
-
     let sqlWs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT "
     sqlWs += " FROM S_CHANMST_TBL A "
     sqlWs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
     sqlWs += "INNER JOIN S_GRDTL_TBL C ON A.GR_ID = C.GR_ID "
     sqlWs += "WHERE A.TYP = 'WS' AND (B.USERID = '" + userid + "' OR A.STATE = 'A') "
-
     let sqlGs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT "
     sqlGs += " FROM S_CHANMST_TBL A "
     sqlGs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-    sqlGs += "WHERE A.TYP = 'GS' AND B.USERID = '" + userid + "' "
-    
+    sqlGs += "WHERE A.TYP = 'GS' AND B.USERID = '" + userid + "' "    
     if (typ == 'WS') {
         return sqlWs
     } else if (typ == 'GS') {

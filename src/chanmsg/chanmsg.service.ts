@@ -4,21 +4,20 @@ import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
-
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { MailService } from 'src/mail/mail.service'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 import { User } from 'src/user/user.entity'
 
-interface IDataLog {
-    MSGID: string, 
-    REPLYTO: string, 
-    CUD: string, 
-    MAX_CDT: string, 
-    msgItem: any,
-    SKIP: boolean //~Each로 정해지면 이건 막기로 함 (필요없어짐)
-}
+// interface IDataLog {
+//     MSGID: string, 
+//     REPLYTO: string, 
+//     CUD: string, 
+//     MAX_CDT: string, 
+//     msgItem: any,
+//     SKIP: boolean //~Each로 정해지면 이건 막기로 함 (필요없어짐)
+// }
 
 @Injectable({ scope: Scope.REQUEST })
 export class ChanmsgService {
@@ -302,7 +301,7 @@ export class ChanmsgService {
         return await this.dataSource.query(sql, [userid])
     }
 
-    getSqlWs(userid: string): string {
+    getSqlWs(userid: string): string { //common.ts의 getBasicAclSql() 참조
         let sqlWs = "SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
         sqlWs += "     FROM (SELECT A.GR_ID, A.GR_NM "
         sqlWs += "             FROM S_GRMST_TBL A "
@@ -321,7 +320,7 @@ export class ChanmsgService {
         return sqlWs
     }
 
-    getSqlGs(userid: string): string {
+    getSqlGs(userid: string): string { //common.ts의 getBasicAclSql() 참조
         let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
         sqlGs += "           FROM S_CHANMST_TBL A "
         sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
@@ -341,8 +340,7 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
-            //console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto //console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
@@ -374,14 +372,12 @@ export class ChanmsgService {
                     .where("A.CHANID = :chanid and A.CDT > :nextcdt and A.REPLYTO = '' ", { 
                         chanid: chanid, nextcdt: nextMsgMstCdt
                     }).orderBy('A.CDT', 'ASC').limit(hush.cons.rowsCnt).getMany()
-                }
-                //console.log("nextMsgMstCdt", nextMsgMstCdt, msglist.length)
+                } //console.log("nextMsgMstCdt", nextMsgMstCdt, msglist.length)
             } else if (prevMsgMstCdt) {
                 msglist = await qb.select(fldArr)
                 .where("A.CHANID = :chanid and A.CDT < :prevcdt and A.REPLYTO = '' ", { 
                     chanid: chanid, prevcdt: prevMsgMstCdt
-                }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany()
-                //console.log("prevMsgMstCdt", prevMsgMstCdt, msglist.length)
+                }).orderBy('A.CDT', 'DESC').limit(hush.cons.rowsCnt).getMany() //console.log("prevMsgMstCdt", prevMsgMstCdt, msglist.length)
             } else if (msgid && kind == 'atHome') { 
                 //댓글에 들어 있으면 그 댓글의 부모를 기준으로 데이터 가져오기. 클라이언트에서 넘어와도 되지만 복잡해서 서버에서 처리함
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
@@ -410,13 +406,11 @@ export class ChanmsgService {
                 sql += "             ORDER BY CDT ASC LIMIT " + cnt + ")) Z "
                 sql += "    ORDER BY CDT DESC " //console.log(sql, "####")
                 msglist = await this.dataSource.query(sql, [msgidParent, msgidParent, msgidParent])
-                //console.log(sql)
                 if (msglist.length == 0) { //atHome(홈에서 열기)이므로 데이터가 반드시 있어야 함
                     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
                 data.msgidParent = msgidParent //MsgList.vue의 getList()에서 사용
                 data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
-                //console.log(msgidParent, msgid, "$$$$$$$")
             } else if (msgid && kind == 'withReply') { //ASC임을 유의
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
@@ -619,7 +613,6 @@ export class ChanmsgService {
             sql += "    WHERE R.CDT < ? "
             sql += "    ORDER BY R.CDT DESC "
             sql += "    LIMIT " + hush.cons.rowsCnt
-            //console.log(sql)
             const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             resJson.list = list
             return resJson
@@ -633,8 +626,7 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto            
-            //console.log("searchMsg", chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
+            const { chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText } = dto //console.log("searchMsg", chanid, prevMsgMstCdt, rdoOpt, frYm, toYm, authorNm, searchText)
             let frDash = hush.cons.cdtAtFirst, toDash = hush.cons.cdtAtLast
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'
@@ -669,7 +661,6 @@ export class ChanmsgService {
             sql += " WHERE R.CDT < ? " //무한 스크롤
             sql += " ORDER BY R.CDT DESC "
             sql += " LIMIT " + hush.cons.rowsCnt
-            //console.log(sql)
             const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             for (let i = 0; i < list.length; i++) {
@@ -1692,8 +1683,7 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { logdt } = dto
-            //console.log(logdt, "qryDataLogEach")
+            const { logdt } = dto //console.log(logdt, "qryDataLogEach")
             let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "

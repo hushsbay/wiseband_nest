@@ -4,7 +4,6 @@ import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
-
 import appConfig from 'src/app.config'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
@@ -50,22 +49,16 @@ export class UserService {
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
     async login(uid: string, pwd: string): Promise<ResJson> {
+        const methodName = 'user>login'
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            // if (!uid || !pwd) {
-            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>login')
-            // }
-            // const user = await this.userRepo.findOneBy({ USERID: uid })
-            // if (!user) {
-            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>login')
-            // }
             const [user, retStr] = await this.chkUser(uid, pwd)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             const config = appConfig()
             const decoded = hush.decrypt(user.PWD, config.crypto.key)
             if (pwd !== decoded) {
-                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, 'user>login')
+                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName)
             }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
@@ -76,18 +69,12 @@ export class UserService {
     }
 
     async setOtp(uid: string, otpNum: string): Promise<ResJson> {
+        const methodName = 'user>setOtp'
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            // if (!uid || !otpNum) {
-            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>setOtp')
-            // }
-            // const user = await this.userRepo.findOneBy({ USERID: uid })
-            // if (!user) {
-            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>setOtp')
-            // }
             const [user, retStr] = await this.chkUser(uid, otpNum)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, 'user>login')
+            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
@@ -99,17 +86,10 @@ export class UserService {
     }
 
     async verifyOtp(uid: string, otpNum: string): Promise<ResJson> {
-        const methodName = 'user>login'
+        const methodName = 'user>verifyOtp'
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            // if (!uid || !otpNum) {
-            //     return hush.setResJson(resJson, hush.Msg.BLANK_DATA + fv, hush.Code.BLANK_DATA, this.req, 'user>verifyOtp')
-            // }
-            // const user = await this.userRepo.findOneBy({ USERID: uid })
-            // if (!user) {
-            //     return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'user>verifyOtp')
-            // }
             const [user, retStr] = await this.chkUser(uid, otpNum)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             if (otpNum != user.OTP_NUM) {
@@ -238,7 +218,6 @@ export class UserService {
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = ? AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
-            console.log(grid, "0000000000")
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
             } //sql += "      AND A.MASTERID = '" + userid + "' "

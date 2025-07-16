@@ -1,5 +1,4 @@
 import { Controller, Post, Body } from '@nestjs/common'
-
 import { MenuService } from 'src/menu/menu.service'
 
 @Controller('menu')

@@ -4,7 +4,6 @@ import { Request } from 'express'
 import { DataSource } from 'typeorm'
 //import { InjectRepository } from '@nestjs/typeorm'
 //import { DataSource, Repository } from 'typeorm'
-
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 //import { Menu, MenuPer } from 'src/menu/menu.entity'
@@ -313,91 +312,12 @@ export class MenuService {
         }
     }
 
-    // async qryActivity(dto: Record<string, any>): Promise<any> {
-    //     const resJson = new ResJson()
-    //     const userid = this.req['user'].userid
-    //     let fv = hush.addFieldValue(dto, null, [userid])
-    //     try {
-    //         const { kind, notyet, prevMsgMstCdt, msgid } = dto
-    //         //공통 sql
-    //         let sqlSelect = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, "
-    //         let sqlFrom = "FROM S_MSGMST_TBL A "
-    //         sqlFrom += "  INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
-    //         sqlFrom += "  INNER JOIN S_CHANDTL_TBL C ON A.CHANID = C.CHANID "
-    //         let sqlLeft = "LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
-    //         let sqlWhere = "WHERE B.TYP = 'WS' AND C.USERID = 'oldclock' "
-    //         //mention
-    //         let sqlMention = sqlSelect + "D.USERID, D.USERNM, '' KIND, 0 CNT, D.USERNM PARENT_BODY, 'mention' TITLE "
-    //         sqlMention += (sqlFrom + sqlLeft + sqlWhere)
-    //         sqlMention += "AND D.USERID = '" + userid + "' AND D.KIND = 'mention' "
-    //         if (msgid) sqlMention += "AND A.MSGID = '" + msgid + "' "
-    //         //vip
-    //         let sqlVip = sqlSelect + "'' USERID, '' USERNM, '' KIND, 0 CNT, '' PARENT_BODY, 'vip' TITLE "
-    //         sqlVip += (sqlFrom + sqlWhere)
-    //         sqlVip += "AND A.AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') "
-    //         if (msgid) sqlVip += "AND A.MSGID = '" + msgid + "' "
-    //         //thread
-    //         let sqlThread = sqlSelect + "'' USERID, '' USERNM, '' KIND, " //현재 부모글은 내려주고 있으나 클라이언트에서 자리부족으로 표시하고 있지는 않음
-    //         sqlThread += "(SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.REPLYTO AND CHANID = A.CHANID) CNT, "
-    //         sqlThread += "(SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = A.REPLYTO AND CHANID = A.CHANID) PARENT_BODY, 'thread' TITLE "
-    //         sqlThread += (sqlFrom + sqlWhere)
-    //         sqlThread += "AND A.AUTHORID = '" + userid + "' AND A.REPLYTO <> '' "
-    //         if (msgid) sqlThread += "AND A.MSGID = '" + msgid + "' "
-    //         //myreact
-    //         let sqlMyreact = sqlSelect + "D.USERID, D.USERNM, D.KIND, 0 CNT, D.USERNM PARENT_BODY, 'myreact' TITLE "
-    //         sqlMyreact += (sqlFrom + sqlLeft + sqlWhere)
-    //         sqlMyreact += "AND D.USERID = '" + userid + "' AND D.TYP = 'react' "
-    //         if (msgid) sqlMyreact += "AND A.MSGID = '" + msgid + "' "
-    //         //otherreact
-    //         let sqlOtherreact = sqlSelect + "D.USERID, D.USERNM, D.KIND, COUNT(*) CNT, GROUP_CONCAT(D.USERNM) PARENT_BODY, 'otherreact' TITLE "
-    //         sqlOtherreact += (sqlFrom + sqlLeft + sqlWhere)
-    //         sqlOtherreact += "AND A.AUTHORID = '" + userid + "' AND D.USERID <> '" + userid + "' AND D.TYP = 'react' "
-    //         sqlOtherreact += "GROUP BY A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.CDT, A.REPLYTO, A.CHANID, B.CHANNM, D.USERID, D.USERNM, D.KIND "
-    //         if (msgid) sqlOtherreact += "AND A.MSGID = '" + msgid + "' "
-    //         //아래에서 전체조회도 구성
-    //         let sqlMain = ''
-    //         if (kind == 'mention') {
-    //             sqlMain = sqlMention
-    //         } else if (kind == 'vip') {
-    //             sqlMain = sqlVip
-    //         } else if (kind == 'thread') {
-    //             sqlMain = sqlThread
-    //         } else if (kind == 'myreact') {
-    //             sqlMain = sqlMyreact
-    //         } else if (kind == 'otherreact') {
-    //             sqlMain = sqlOtherreact
-    //         } else { //전체 조회
-    //             sqlMain = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.USERID, Z.USERNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE "
-    //             sqlMain += " FROM ( "
-    //             sqlMain += sqlMention + " UNION ALL " + sqlVip + " UNION ALL " + sqlThread + " UNION ALL " + sqlMyreact + " UNION ALL " + sqlOtherreact 
-    //             sqlMain += ") Z "
-    //         }
-    //         let sql = "SELECT Z.MSGID, Z.AUTHORID, Z.AUTHORNM, Z.BODYTEXT, Z.CDT, Z.REPLYTO, Z.CHANID, Z.CHANNM, Z.USERID, Z.USERNM, Z.KIND, Z.CNT, Z.PARENT_BODY, Z.TITLE, E.PICTURE "
-    //         sql += "     FROM ( " + sqlMain + ") Z "
-    //         if (notyet == 'Y') {
-    //             sql += "INNER JOIN (SELECT DISTINCT CHANID, MSGID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') X "
-    //             sql += "   ON Z.MSGID = X.MSGID AND Z.CHANID = X.CHANID "
-    //         }
-    //         sql += "     LEFT OUTER JOIN S_USER_TBL E ON Z.AUTHORID = E.USERID "
-    //         sql += "    WHERE Z.CDT < ? "
-    //         sql += "    ORDER BY Z.CDT DESC "
-    //         sql += "    LIMIT " + hush.cons.rowsCnt
-    //         const list = await this.dataSource.query(sql, [prevMsgMstCdt])
-    //         resJson.list = list
-    //         return resJson
-    //     } catch (ex) {
-    //         hush.throwCatchedEx(ex, this.req, fv)
-    //     }
-    // }
-
     async qryActivity(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            //let chanmst = null
             const { kind, notyet, prevMsgMstCdt } = dto
-            console.log(kind, "000000000000", notyet, prevMsgMstCdt)
             //기본
             let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
             let sqlHeaderEnd = ") Y "
@@ -455,7 +375,6 @@ export class MenuService {
             sql += "WHERE Y.DT < ? "            
             sql += "ORDER BY Y.DT DESC "
             sql += "LIMIT " + hush.cons.rowsCnt
-            console.log(sql)
             const list = await this.dataSource.query(sql, [prevMsgMstCdt])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
