@@ -57,7 +57,7 @@ export class UserService {
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             const config = appConfig()
             const decoded = hush.decrypt(user.PWD, config.crypto.key)
-            console.log(pwd, '========', decoded)
+            console.log(pwd, '@@@@@@', decoded)
             if (pwd !== decoded) {
                 return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName)
             }
