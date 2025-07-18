@@ -191,9 +191,16 @@ let UserService = class UserService {
             const { searchText, onlyAllUsers } = dto;
             const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'];
             if (onlyAllUsers) {
-                const userlist = await this.userRepo.createQueryBuilder('A')
-                    .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
-                resJson.list = userlist;
+                if (searchText) {
+                    const userlist = await this.userRepo.createQueryBuilder('A')
+                        .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
+                    resJson.list = userlist;
+                }
+                else {
+                    const userlist = await this.userRepo.createQueryBuilder('A')
+                        .select(fieldArr).orderBy('A.TOP_ORG_NM', 'ASC').addOrderBy('A.ORG_NM', 'ASC').addOrderBy('A.USERNM', 'ASC').getMany();
+                    resJson.list = userlist;
+                }
             }
             else {
                 const userlist = await this.userRepo.createQueryBuilder('A')

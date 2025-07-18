@@ -187,9 +187,15 @@ export class UserService {
             const { searchText, onlyAllUsers } = dto
             const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE']
             if (onlyAllUsers) {
-                const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
-                .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany()
-                resJson.list = userlist
+                if (searchText) {
+                    const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+                    .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany()
+                    resJson.list = userlist
+                } else { //login 화면에서 unauth
+                    const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+                    .select(fieldArr).orderBy('A.TOP_ORG_NM', 'ASC').addOrderBy('A.ORG_NM', 'ASC').addOrderBy('A.USERNM', 'ASC').getMany()
+                    resJson.list = userlist
+                }
             } else {
                 const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
                 .select(fieldArr).where("A.SYNC = 'Y' ")
