@@ -1,7 +1,9 @@
 # compiled output
-/dist
+#/dist 원래 막혀 있었는데 github action ssl이 안되서 임시로 이 방법으로 배포하고 있음
 /node_modules
 /build
+# 아래는 추가한 내용임 : 맨 위처럼 dist를 풀고 배포하려니 아래 images가 없어지므로 이 부분을 ignore하고 나머지 public을 열어서 올리도록 함
+/public/assets/images
 
 # Logs
 logs

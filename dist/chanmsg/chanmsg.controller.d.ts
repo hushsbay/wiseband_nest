@@ -1,0 +1,36 @@
+import { StreamableFile } from '@nestjs/common';
+import { ReadStream } from 'fs';
+import { Response } from 'express';
+import { ChanmsgService } from 'src/chanmsg/chanmsg.service';
+export declare class ChanmsgController {
+    private readonly chanmsgSvc;
+    constructor(chanmsgSvc: ChanmsgService);
+    qry(dto: Record<string, any>): Promise<any>;
+    qryChanMstDtl(dto: Record<string, any>): Promise<any>;
+    qryOneMsgNotYet(dto: Record<string, any>): Promise<any>;
+    qryMsg(dto: Record<string, any>): Promise<any>;
+    searchMedia(dto: Record<string, any>): Promise<any>;
+    searchMsg(dto: Record<string, any>): Promise<any>;
+    qryActionForUser(dto: Record<string, any>): Promise<any>;
+    qryAction(dto: Record<string, any>): Promise<any>;
+    saveMsg(dto: Record<string, any>): Promise<any>;
+    forwardToChan(dto: Record<string, any>): Promise<any>;
+    delMsg(dto: Record<string, any>): Promise<any>;
+    toggleChanOption(dto: Record<string, any>): Promise<any>;
+    updateWithNewKind(dto: Record<string, any>): Promise<any>;
+    updateNotyetToRead(dto: Record<string, any>): Promise<any>;
+    updateAllWithNewKind(dto: Record<string, any>): Promise<any>;
+    toggleReaction(dto: Record<string, any>): Promise<any>;
+    changeAction(dto: Record<string, any>): Promise<any>;
+    uploadBlob(dto: Record<string, any>, file: Express.Multer.File): Promise<any>;
+    delBlob(dto: Record<string, any>): Promise<any>;
+    saveChan(dto: Record<string, any>): Promise<any>;
+    deleteChan(dto: Record<string, any>): Promise<any>;
+    saveChanMember(dto: Record<string, any>): Promise<any>;
+    deleteChanMember(dto: Record<string, any>): Promise<any>;
+    inviteToMember(dto: Record<string, any>): Promise<any>;
+    qryDataLogEach(dto: Record<string, any>): Promise<any>;
+    readBlob(dto: Record<string, any>, res: Response): Promise<void>;
+    readBlob1(dto: Record<string, any>, res: Response): Promise<StreamableFile>;
+    makeFile(filepath: string, buf: Buffer<Uint8Array<any>>): Promise<ReadStream>;
+}
