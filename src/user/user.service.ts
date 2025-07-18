@@ -125,7 +125,7 @@ export class UserService {
             // .select('A.ORG_CD', 'ORG_CD')
             // .addSelect('A.ORG_NM', 'ORG_NM')
             // .addSelect('A.SEQ', 'SEQ')
-            // .addSelect('A.LVL', 'LVL')
+            // .addSelect('A.LVL', 'LVL')  
             // .addSelect((subQuery) => {
             //     return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")
             // }, 'CNT')
