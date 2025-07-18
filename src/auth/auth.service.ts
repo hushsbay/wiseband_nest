@@ -2,6 +2,7 @@ import { Inject, Injectable, Scope } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { JwtService } from '@nestjs/jwt'
+import { DataSource } from 'typeorm'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { UserService } from 'src/user/user.service'
@@ -14,8 +15,8 @@ export class AuthService {
         private userSvc: UserService, 
         private jwtSvc: JwtService, 
         private mailSvc: MailService, 
-        @Inject(REQUEST) 
-        private readonly req: Request
+        private dataSource : DataSource,
+        @Inject(REQUEST) private readonly req: Request
     ) {}
 
     async setUserDataWithToken(userDataObj: any): Promise<any> {
@@ -66,6 +67,20 @@ export class AuthService {
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
+        }
+    }
+
+    async qryUserList(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        try { 
+            let sql = "SELECT USERID, USERNM, ORG_CD, ORG_NM, TOP_ORG_CD, TOP_ORG_NM "
+            sql += "     FROM S_USER_TBL "
+            sql += "    ORDER BY TOP_ORG_NM, ORG_NM, USERNM "
+            const list = await this.dataSource.query(sql, null)
+            resJson.list = list
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, 'qryUserList')
         }
     }
 

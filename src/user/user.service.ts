@@ -53,13 +53,18 @@ export class UserService {
         const resJson = new ResJson()
         let fv = hush.addFieldValue([uid], 'uid')
         try {
-            const [user, retStr] = await this.chkUser(uid, pwd)
-            if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
-            const config = appConfig()
-            const decoded = hush.decrypt(user.PWD, config.crypto.key)
-            console.log(pwd, '@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!', decoded)
-            if (pwd !== decoded) {
-                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName)
+            const user = await this.userRepo.findOneBy({ USERID: uid })
+            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
+            if (user.PWD == '') { //from Vue 로그인 화면
+                //fake id이므로 인증없이 그냥 넘어가기
+            } else {
+                if (!pwd) return hush.setResJson(resJson, '비번을 입력하시기 바랍니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
+                const config = appConfig()
+                const decoded = hush.decrypt(user.PWD, config.crypto.key)
+                console.log(pwd, '@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!', decoded)
+                if (pwd !== decoded) {
+                    return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName)
+                }
             }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
             resJson.data = userFiltered
@@ -187,15 +192,9 @@ export class UserService {
             const { searchText, onlyAllUsers } = dto
             const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE']
             if (onlyAllUsers) {
-                if (searchText) {
-                    const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
-                    .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany()
-                    resJson.list = userlist
-                } else { //login 화면에서 unauth
-                    const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
-                    .select(fieldArr).orderBy('A.TOP_ORG_NM', 'ASC').addOrderBy('A.ORG_NM', 'ASC').addOrderBy('A.USERNM', 'ASC').getMany()
-                    resJson.list = userlist
-                }
+                const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
+                .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany()
+                resJson.list = userlist
             } else {
                 const userlist = await this.userRepo.createQueryBuilder('A') //A 없으면 조회안됨
                 .select(fieldArr).where("A.SYNC = 'Y' ")

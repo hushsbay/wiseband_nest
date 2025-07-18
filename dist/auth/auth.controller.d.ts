@@ -5,4 +5,5 @@ export declare class AuthController {
     login(dto: Record<string, any>): Promise<import("../common/resjson").ResJson>;
     setOtp(dto: Record<string, any>): Promise<import("../common/resjson").ResJson>;
     verifyOtp(dto: Record<string, any>): Promise<import("../common/resjson").ResJson>;
+    qryUserList(dto: Record<string, any>): Promise<any>;
 }

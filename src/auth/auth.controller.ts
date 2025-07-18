@@ -19,4 +19,8 @@ export class AuthController {
     @Post('verifyOtp')
     verifyOtp(@Body() dto: Record<string, any>) { return this.authSvc.verifyOtp(dto) }
 
+    @Unauth()
+    @Post('qryUserList')
+    qryUserList(@Body() dto: Record<string, any>) { return this.authSvc.qryUserList(dto) }
+    
 }

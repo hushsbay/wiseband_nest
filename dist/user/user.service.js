@@ -61,14 +61,20 @@ let UserService = class UserService {
         const resJson = new resjson_1.ResJson();
         let fv = hush.addFieldValue([uid], 'uid');
         try {
-            const [user, retStr] = await this.chkUser(uid, pwd);
-            if (retStr != '')
-                return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName);
-            const config = (0, app_config_1.default)();
-            const decoded = hush.decrypt(user.PWD, config.crypto.key);
-            console.log(pwd, '@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!', decoded);
-            if (pwd !== decoded) {
-                return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName);
+            const user = await this.userRepo.findOneBy({ USERID: uid });
+            if (!user)
+                return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
+            if (user.PWD == '') {
+            }
+            else {
+                if (!pwd)
+                    return hush.setResJson(resJson, '비번을 입력하시기 바랍니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
+                const config = (0, app_config_1.default)();
+                const decoded = hush.decrypt(user.PWD, config.crypto.key);
+                console.log(pwd, '@@@@@@@@@@@@@@@@@@@@@@!!!!!!!!!', decoded);
+                if (pwd !== decoded) {
+                    return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName);
+                }
             }
             const { PWD, PICTURE, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
             resJson.data = userFiltered;
@@ -191,16 +197,9 @@ let UserService = class UserService {
             const { searchText, onlyAllUsers } = dto;
             const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'];
             if (onlyAllUsers) {
-                if (searchText) {
-                    const userlist = await this.userRepo.createQueryBuilder('A')
-                        .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
-                    resJson.list = userlist;
-                }
-                else {
-                    const userlist = await this.userRepo.createQueryBuilder('A')
-                        .select(fieldArr).orderBy('A.TOP_ORG_NM', 'ASC').addOrderBy('A.ORG_NM', 'ASC').addOrderBy('A.USERNM', 'ASC').getMany();
-                    resJson.list = userlist;
-                }
+                const userlist = await this.userRepo.createQueryBuilder('A')
+                    .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
+                resJson.list = userlist;
             }
             else {
                 const userlist = await this.userRepo.createQueryBuilder('A')

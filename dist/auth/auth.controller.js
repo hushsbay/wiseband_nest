@@ -23,6 +23,7 @@ let AuthController = class AuthController {
     login(dto) { return this.authSvc.login(dto); }
     setOtp(dto) { return this.authSvc.setOtp(dto); }
     verifyOtp(dto) { return this.authSvc.verifyOtp(dto); }
+    qryUserList(dto) { return this.authSvc.qryUserList(dto); }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -49,6 +50,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "verifyOtp", null);
+__decorate([
+    (0, unauth_decorator_1.Unauth)(),
+    (0, common_1.Post)('qryUserList'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "qryUserList", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

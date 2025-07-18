@@ -16,15 +16,17 @@ exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const jwt_1 = require("@nestjs/jwt");
+const typeorm_1 = require("typeorm");
 const hush = require("../common/common");
 const resjson_1 = require("../common/resjson");
 const user_service_1 = require("../user/user.service");
 const mail_service_1 = require("../mail/mail.service");
 let AuthService = class AuthService {
-    constructor(userSvc, jwtSvc, mailSvc, req) {
+    constructor(userSvc, jwtSvc, mailSvc, dataSource, req) {
         this.userSvc = userSvc;
         this.jwtSvc = jwtSvc;
         this.mailSvc = mailSvc;
+        this.dataSource = dataSource;
         this.req = req;
     }
     async setUserDataWithToken(userDataObj) {
@@ -79,13 +81,28 @@ let AuthService = class AuthService {
             hush.throwCatchedEx(ex, this.req);
         }
     }
+    async qryUserList(dto) {
+        const resJson = new resjson_1.ResJson();
+        try {
+            let sql = "SELECT USERID, USERNM, ORG_CD, ORG_NM, TOP_ORG_CD, TOP_ORG_NM ";
+            sql += "     FROM S_USER_TBL ";
+            sql += "    ORDER BY TOP_ORG_NM, ORG_NM, USERNM ";
+            const list = await this.dataSource.query(sql, null);
+            resJson.list = list;
+            return resJson;
+        }
+        catch (ex) {
+            hush.throwCatchedEx(ex, this.req, 'qryUserList');
+        }
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)({ scope: common_1.Scope.REQUEST }),
-    __param(3, (0, common_1.Inject)(core_1.REQUEST)),
+    __param(4, (0, common_1.Inject)(core_1.REQUEST)),
     __metadata("design:paramtypes", [user_service_1.UserService,
         jwt_1.JwtService,
-        mail_service_1.MailService, Object])
+        mail_service_1.MailService,
+        typeorm_1.DataSource, Object])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map
