@@ -331,7 +331,7 @@ export class UserService {
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc }) //2) 여기서부터는 처리할 멤버(useridToProc)를 대상으로 체크
             if (crud == 'U') {                
                 if (!grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
+                    return hush.setResJson(resJson, '해당 그룹에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
                     return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, methodName)
@@ -355,7 +355,7 @@ export class UserService {
                 await this.grdtlRepo.save(grdtl)
             } else { //crud=C (조직도에서 SYNC=Y를 선택해 추가하는 경우도 있음)
                 if (grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
+                    return hush.setResJson(resJson, '해당 그룹에 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
                 grdtl = this.grdtlRepo.create()
                 if (SYNC != 'Y') {
@@ -418,7 +418,7 @@ export class UserService {
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { GR_ID, USERID } = dto
+            const { GR_ID, USERID, USERNM } = dto //fv 표시할 때 USERNM 필요
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID }) //2) 여기서부터는 처리할 멤버(USERID)를 대상으로 체크
