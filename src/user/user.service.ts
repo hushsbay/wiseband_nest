@@ -157,25 +157,25 @@ export class UserService {
                 }).orderBy('SEQ', 'ASC').getRawMany()
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
-                //if (myteam != '' && orgcd == myteam) myOrgArr.push(item) ###9
+                if (myteam != '' && orgcd == myteam) myOrgArr.push(item) //###9
             }
-            // if (myOrgArr.length > 0) { //아래는 내팀 찾아서 트리에서 펼칠 수 있게 상위노드 가져오는 로직임 ###9
-            //     let ok = true
-            //     while (ok) {
-            //         const seq = myOrgArr[myOrgArr.length - 1].SEQ
-            //         const lvl = myOrgArr[myOrgArr.length - 1].LVL
-            //         let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 "
-            //         const orgList = await this.dataSource.query(sql, [seq, lvl])
-            //         if (orgList.length == 0) {
-            //             ok = false
-            //         } else {
-            //             myOrgArr.push(orgList[0]) //console.log(orgList[0].ORG_NM, orgList[0].ORG_CD)
-            //         }
-            //     }
-            // }
+            if (myOrgArr.length > 0) { //아래는 내팀 찾아서 트리에서 펼칠 수 있게 상위노드 가져오는 로직임 ###9
+                let ok = true
+                while (ok) {
+                    const seq = myOrgArr[myOrgArr.length - 1].SEQ
+                    const lvl = myOrgArr[myOrgArr.length - 1].LVL
+                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 "
+                    const orgList = await this.dataSource.query(sql, [seq, lvl])
+                    if (orgList.length == 0) {
+                        ok = false
+                    } else {
+                        myOrgArr.push(orgList[0]) //console.log(orgList[0].ORG_NM, orgList[0].ORG_CD)
+                    }
+                }
+            }
             resJson.list = orglist
             const vipList = await this.getVipList(userid)
-            //resJson.data.myOrgArr = myOrgArr //현재 내팀 로직은 개선이 필요함. 일단 막음 ###9
+            resJson.data.myOrgArr = myOrgArr //현재 내팀 로직은 클라이언트 개선이 필요함 ###9
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
             resJson.data.maxLevel = maxLevel            
             return resJson

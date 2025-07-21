@@ -160,9 +160,27 @@ let UserService = class UserService {
                 item.userlist = userlist;
                 if (lvl > maxLevel)
                     maxLevel = lvl;
+                if (myteam != '' && orgcd == myteam)
+                    myOrgArr.push(item);
+            }
+            if (myOrgArr.length > 0) {
+                let ok = true;
+                while (ok) {
+                    const seq = myOrgArr[myOrgArr.length - 1].SEQ;
+                    const lvl = myOrgArr[myOrgArr.length - 1].LVL;
+                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 ";
+                    const orgList = await this.dataSource.query(sql, [seq, lvl]);
+                    if (orgList.length == 0) {
+                        ok = false;
+                    }
+                    else {
+                        myOrgArr.push(orgList[0]);
+                    }
+                }
             }
             resJson.list = orglist;
             const vipList = await this.getVipList(userid);
+            resJson.data.myOrgArr = myOrgArr;
             resJson.data.vipList = vipList;
             resJson.data.maxLevel = maxLevel;
             return resJson;
