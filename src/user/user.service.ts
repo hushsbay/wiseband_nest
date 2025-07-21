@@ -353,7 +353,7 @@ export class UserService {
                 grdtl.MODR = userid
                 grdtl.UDT = curdtObj.DT
                 await this.grdtlRepo.save(grdtl)
-            } else { //crud=C (조직도에서 SYNC=Y를 선택해 추가하는 경우도 있음)
+            } else { //crud=C (조직도에서 SYNC=Y를 선택해 추가하는 경우도 있음)           
                 if (grdtl) {
                     return hush.setResJson(resJson, '해당 그룹에 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
                 }
