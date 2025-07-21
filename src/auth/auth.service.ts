@@ -53,7 +53,7 @@ export class AuthService {
             this.mailSvc.sendMail([uid], mailTitle, mailBody)
             return resJson
         } catch (ex) {
-            hush.throwCatchedEx(ex, this.req)
+            hush.throwCatchedEx(ex, this.req)  
         }
     }
 
