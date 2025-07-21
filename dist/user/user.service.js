@@ -310,17 +310,17 @@ let UserService = class UserService {
     }
     chkFieldValidNoSync(usernm, org, job, email, telno, rmks, kind) {
         if (!usernm || usernm.trim() == '' || usernm.trim().length > 30)
-            return '이름은 공란없이 30자까지 가능합니다.';
+            return '이름이 빈칸이거나 30자를 초과합니다.';
         if (!org || org.trim() == '' || org.trim().length > 50)
-            return '소속은 공란없이 50자까지 가능합니다.';
-        if ((job && job.trim() != '') && job.trim().length > 50)
-            return '직책/업무 입력시 50자까지 가능합니다.';
+            return '소속이 빈칸이거나 50자를 초과합니다.';
+        if (!job || job.trim() == '' || job.trim().length > 50)
+            return '직책/업무가 빈칸이거나 50자를 초과합니다.';
         if (!email || email.trim() == '' || email.trim().length > 50)
-            return '이메일은 공란없이 50자까지 가능합니다.';
+            return '이메일이 빈칸이거나 50자를 초과합니다.';
         if (!email.includes('@'))
             return '이메일은 인증되어야 하므로 정확하게 입력하시기 바랍니다.';
         if (!telno || telno.trim() == '' || telno.trim().length > 50)
-            return '전화번호는 공란없이 50자까지 가능합니다.';
+            return '전화번호가 빈칸이거나 50자를 초과합니다.';
         if ((rmks && rmks.trim() != '') && rmks.trim().length > 200)
             return '비고 입력시 200자까지 가능합니다.';
         if (kind == 'admin')
@@ -496,7 +496,7 @@ let UserService = class UserService {
                     return hush.setResJson(resJson, '현재 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
                 }
                 if (user.SYNC != 'Y') {
-                    return hush.setResJson(resJson, '현재 사용자는 그룹을 만들 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName);
+                    return hush.setResJson(resJson, '현재 사용자는 그룹 생성 권한이 없습니다.' + fv, hush.Code.NOT_OK, null, methodName);
                 }
                 grmst = this.grmstRepo.create();
                 grmst.GR_ID = unidObj.ID;
