@@ -8,7 +8,7 @@ import { ResJson } from 'src/common/resjson'
 import { UserService } from 'src/user/user.service'
 import { MailService } from 'src/mail/mail.service'
 
-@Injectable({ scope: Scope.REQUEST })                 
+@Injectable({ scope: Scope.REQUEST })                    
 export class AuthService {
 
     constructor(
