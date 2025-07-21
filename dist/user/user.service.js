@@ -160,27 +160,9 @@ let UserService = class UserService {
                 item.userlist = userlist;
                 if (lvl > maxLevel)
                     maxLevel = lvl;
-                if (myteam != '' && orgcd == myteam)
-                    myOrgArr.push(item);
-            }
-            if (myOrgArr.length > 0) {
-                let ok = true;
-                while (ok) {
-                    const seq = myOrgArr[myOrgArr.length - 1].SEQ;
-                    const lvl = myOrgArr[myOrgArr.length - 1].LVL;
-                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 ";
-                    const orgList = await this.dataSource.query(sql, [seq, lvl]);
-                    if (orgList.length == 0) {
-                        ok = false;
-                    }
-                    else {
-                        myOrgArr.push(orgList[0]);
-                    }
-                }
             }
             resJson.list = orglist;
             const vipList = await this.getVipList(userid);
-            resJson.data.myOrgArr = myOrgArr;
             resJson.data.vipList = vipList;
             resJson.data.maxLevel = maxLevel;
             return resJson;
@@ -344,7 +326,7 @@ let UserService = class UserService {
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: useridToProc });
             if (crud == 'U') {
                 if (!grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
+                    return hush.setResJson(resJson, '해당 그룹에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
                 }
                 if (KIND != 'admin' && grmst.MASTERID == useridToProc) {
                     return hush.setResJson(resJson, '해당 그룹 마스터는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, methodName);
@@ -372,7 +354,7 @@ let UserService = class UserService {
             }
             else {
                 if (grdtl) {
-                    return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName);
+                    return hush.setResJson(resJson, '해당 그룹에 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName);
                 }
                 grdtl = this.grdtlRepo.create();
                 if (SYNC != 'Y') {
@@ -437,13 +419,13 @@ let UserService = class UserService {
         const usernm = this.req['user'].usernm;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const { GR_ID, USERID } = dto;
+            const { GR_ID, USERID, USERNM } = dto;
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid);
             if (retStr != '')
                 return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName);
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID });
             if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
+                return hush.setResJson(resJson, '해당 그룹에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
             }
             if (grmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName);

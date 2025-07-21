@@ -423,7 +423,7 @@ export class UserService {
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
             let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: GR_ID, USERID: USERID }) //2) 여기서부터는 처리할 멤버(USERID)를 대상으로 체크
             if (!grdtl) {
-                return hush.setResJson(resJson, '해당 그룹에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
+                return hush.setResJson(resJson, '해당 그룹에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
             }
             if (grmst.MASTERID == USERID) {
                 return hush.setResJson(resJson, '해당 그룹 마스터를 삭제할 수 없습니다.' + fv, hush.Code.NOT_OK, null, methodName)
