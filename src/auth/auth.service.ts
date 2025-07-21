@@ -8,7 +8,7 @@ import { ResJson } from 'src/common/resjson'
 import { UserService } from 'src/user/user.service'
 import { MailService } from 'src/mail/mail.service'
 
-@Injectable({ scope: Scope.REQUEST })
+@Injectable({ scope: Scope.REQUEST })                 
 export class AuthService {
 
     constructor(
@@ -16,7 +16,7 @@ export class AuthService {
         private jwtSvc: JwtService, 
         private mailSvc: MailService, 
         private dataSource : DataSource,
-        @Inject(REQUEST) private readonly req: Request
+        @Inject(REQUEST) private readonly req: Request                         
     ) {}
 
     async setUserDataWithToken(userDataObj: any): Promise<any> {
