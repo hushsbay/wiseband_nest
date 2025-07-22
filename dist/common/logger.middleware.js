@@ -27,7 +27,11 @@ let LoggerMiddleware = class LoggerMiddleware {
                 winston_util_1.winstonLogger.error(str);
             }
             else {
-                winston_util_1.winstonLogger.log(str);
+                if (originalUrl.includes('chanmsg/qryDataLogEach')) {
+                }
+                else {
+                    winston_util_1.winstonLogger.log(str);
+                }
             }
         });
         next();

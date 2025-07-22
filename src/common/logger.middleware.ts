@@ -16,9 +16,13 @@ export class LoggerMiddleware implements NestMiddleware {
             if (statusCode >= 400 && statusCode < 500) {
                 winstonLogger.warn(str)
             } else if (statusCode >= 500) {
-                winstonLogger.error(str)
+                winstonLogger.error(str)            
             } else {
-                winstonLogger.log(str)
+                if (originalUrl.includes('chanmsg/qryDataLogEach')) {
+                    //Polling은 콘솔 로그에 들어가면 너무 발리 올라가버려서 정작 중요한 내용은 못봄
+                } else {
+                    winstonLogger.log(str) 
+                }
             }
         })
         next()
