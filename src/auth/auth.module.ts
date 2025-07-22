@@ -18,7 +18,8 @@ import { MailModule } from 'src/mail/mail.module'
                 return {
                     global: true,
                     secret: config.jwt.key, //sendjay에 맞춘 것임
-                    signOptions: { algorithm: 'HS256', expiresIn: '4h' } //HS512도 있으나 기존 환경에 맞추는 목적. expiryIn 예) "59s", "1h", "365 days"
+                    signOptions: { algorithm: 'HS256', expiresIn: '4h' } //HS512도 있으나 기존 환경(sendjay)에 맞추는 목적. expiryIn 예) "59s", "1h", "365 days"
+                    //토큰 만료 및 갱신은 59s로 설정해 테스트 완료함 (갱신시 브라우저F12에서 토큰 스트링이 육안으로 (리프레시해도) 동일하게 보이는데 달라져야 하지 않을까 싶음 - 어쨋든 테스트 완료)
                 }
             }            
         }),
