@@ -1454,7 +1454,7 @@ let ChanmsgService = class ChanmsgService {
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID });
             if (crud == 'U') {
                 if (!chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
+                    return hush.setResJson(resJson, '해당 채널에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
                 }
                 if (KIND != 'admin' && chanmst.MASTERID == USERID) {
                     return hush.setResJson(resJson, '해당 채널 생성자는 항상 admin이어야 합니다.' + fv, hush.Code.NOT_OK, null, methodName);
@@ -1518,7 +1518,7 @@ let ChanmsgService = class ChanmsgService {
             }
             let chandtl = await this.chandtlRepo.findOneBy({ CHANID: CHANID, USERID: USERID });
             if (!chandtl) {
-                return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
+                return hush.setResJson(resJson, '해당 채널에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
             }
             await this.chandtlRepo.delete(chandtl);
             const curdtObj = await hush.getMysqlCurdt(this.dataSource);
