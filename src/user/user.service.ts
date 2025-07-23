@@ -1,4 +1,4 @@
-import { Inject, Injectable, Scope } from '@nestjs/common'
+import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -74,6 +74,80 @@ export class UserService {
         }
     }
 
+    async getUserInfo(dto: Record<string, any>): Promise<any> {
+        const methodName = 'user>getUserInfo'
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid]) //dto에 요청받아 조회 (사용자 아이디 어떤 것이라도 허용)
+        try {
+            const uid = dto.uid ? dto.uid : userid
+            const user = await this.userRepo.findOneBy({ USERID: uid })
+            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
+            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
+            resJson.data = userFiltered
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async setUserInfo(dto: Record<string, any>, @UploadedFile() file: Express.Multer.File): Promise<any> {
+        const methodName = 'user>setUserInfo'
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid]) //본인 아이디만 처리
+        try {
+            const { usernm } = dto
+            const user = await this.userRepo.findOneBy({ USERID: userid })
+            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + userid, hush.Code.NOT_OK, null, methodName)
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            if (usernm) {
+                user.USERNM = usernm
+                resJson.data.USERNM = usernm
+            } else {
+                user.PICTURE = Buffer.from(new Uint8Array(file.buffer))
+                resJson.data.PICTURE = user.PICTURE 
+            }
+            user.MODR = userid
+            user.MODDT = curdtObj.DT
+            await this.userRepo.save(user)            
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
+    async changePwd(dto: Record<string, any>): Promise<any> {
+        const methodName = 'user>changePwd'
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid]) //본인 아이디만 처리
+        try {
+            const { pwdOld, pwdNew } = dto
+            const config = appConfig()
+            const user = await this.userRepo.findOneBy({ USERID: userid })
+            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + userid, hush.Code.NOT_OK, null, methodName)
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+            if (user.PWD) {
+                const decoded = hush.decrypt(user.PWD, config.crypto.key)
+                if (pwdOld !== decoded) {
+                    return hush.setResJson(resJson, '기존 비번이 다릅니다.', hush.Code.NOT_OK, null, methodName)
+                }
+            }
+            if (pwdNew.includes('@')) {
+                return hush.setResJson(resJson, '기호중 @는 지원하지 않습니다.', hush.Code.NOT_OK, null, methodName)
+            }
+            const encoded = hush.encrypt(pwdNew, config.crypto.key)
+            user.PWD = encoded
+            user.MODR = userid
+            user.MODDT = curdtObj.DT
+            await this.userRepo.save(user)            
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv)
+        }
+    }
+
     async setOtp(uid: string, otpNum: string): Promise<ResJson> {
         const methodName = 'user>setOtp'
         const resJson = new ResJson()
@@ -84,7 +158,7 @@ export class UserService {
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
-            this.userRepo.save(user)
+            await this.userRepo.save(user)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

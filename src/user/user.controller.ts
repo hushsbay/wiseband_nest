@@ -1,4 +1,5 @@
-import { Controller, HttpCode, HttpStatus, Post, Body } from '@nestjs/common'
+import { Controller, HttpCode, HttpStatus, Post, Body, UseInterceptors, UploadedFile } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { UserService } from 'src/user/user.service'
 
 @Controller('user')
@@ -6,6 +7,18 @@ export class UserController {
 
     constructor(private readonly userSvc: UserService) {}
 
+    @Post('getUserInfo')
+    getUserInfo(@Body() dto: Record<string, any>) { return this.userSvc.getUserInfo(dto) }
+
+    @Post('setUserInfo')
+    @UseInterceptors(FileInterceptor('file'))
+    setUserInfo(@Body() dto: Record<string, any>, @UploadedFile() file: Express.Multer.File) { 
+        return this.userSvc.setUserInfo(dto, file) 
+    }
+
+    @Post('changePwd')
+    changePwd(@Body() dto: Record<string, any>) { return this.userSvc.changePwd(dto) }
+    
     @Post('orgTree')
     orgTree(@Body() dto: Record<string, any>) { return this.userSvc.orgTree(dto) }
 

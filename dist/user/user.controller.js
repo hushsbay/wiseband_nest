@@ -14,11 +14,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const user_service_1 = require("./user.service");
 let UserController = class UserController {
     constructor(userSvc) {
         this.userSvc = userSvc;
     }
+    getUserInfo(dto) { return this.userSvc.getUserInfo(dto); }
+    setUserInfo(dto, file) {
+        return this.userSvc.setUserInfo(dto, file);
+    }
+    changePwd(dto) { return this.userSvc.changePwd(dto); }
     orgTree(dto) { return this.userSvc.orgTree(dto); }
     procOrgSearch(dto) { return this.userSvc.procOrgSearch(dto); }
     qryGroupWithUser(dto) { return this.userSvc.qryGroupWithUser(dto); }
@@ -29,6 +35,29 @@ let UserController = class UserController {
     deleteGroup(dto) { return this.userSvc.deleteGroup(dto); }
 };
 exports.UserController = UserController;
+__decorate([
+    (0, common_1.Post)('getUserInfo'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "getUserInfo", null);
+__decorate([
+    (0, common_1.Post)('setUserInfo'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "setUserInfo", null);
+__decorate([
+    (0, common_1.Post)('changePwd'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "changePwd", null);
 __decorate([
     (0, common_1.Post)('orgTree'),
     __param(0, (0, common_1.Body)()),

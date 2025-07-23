@@ -15,6 +15,9 @@ export declare class UserService {
     chkUserRightForGroup(grid: string, userid: string): Promise<[GrMst, string]>;
     chkUser(uid: string, secret: string): Promise<[User, string]>;
     login(uid: string, pwd: string): Promise<ResJson>;
+    getUserInfo(dto: Record<string, any>): Promise<any>;
+    setUserInfo(dto: Record<string, any>, file: Express.Multer.File): Promise<any>;
+    changePwd(dto: Record<string, any>): Promise<any>;
     setOtp(uid: string, otpNum: string): Promise<ResJson>;
     verifyOtp(uid: string, otpNum: string): Promise<ResJson>;
     orgTree(dto: Record<string, any>): Promise<any>;
