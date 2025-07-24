@@ -322,42 +322,59 @@ export class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { kind, notyet, prevMsgMstCdt } = dto
-            //기본
-            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
+            //0. 기본
+            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
             let sqlHeaderEnd = ") Y "
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL")
-            //vip
-            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' BODYTEXT, 'VIP_MSG' SUBKIND, 'vip' TITLE, MAX(A.UDT) DT "
+            //1. vip : 방별로 구분 (group by chanid)
+            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, 'VIP_MSG' SUBKIND, 'vip' TITLE, MAX(A.UDT) DT "
             sqlVip += "     FROM S_MSGMST_TBL A "
             if (notyet == 'Y') {
                 sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
             }
             sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') "
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM "
-            //thread : notyet을 적용할 일이 없어 보임 (내글은 분명히 읽음처리되었고 내가 단 부모글도 내가 읽었으니 댓글을 달았을 것임)
-            let sqlThread = "SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MY_MSG_WITH_CHILD' SUBKIND, 'thread' TITLE, (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) DT "
+            //2. mention
+            //웹에디터와 같이 개발
+            //3. thread : 메시지별로 구분
+            let sqlThread = "SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_CHILD' SUBKIND, 'thread' TITLE, "
+            sqlThread += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) DT "
             sqlThread += "     FROM S_MSGMST_TBL A "
             sqlThread += "    WHERE A.AUTHORID = '" + userid + "' "
-            sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 " //자식을 가진 내글(부모글)
-            sqlThread += "    UNION ALL "
-            sqlThread += "   SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'PARENT_TO_MY_REPLY' SUBKIND, 'thread' TITLE, MAX(B.CDT) DT "
-            sqlThread += "     FROM S_MSGMST_TBL A "
-            sqlThread += "    INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT "
-            sqlThread += "                  FROM S_MSGMST_TBL "
-            sqlThread += "                 WHERE REPLYTO <> '' AND AUTHORID = '" + userid + "') B ON A.MSGID = B.REPLYTO " //내가 단 부모글        
-            sqlThread += "    GROUP BY A.MSGID, A.CHANID, A.BODYTEXT, A.AUTHORID, A.AUTHORNM "
-            //react : notyet을 적용할 일이 없어 보임 (내글은 분명히 읽음처리되었고 내가 단 리액션은 내가 읽었으니 달았을 것임)
-            let sqlReact = "SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
-            sqlReact += "     FROM S_MSGMST_TBL A "
-            sqlReact += "    INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
-            sqlReact += "    WHERE A.AUTHORID = '" + userid + "' "
-            sqlReact += "      AND B.TYP = 'react' "
-            sqlReact += "    UNION ALL "
-            sqlReact += "   SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MSG_WITH_MY_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
-            sqlReact += "     FROM S_MSGMST_TBL A "
-            sqlReact += "    INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
-            sqlReact += "    WHERE B.USERID = '" + userid + "' "
-            sqlReact += "      AND B.TYP = 'react' "
+            if (notyet == 'Y') {
+                sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL K INNER JOIN S_MSGDTL_TBL J ON K.MSGID = J.MSGID AND J.USERID = '" + userid + "' AND J.KIND = 'notyet' "
+                sqlThread += "           WHERE K.REPLYTO = A.MSGID ) > 0 "//내가 아직 안읽은 자식을 가진 내글(부모글)
+            } else {
+                sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 " //자식을 가진 내글(부모글)
+            }
+            if (notyet != 'Y') { //내가 댓글 단 부모글은 무조건 읽은 것이므로 notyet != 'Y'으로 읽어야 함
+                sqlThread += "    UNION ALL "
+                sqlThread += "   SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'PARENT_TO_MY_REPLY' SUBKIND, 'thread' TITLE, MAX(B.CDT) DT "
+                sqlThread += "     FROM S_MSGMST_TBL A "
+                sqlThread += "    INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT "
+                sqlThread += "                  FROM S_MSGMST_TBL "
+                sqlThread += "                 WHERE REPLYTO <> '' AND AUTHORID = '" + userid + "') B ON A.MSGID = B.REPLYTO " //내가 댓글 단 부모글        
+                sqlThread += "    GROUP BY A.MSGID, A.CHANID, A.BODYTEXT, A.AUTHORID, A.AUTHORNM "
+            }
+            //4. react : 메시지별로 구분
+            let sqlReact = ''
+            if (notyet == 'Y') { //notyet은 없을 것임 (내글은 분명히 읽음처리되었고 내가 단 리액션은 내가 읽었으니 달았을 것임 - 그래서 dummy 추가)
+                sqlReact = "SELECT DISTINCT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, CDT DT "
+                sqlReact += " FROM S_MSGMST_TBL "
+                sqlReact += "WHERE AUTHORID = 'dummy' "
+            } else {
+                sqlReact = " SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
+                sqlReact += "  FROM S_MSGMST_TBL A "
+                sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+                sqlReact += " WHERE A.AUTHORID = '" + userid + "' "
+                sqlReact += "   AND B.TYP = 'react' "
+                sqlReact += " UNION ALL "
+                sqlReact += "SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MSG_WITH_MY_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
+                sqlReact += "  FROM S_MSGMST_TBL A "
+                sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+                sqlReact += " WHERE B.USERID = '" + userid + "' "
+                sqlReact += "   AND B.TYP = 'react' "
+            }
             let sql = ''
             if (kind == 'mention') {
                 //웹에디터와 같이 개발
@@ -383,13 +400,14 @@ export class MenuService {
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
+                    let sql = "SELECT BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
                     }
+                    row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 비로소 가져오면 됨
                 } else if (row.TITLE == 'thread') {
                     let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID, row.DT])

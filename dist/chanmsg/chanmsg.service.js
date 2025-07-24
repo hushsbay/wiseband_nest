@@ -1466,7 +1466,7 @@ let ChanmsgService = class ChanmsgService {
             }
             else {
                 if (chandtl) {
-                    return hush.setResJson(resJson, '해당 채널에 편집 대상 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName);
+                    return hush.setResJson(resJson, '해당 채널에 사용자가 이미 있습니다.' + fv, hush.Code.NOT_OK, null, methodName);
                 }
                 chandtl = this.chandtlRepo.create();
                 chandtl.CHANID = CHANID;

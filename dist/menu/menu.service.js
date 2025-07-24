@@ -326,38 +326,55 @@ let MenuService = class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { kind, notyet, prevMsgMstCdt } = dto;
-            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( ";
+            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( ";
             let sqlHeaderEnd = ") Y ";
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL");
-            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' BODYTEXT, 'VIP_MSG' SUBKIND, 'vip' TITLE, MAX(A.UDT) DT ";
+            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, 'VIP_MSG' SUBKIND, 'vip' TITLE, MAX(A.UDT) DT ";
             sqlVip += "     FROM S_MSGMST_TBL A ";
             if (notyet == 'Y') {
                 sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' ";
             }
             sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') ";
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM ";
-            let sqlThread = "SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MY_MSG_WITH_CHILD' SUBKIND, 'thread' TITLE, (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) DT ";
+            let sqlThread = "SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_CHILD' SUBKIND, 'thread' TITLE, ";
+            sqlThread += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) DT ";
             sqlThread += "     FROM S_MSGMST_TBL A ";
             sqlThread += "    WHERE A.AUTHORID = '" + userid + "' ";
-            sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 ";
-            sqlThread += "    UNION ALL ";
-            sqlThread += "   SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'PARENT_TO_MY_REPLY' SUBKIND, 'thread' TITLE, MAX(B.CDT) DT ";
-            sqlThread += "     FROM S_MSGMST_TBL A ";
-            sqlThread += "    INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT ";
-            sqlThread += "                  FROM S_MSGMST_TBL ";
-            sqlThread += "                 WHERE REPLYTO <> '' AND AUTHORID = '" + userid + "') B ON A.MSGID = B.REPLYTO ";
-            sqlThread += "    GROUP BY A.MSGID, A.CHANID, A.BODYTEXT, A.AUTHORID, A.AUTHORNM ";
-            let sqlReact = "SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, A.CDT DT ";
-            sqlReact += "     FROM S_MSGMST_TBL A ";
-            sqlReact += "    INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID ";
-            sqlReact += "    WHERE A.AUTHORID = '" + userid + "' ";
-            sqlReact += "      AND B.TYP = 'react' ";
-            sqlReact += "    UNION ALL ";
-            sqlReact += "   SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, 'MSG_WITH_MY_REACT' SUBKIND, 'react' TITLE, A.CDT DT ";
-            sqlReact += "     FROM S_MSGMST_TBL A ";
-            sqlReact += "    INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID ";
-            sqlReact += "    WHERE B.USERID = '" + userid + "' ";
-            sqlReact += "      AND B.TYP = 'react' ";
+            if (notyet == 'Y') {
+                sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL K INNER JOIN S_MSGDTL_TBL J ON K.MSGID = J.MSGID AND J.USERID = '" + userid + "' AND J.KIND = 'notyet' ";
+                sqlThread += "           WHERE K.REPLYTO = A.MSGID ) > 0 ";
+            }
+            else {
+                sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 ";
+            }
+            if (notyet != 'Y') {
+                sqlThread += "    UNION ALL ";
+                sqlThread += "   SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'PARENT_TO_MY_REPLY' SUBKIND, 'thread' TITLE, MAX(B.CDT) DT ";
+                sqlThread += "     FROM S_MSGMST_TBL A ";
+                sqlThread += "    INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT ";
+                sqlThread += "                  FROM S_MSGMST_TBL ";
+                sqlThread += "                 WHERE REPLYTO <> '' AND AUTHORID = '" + userid + "') B ON A.MSGID = B.REPLYTO ";
+                sqlThread += "    GROUP BY A.MSGID, A.CHANID, A.BODYTEXT, A.AUTHORID, A.AUTHORNM ";
+            }
+            let sqlReact = '';
+            if (notyet == 'Y') {
+                sqlReact = "SELECT DISTINCT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, CDT DT ";
+                sqlReact += " FROM S_MSGMST_TBL ";
+                sqlReact += "WHERE AUTHORID = 'dummy' ";
+            }
+            else {
+                sqlReact = " SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, A.CDT DT ";
+                sqlReact += "  FROM S_MSGMST_TBL A ";
+                sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID ";
+                sqlReact += " WHERE A.AUTHORID = '" + userid + "' ";
+                sqlReact += "   AND B.TYP = 'react' ";
+                sqlReact += " UNION ALL ";
+                sqlReact += "SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MSG_WITH_MY_REACT' SUBKIND, 'react' TITLE, A.CDT DT ";
+                sqlReact += "  FROM S_MSGMST_TBL A ";
+                sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID ";
+                sqlReact += " WHERE B.USERID = '" + userid + "' ";
+                sqlReact += "   AND B.TYP = 'react' ";
+            }
             let sql = '';
             if (kind == 'mention') {
             }
@@ -386,7 +403,7 @@ let MenuService = class MenuService {
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
+                    let sql = "SELECT BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT]);
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음';
@@ -394,6 +411,7 @@ let MenuService = class MenuService {
                     else {
                         row.LASTMSG = listSub[0].BODYTEXT;
                     }
+                    row.REPLYTO = listSub[0].REPLYTO;
                 }
                 else if (row.TITLE == 'thread') {
                     let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? ";
