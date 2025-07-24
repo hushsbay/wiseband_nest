@@ -411,7 +411,7 @@ export class ChanmsgService {
                 } //위의 msgid는 부모글일 수도 댓글일 수도 있지만 아래 2행은 무조건 부모글과 자식글로 구분해서 전달함
                 data.msgidParent = msgidParent //MsgList.vue의 getList()에서 사용
                 data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
-            } else if (msgid && kind == 'withReply') { //ASC임을 유의
+            } else if (msgid && kind == 'withReply') { //ASC임을 유의. menu>qryChan의 QueryFailedError: read ECONNRESET 문제 발생 소지 있음
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
                 const tbl = "FROM S_MSGMST_TBL "
                 let sql = ""

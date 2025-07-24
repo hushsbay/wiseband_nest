@@ -403,7 +403,7 @@ let MenuService = class MenuService {
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT]);
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음';
@@ -411,6 +411,7 @@ let MenuService = class MenuService {
                     else {
                         row.LASTMSG = listSub[0].BODYTEXT;
                     }
+                    row.MSGID = listSub[0].MSGID;
                     row.REPLYTO = listSub[0].REPLYTO;
                 }
                 else if (row.TITLE == 'thread') {

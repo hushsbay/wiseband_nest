@@ -400,14 +400,15 @@ export class MenuService {
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
                     }
-                    row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 비로소 가져오면 됨
+                    row.MSGID = listSub[0].MSGID //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. MsgList로 라우팅할 때 다른 Activity는 모두 msgid 있는데 vip만 없어 선택 이상해져 가져오게 됨
+                    row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 댓글 여부
                 } else if (row.TITLE == 'thread') {
                     let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID, row.DT])
