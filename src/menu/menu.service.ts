@@ -94,7 +94,7 @@ export class MenuService {
     }
 
     async qryChan(dto: Record<string, any>): Promise<any> { //내가 권한이 있는 채널들만 보여야 함 (사용자그룹에서 제거 되었으면 그 채널은 권한이 없어짐)
-        const resJson = new ResJson()
+        const resJson = new ResJson() //인덱싱 완료
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
@@ -113,13 +113,13 @@ export class MenuService {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-                sql += "                   WHERE A.TYP = 'WS' "
-                sql += "                     AND B.USERID = '" + userid + "') Y "
+                sql += "                   WHERE B.USERID = '" + userid + "' "
+                sql += "                     AND A.TYP = 'WS') Y "
             } else if (kind == 'other') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+                sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y "
             } else { //all=my+other
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
@@ -128,8 +128,8 @@ export class MenuService {
                 sql += "                   UNION ALL "
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
                 sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' "
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y "
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+                sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y "
             }
             sql += "      ON X.GR_ID = Y.GR_ID "
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "

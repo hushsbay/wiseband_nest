@@ -115,14 +115,14 @@ let MenuService = class MenuService {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER ";
                 sql += "                    FROM S_CHANMST_TBL A ";
                 sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID ";
-                sql += "                   WHERE A.TYP = 'WS' ";
-                sql += "                     AND B.USERID = '" + userid + "') Y ";
+                sql += "                   WHERE B.USERID = '" + userid + "' ";
+                sql += "                     AND A.TYP = 'WS') Y ";
             }
             else if (kind == 'other') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER ";
                 sql += "                    FROM S_CHANMST_TBL A ";
-                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' ";
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y ";
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') ";
+                sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y ";
             }
             else {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER ";
@@ -132,8 +132,8 @@ let MenuService = class MenuService {
                 sql += "                   UNION ALL ";
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER ";
                 sql += "                    FROM S_CHANMST_TBL A ";
-                sql += "                   WHERE A.TYP = 'WS' AND A.STATE = 'A' ";
-                sql += "                     AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "')) Y ";
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') ";
+                sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y ";
             }
             sql += "      ON X.GR_ID = Y.GR_ID ";
             sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID ";
