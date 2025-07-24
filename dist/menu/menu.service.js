@@ -139,7 +139,6 @@ let MenuService = class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID) Z ";
             sql += "   ORDER BY Z.GR_NM, Z.GR_ID, Z.DEPTH, Z.CHANNM, Z.CHANID ";
-            console.log(sql);
             const list = await this.dataSource.query(sql, null);
             for (let i = 0; i < list.length; i++) {
                 if (list[i].DEPTH == 2)
@@ -210,15 +209,17 @@ let MenuService = class MenuService {
                     if (row.MASTERID != userid)
                         continue;
                 }
-                sql = "SELECT MSGID, BODYTEXT FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 ";
+                sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 ";
                 const listMst = await this.dataSource.query(sql, [row.CHANID]);
                 if (listMst.length == 0) {
                     row.MSGID = '';
                     row.BODYTEXT = '';
+                    row.REPLYTO = '';
                 }
                 else {
                     row.MSGID = listMst[0].MSGID;
                     row.BODYTEXT = listMst[0].BODYTEXT;
+                    row.REPLYTO = listMst[0].REPLYTO;
                 }
                 const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt);
                 row.memcnt = obj.memcnt;
@@ -268,7 +269,7 @@ let MenuService = class MenuService {
         const userid = this.req['user'].userid;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const { kind, prevMsgMstCdt, msgid } = dto;
+            const { kind, prevMsgMstCdt, msgid, oldestMsgDt } = dto;
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, ";
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE ";
             sql += "     FROM S_MSGMST_TBL A ";
@@ -279,11 +280,17 @@ let MenuService = class MenuService {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? ";
             }
             else {
-                sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < ? ";
+                if (!oldestMsgDt) {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < '" + prevMsgMstCdt + "' ";
+                }
+                else {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT >= '" + oldestMsgDt + "' ";
+                }
             }
             sql += "    ORDER BY A.CDT DESC ";
-            sql += "    LIMIT " + hush.cons.rowsCnt;
-            const list = await this.dataSource.query(sql, [userid, kind, prevMsgMstCdt]);
+            if (!oldestMsgDt)
+                sql += "    LIMIT " + hush.cons.rowsCnt;
+            const list = await this.dataSource.query(sql, [userid, kind]);
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
                 if (row.TYP == 'GS') {
@@ -325,7 +332,7 @@ let MenuService = class MenuService {
         const userid = this.req['user'].userid;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const { kind, notyet, prevMsgMstCdt } = dto;
+            const { kind, notyet, prevMsgMstCdt, oldestMsgDt } = dto;
             let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( ";
             let sqlHeaderEnd = ") Y ";
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL");
@@ -396,14 +403,20 @@ let MenuService = class MenuService {
             }
             sql += "INNER JOIN (" + sqlBasicAcl + ") Z ON Y.CHANID = Z.CHANID ";
             sql += " LEFT OUTER JOIN S_USER_TBL E ON Y.AUTHORID = E.USERID ";
-            sql += "WHERE Y.DT < ? ";
+            if (!oldestMsgDt) {
+                sql += "WHERE Y.DT < '" + prevMsgMstCdt + "' ";
+            }
+            else {
+                sql += "WHERE Y.DT >= '" + oldestMsgDt + "' ";
+            }
             sql += "ORDER BY Y.DT DESC ";
-            sql += "LIMIT " + hush.cons.rowsCnt;
-            const list = await this.dataSource.query(sql, [prevMsgMstCdt]);
+            if (!oldestMsgDt)
+                sql += "LIMIT " + hush.cons.rowsCnt;
+            const list = await this.dataSource.query(sql, null);
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? ";
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT]);
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음';
@@ -413,9 +426,10 @@ let MenuService = class MenuService {
                     }
                     row.MSGID = listSub[0].MSGID;
                     row.REPLYTO = listSub[0].REPLYTO;
+                    row.CHKDT = listSub[0].CHKDT;
                 }
                 else if (row.TITLE == 'thread') {
-                    let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? ";
+                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? ";
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID, row.DT]);
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음';
@@ -423,10 +437,12 @@ let MenuService = class MenuService {
                     else {
                         row.LASTMSG = listSub[0].BODYTEXT;
                     }
+                    row.CHKDT = listSub[0].CHKDT;
                 }
                 else if (row.TITLE == 'react') {
                     row.LASTMSG = '';
-                    let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, GROUP_CONCAT(USERID ORDER BY USERID SEPARATOR \", \") ID ";
+                    let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, ";
+                    sql += "          GROUP_CONCAT(USERID ORDER BY USERID SEPARATOR \", \") ID, MAX(UDT) CHKDT ";
                     sql += "     FROM S_MSGDTL_TBL ";
                     sql += "    WHERE MSGID = ? AND CHANID = ? AND TYP = 'react' ";
                     sql += "    GROUP BY KIND ";
@@ -438,6 +454,24 @@ let MenuService = class MenuService {
                     else {
                         row.msgdtl = listSub;
                     }
+                    row.CHKDT = listSub[0].CHKDT;
+                }
+                let sql = "SELECT TYP FROM S_CHANMST_TBL WHERE CHANID = ? ";
+                const listSub = await this.dataSource.query(sql, [row.CHANID]);
+                if (listSub.length == 0) {
+                    row.TYP = 'WS';
+                }
+                else {
+                    row.TYP = listSub[0].TYP;
+                }
+                if (row.TYP == 'GS') {
+                    const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt);
+                    row.memcnt = obj.memcnt;
+                    row.memnm = obj.memnm;
+                    row.memid = obj.memid;
+                    row.picCnt = obj.picCnt;
+                    row.picture = obj.picture;
+                    row.url = obj.url;
                 }
             }
             resJson.list = list;

@@ -137,7 +137,7 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID) Z "
             sql += "   ORDER BY Z.GR_NM, Z.GR_ID, Z.DEPTH, Z.CHANNM, Z.CHANID "
-            console.log(sql)
+            //console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 if (list[i].DEPTH == 2) list[i].mynotyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
@@ -209,14 +209,16 @@ export class MenuService {
                     //따라서, 최초 만들었을 때는 상대방들에게는 안보여야 하고 마스터에게만 보여야 함 (일장일단)
                     if (row.MASTERID != userid) continue //이 M은 메시지가 처음 생길 때 P(DM은 무조건 비공개)로 변경되어야 함
                 }
-                sql = "SELECT MSGID, BODYTEXT FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 "
+                sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 "
                 const listMst = await this.dataSource.query(sql, [row.CHANID])
                 if (listMst.length == 0) {
                     row.MSGID = ''
                     row.BODYTEXT = ''
+                    row.REPLYTO = ''
                 } else {
                     row.MSGID = listMst[0].MSGID
                     row.BODYTEXT = listMst[0].BODYTEXT
+                    row.REPLYTO = listMst[0].REPLYTO
                 }
                 const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt)
                 row.memcnt = obj.memcnt
@@ -265,7 +267,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, prevMsgMstCdt, msgid } = dto //kind = later, stored, finished
+            const { kind, prevMsgMstCdt, msgid, oldestMsgDt } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
@@ -275,11 +277,15 @@ export class MenuService {
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
             } else {
-                sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < ? "
+                if (!oldestMsgDt) {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < '" + prevMsgMstCdt + "' "
+                } else {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT >= '" + oldestMsgDt + "' "
+                }
             }
             sql += "    ORDER BY A.CDT DESC "
-            sql += "    LIMIT " + hush.cons.rowsCnt
-            const list = await this.dataSource.query(sql, [userid, kind, prevMsgMstCdt])
+            if (!oldestMsgDt) sql += "    LIMIT " + hush.cons.rowsCnt
+            const list = await this.dataSource.query(sql, [userid, kind])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TYP == 'GS') { //DM은 GS, 채널은 WS(슬랙의 워크스페이스)
@@ -321,7 +327,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, notyet, prevMsgMstCdt } = dto
+            const { kind, notyet, prevMsgMstCdt, oldestMsgDt } = dto
             //0. 기본
             let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
             let sqlHeaderEnd = ") Y "
@@ -393,33 +399,42 @@ export class MenuService {
             }
             sql += "INNER JOIN (" + sqlBasicAcl + ") Z ON Y.CHANID = Z.CHANID "
             sql += " LEFT OUTER JOIN S_USER_TBL E ON Y.AUTHORID = E.USERID "
-            sql += "WHERE Y.DT < ? "            
+            if (!oldestMsgDt) {
+                sql += "WHERE Y.DT < '" + prevMsgMstCdt + "' "      
+            } else {
+                sql += "WHERE Y.DT >= '" + oldestMsgDt + "' "      
+            }      
             sql += "ORDER BY Y.DT DESC "
-            sql += "LIMIT " + hush.cons.rowsCnt
-            const list = await this.dataSource.query(sql, [prevMsgMstCdt])
+            if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt
+            const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
                     }
-                    row.MSGID = listSub[0].MSGID //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. MsgList로 라우팅할 때 다른 Activity는 모두 msgid 있는데 vip만 없어 선택 이상해져 가져오게 됨
+                    row.MSGID = listSub[0].MSGID //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 
+                    //1. MsgList로 라우팅할 때 다른 Activity는 모두 msgid 있는데 vip만 없어 선택 이상해져 가져오게 됨
+                    //2. 뒤로가기 등으로 다시 돌아올 떄 msgid를 키로 찾아와야 함
                     row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 댓글 여부
+                    row.CHKDT = listSub[0].CHKDT
                 } else if (row.TITLE == 'thread') {
-                    let sql = "SELECT BODYTEXT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? "
+                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
                     }
+                    row.CHKDT = listSub[0].CHKDT
                 } else if (row.TITLE == 'react') {
                     row.LASTMSG = '' //BODYTEXT로 커버됨
-                    let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, GROUP_CONCAT(USERID ORDER BY USERID SEPARATOR \", \") ID "
+                    let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, "
+                    sql += "          GROUP_CONCAT(USERID ORDER BY USERID SEPARATOR \", \") ID, MAX(UDT) CHKDT "
                     sql += "     FROM S_MSGDTL_TBL "
                     sql += "    WHERE MSGID = ? AND CHANID = ? AND TYP = 'react' "
                     sql += "    GROUP BY KIND "
@@ -430,6 +445,23 @@ export class MenuService {
                     } else {
                         row.msgdtl = listSub
                     }
+                    row.CHKDT = listSub[0].CHKDT
+                }
+                let sql = "SELECT TYP FROM S_CHANMST_TBL WHERE CHANID = ? "
+                const listSub = await this.dataSource.query(sql, [row.CHANID])
+                if (listSub.length == 0) {
+                    row.TYP = 'WS'
+                } else {
+                    row.TYP = listSub[0].TYP
+                }
+                if (row.TYP == 'GS') { //DM은 GS, 채널은 WS(슬랙의 워크스페이스)
+                    const obj = await this.qryMembersWithPic(row.CHANID, userid, hush.cons.picCnt)
+                    row.memcnt = obj.memcnt
+                    row.memnm = obj.memnm
+                    row.memid = obj.memid
+                    row.picCnt = obj.picCnt
+                    row.picture = obj.picture
+                    row.url = obj.url //url은 로컬에서 사용
                 }
             }
             resJson.list = list
