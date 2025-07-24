@@ -101,7 +101,9 @@ let MenuService = class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { kind } = dto;
-            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER ";
+            let sql = "SELECT Z.DEPTH, Z.GR_ID, Z.GR_NM, Z.GRMST_UDT, Z.CHANID, Z.CHANNM, Z.MASTERID, Z.MASTERNM, Z.STATE, Z.CHANMST_UDT, Z.KIND, Z.NOTI, Z.BOOKMARK, Z.OTHER ";
+            sql += "     FROM ( ";
+            sql += "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER ";
             sql += "     FROM S_GRMST_TBL A ";
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID ";
             sql += "    WHERE B.USERID = '" + userid + "' ";
@@ -135,8 +137,8 @@ let MenuService = class MenuService {
                 sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') ";
                 sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y ";
             }
-            sql += "      ON X.GR_ID = Y.GR_ID ";
-            sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID ";
+            sql += "      ON X.GR_ID = Y.GR_ID) Z ";
+            sql += "   ORDER BY Z.GR_NM, Z.GR_ID, Z.DEPTH, Z.CHANNM, Z.CHANID ";
             console.log(sql);
             const list = await this.dataSource.query(sql, null);
             for (let i = 0; i < list.length; i++) {

@@ -99,7 +99,11 @@ export class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {            
             const { kind } = dto //GRMST_UDT, CHANMST_UDT는 리얼타임용이며 DTL은 필요없이 MST만 사용
-            let sql = "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
+            //아래 sql은 가끔 QueryFailedError: read ECONNRESET 발생시켰는데 맨 아래 ORDER BY을 막으면 문제없었음 (서버도 죽이는 SQL은 어찌되었던 MYSQL 이슈인 듯)
+            //해결 : 원래 MYSQL은 JOIN 등에서 반드시 ALIAS를 붙여야 하는 점이 기억나서 맨 위 2행과 함께 Z로 한번 더 감싸주니 더 이상 죽지 않음
+            let sql = "SELECT Z.DEPTH, Z.GR_ID, Z.GR_NM, Z.GRMST_UDT, Z.CHANID, Z.CHANNM, Z.MASTERID, Z.MASTERNM, Z.STATE, Z.CHANMST_UDT, Z.KIND, Z.NOTI, Z.BOOKMARK, Z.OTHER "
+            sql += "     FROM ( "
+            sql += "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = '" + userid + "' "
@@ -131,8 +135,8 @@ export class MenuService {
                 sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
                 sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y "
             }
-            sql += "      ON X.GR_ID = Y.GR_ID "
-            sql += "   ORDER BY GR_NM, GR_ID, DEPTH, CHANNM, CHANID "
+            sql += "      ON X.GR_ID = Y.GR_ID) Z "
+            sql += "   ORDER BY Z.GR_NM, Z.GR_ID, Z.DEPTH, Z.CHANNM, Z.CHANID "
             console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
