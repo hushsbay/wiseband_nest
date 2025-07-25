@@ -167,7 +167,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //LASTMSGDT를 구해야 일단 최신메시지순으로 방이 소팅 가능하게 되므로 아래 sql은 MAX(CDT)가 필요
-            const { kind, search, prevMsgMstCdt, chanid, oldestMsgDt } = dto //all,notyet
+            const { kind, search, prevMsgMstCdt, chanid, oldestMsgDt, key } = dto //all,notyet
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.STATE, Z.MASTERID, Z.CDT, Z.LASTMSGDT, Z.CHANDTL_UDT, Z.CHANMST_UDT  " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, B.STATE, B.MASTERID, A.BOOKMARK, A.NOTI, A.CDT, B.UDT CHANMST_UDT, "
@@ -187,10 +187,12 @@ export class MenuService {
             }
             sql += "              AND B.TYP = 'GS' "
             sql += "           ) Z "
-            if (!oldestMsgDt) {
-                sql += "    WHERE Z.LASTMSGDT < '" + prevMsgMstCdt + "' "
-            } else {
+            if (key) {
+                sql += "    WHERE Z.CHANID = '" + key + "' "
+            } else if (oldestMsgDt) {
                 sql += "    WHERE Z.LASTMSGDT >= '" + oldestMsgDt + "' "
+            } else {
+                sql += "    WHERE Z.LASTMSGDT < '" + prevMsgMstCdt + "' "
             }
             if (search) {
                 sql += "  AND LOWER(Z.MEMBERS) LIKE '%" + search.toLowerCase() + "%' "
@@ -267,7 +269,7 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, prevMsgMstCdt, msgid, oldestMsgDt } = dto //kind = later, stored, finished
+            const { kind, prevMsgMstCdt, msgid, oldestMsgDt, key } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
@@ -277,10 +279,12 @@ export class MenuService {
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
             } else {
-                if (!oldestMsgDt) {
-                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < '" + prevMsgMstCdt + "' "
-                } else {
+                if (key) {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.MSGID = '" + key + "' "
+                } else if (oldestMsgDt) {
                     sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT >= '" + oldestMsgDt + "' "
+                } else {
+                    sql += "WHERE D.USERID = ? AND D.KIND = ? AND A.CDT < '" + prevMsgMstCdt + "' "
                 }
             }
             sql += "    ORDER BY A.CDT DESC "
@@ -327,13 +331,13 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { kind, notyet, prevMsgMstCdt, oldestMsgDt } = dto
+            const { kind, notyet, prevMsgMstCdt, oldestMsgDt, key1, key2 } = dto
             //0. 기본
             let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
             let sqlHeaderEnd = ") Y "
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL")
             //1. vip : 방별로 구분 (group by chanid)
-            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, 'VIP_MSG' SUBKIND, 'vip' TITLE, MAX(A.UDT) DT "
+            let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, '' SUBKIND, 'vip' TITLE, MAX(A.CDT) DT "
             sqlVip += "     FROM S_MSGMST_TBL A "
             if (notyet == 'Y') {
                 sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
@@ -432,38 +436,46 @@ export class MenuService {
             }
             sql += "INNER JOIN (" + sqlBasicAcl + ") Z ON Y.CHANID = Z.CHANID "
             sql += " LEFT OUTER JOIN S_USER_TBL E ON Y.AUTHORID = E.USERID "
-            if (!oldestMsgDt) {
-                sql += "WHERE Y.DT < '" + prevMsgMstCdt + "' "      
+            if (key1 && key2) {
+                if (key2 == 'vip') {
+                    sql += "WHERE Y.CHANID = '" + key1 + "' AND Y.TITLE = '" + key2 + "' "
+                } else {
+                    sql += "WHERE Y.MSGID = '" + key1 + "' AND Y.TITLE = '" + key2 + "' "
+                }
+            } else if (oldestMsgDt) {
+                sql += "WHERE Y.DT >= '" + oldestMsgDt + "' "
             } else {
-                sql += "WHERE Y.DT >= '" + oldestMsgDt + "' "      
-            }      
+                sql += "WHERE Y.DT < '" + prevMsgMstCdt + "' "
+            }
             sql += "ORDER BY Y.DT DESC "
             if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt
+            console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? AND UDT = ? "
-                    const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID, row.DT])
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? ORDER BY CDT DESC LIMIT 1 " //AND AUTHORID = ? AND UDT = ? "
+                    const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID]) //, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
-                    }
+                    } //아래 무조건 있다고 봐야 함
                     row.MSGID = listSub[0].MSGID //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 
                     //1. MsgList로 라우팅할 때 다른 Activity는 모두 msgid 있는데 vip만 없어 선택 이상해져 가져오게 됨
                     //2. 뒤로가기 등으로 다시 돌아올 떄 msgid를 키로 찾아와야 함
                     row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 댓글 여부
                     row.CHKDT = listSub[0].CHKDT
                 } else if (row.TITLE == 'thread') {
-                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? AND CDT = ? "
-                    const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID, row.DT])
+                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? ORDER BY CDT DESC LIMIT 1 "
+                    const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID]) //, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
+                        row.CHKDT = ''
                     } else {
                         row.LASTMSG = listSub[0].BODYTEXT
-                    }
-                    row.CHKDT = listSub[0].CHKDT
+                        row.CHKDT = listSub[0].CHKDT
+                    }                    
                 } else if (row.TITLE == 'react') {
                     row.LASTMSG = '' //BODYTEXT로 커버됨
                     let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, "
@@ -475,10 +487,11 @@ export class MenuService {
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID])
                     if (listSub.length == 0) {
                         row.msgdtl = null
+                        row.CHKDT = ''
                     } else {
                         row.msgdtl = listSub
-                    }
-                    row.CHKDT = listSub[0].CHKDT
+                        row.CHKDT = listSub[0].CHKDT
+                    }                    
                 }
                 let sql = "SELECT TYP FROM S_CHANMST_TBL WHERE CHANID = ? "
                 const listSub = await this.dataSource.query(sql, [row.CHANID])
