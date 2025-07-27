@@ -75,7 +75,7 @@ export class AuthService {
         try { 
             let sql = "SELECT USERID, USERNM, ORG_CD, ORG_NM, TOP_ORG_CD, TOP_ORG_NM, CASE WHEN PWD <> '' THEN 'N' ELSE 'Y' END ISOPEN "
             sql += "     FROM S_USER_TBL "
-            sql += "    ORDER BY TOP_ORG_NM, ORG_NM, USERNM "
+            sql += "    ORDER BY CASE WHEN PWD <> '' THEN 'N' ELSE 'Y' END, TOP_ORG_NM, ORG_NM, USERNM "
             const list = await this.dataSource.query(sql, null)
             resJson.list = list
             return resJson
