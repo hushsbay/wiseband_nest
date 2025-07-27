@@ -137,7 +137,6 @@ export class MenuService {
             }
             sql += "      ON X.GR_ID = Y.GR_ID) Z "
             sql += "   ORDER BY Z.GR_NM, Z.GR_ID, Z.DEPTH, Z.CHANNM, Z.CHANID "
-            //console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 if (list[i].DEPTH == 2) list[i].mynotyetCnt = await this.qryKindCntForUser(list[i].CHANID, userid, 'notyet')
@@ -199,12 +198,10 @@ export class MenuService {
             }
             sql += "ORDER BY Z.LASTMSGDT DESC, Z.CDT DESC "
             if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt
-            //console.log(sql, userid, prevMsgMstCdt)
             const arr = [] //list가 아닌 arr가 저장 (중간에 빠지는 행이 있음)
             const list = await this.dataSource.query(sql, [userid])
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                //console.log(row.CHANID, row.STATE, row.MASTERID, userid)
                 if (row.STATE == 'M') { //DM방이 맨 처음 만들어지고 아직 메시지가 없을 때는 방을 만든 마스터에게만 보이기로 함
                     //만들 때 먼저 중복체크해서 이미 동일한 멤버들이 있는 방이 존재하면 안만들면 베스트인데 현재 멤버 한명씩 추가시마다 저장되는 로직이므로
                     //처음 추가시 없을 때는 저장하다가 뒤에 추가시 있으면 그때 없애야 하는 구조임 (아니면 최종 방만들기 버튼 별도로 있어야 함 - 사용자불편) 
@@ -247,7 +244,6 @@ export class MenuService {
             let { member } = dto
             if (!member.includes(userid)) member.push(userid) //소팅전에 추가
             member.sort((a: string, b: string) => a.localeCompare(b)) //오름차순 정렬            
-            //console.log(userid, member.length, member.join(','))
             let sql = "SELECT CHANID, CNT, MEM "
             sql += "     FROM (SELECT A.CHANID, "
             sql += "                  (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, "
@@ -347,25 +343,6 @@ export class MenuService {
             //2. mention
             //웹에디터와 같이 개발
             //3. thread : 메시지별로 구분
-            // let sqlThread = "SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_CHILD' SUBKIND, 'thread' TITLE, "
-            // sqlThread += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) DT "
-            // sqlThread += "     FROM S_MSGMST_TBL A "
-            // sqlThread += "    WHERE A.AUTHORID = '" + userid + "' "
-            // if (notyet == 'Y') {
-            //     sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL K INNER JOIN S_MSGDTL_TBL J ON K.MSGID = J.MSGID AND J.USERID = '" + userid + "' AND J.KIND = 'notyet' "
-            //     sqlThread += "           WHERE K.REPLYTO = A.MSGID ) > 0 "//내가 아직 안읽은 자식을 가진 내글(부모글)
-            // } else {
-            //     sqlThread += "      AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 " //자식을 가진 내글(부모글)
-            // }
-            // if (notyet != 'Y') { //내가 댓글 단 부모글은 무조건 읽은 것이므로 notyet != 'Y'으로 읽어야 함
-            //     sqlThread += "    UNION ALL "
-            //     sqlThread += "   SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'PARENT_TO_MY_REPLY' SUBKIND, 'thread' TITLE, MAX(B.CDT) DT "
-            //     sqlThread += "     FROM S_MSGMST_TBL A "
-            //     sqlThread += "    INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT "
-            //     sqlThread += "                  FROM S_MSGMST_TBL "
-            //     sqlThread += "                 WHERE REPLYTO <> '' AND AUTHORID = '" + userid + "') B ON A.MSGID = B.REPLYTO " //내가 댓글 단 부모글        
-            //     sqlThread += "    GROUP BY A.MSGID, A.CHANID, A.BODYTEXT, A.AUTHORID, A.AUTHORNM "
-            // }
             let sqlThread = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, "
             sqlThread += "          '' SUBKIND, 'thread' TITLE, MAX(CDT) DT "
             sqlThread += "     FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, CDT "
@@ -395,17 +372,6 @@ export class MenuService {
                 sqlReact += " FROM S_MSGMST_TBL "
                 sqlReact += "WHERE AUTHORID = 'dummy' "
             } else {
-                // sqlReact = " SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MY_MSG_WITH_OHTER_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
-                // sqlReact += "  FROM S_MSGMST_TBL A "
-                // sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
-                // sqlReact += " WHERE A.AUTHORID = '" + userid + "' "
-                // sqlReact += "   AND B.TYP = 'react' "
-                // sqlReact += " UNION ALL "
-                // sqlReact += "SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, 'MSG_WITH_MY_REACT' SUBKIND, 'react' TITLE, A.CDT DT "
-                // sqlReact += "  FROM S_MSGMST_TBL A "
-                // sqlReact += " INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
-                // sqlReact += " WHERE B.USERID = '" + userid + "' "
-                // sqlReact += "   AND B.TYP = 'react' "
                 sqlReact = " SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'react' TITLE, MAX(CDT) DT "
                 sqlReact += "  FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT "
                 sqlReact += "          FROM S_MSGMST_TBL A "
@@ -522,17 +488,6 @@ export class MenuService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //내가 만들지 않았지만 내가 관리자로 들어가 있는 그룹도 포함됨 (관리자로 지정이 안되어 있으면 편집 권한 없음)
-            //const { kind } = dto
-            // let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
-            // sql += "     FROM S_GRMST_TBL A "
-            // sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            // sql += "    WHERE B.USERID = '" + userid + "' "
-            // if (kind == 'my') { //내가 만든 그룹만 조회
-            //     sql += "  AND A.MASTERID = '" + userid + "' "
-            // } else if (kind == 'other') { //내가 만들지 않았지만 내가 관리자로 들어가 있는 그룹 (관리자로 지정이 안되어 있으면 편집 권한 없음)
-            //     sql += "  AND A.MASTERID <> '" + userid + "' "
-            // }
-            // sql += "    ORDER BY GR_NM, GR_ID "
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "

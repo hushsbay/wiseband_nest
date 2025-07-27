@@ -2,7 +2,6 @@ import { Module, Logger } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { Response } from 'express'
-
 import appConfig from 'src/app.config'
 import { UserModule } from 'src/user/user.module'
 import { AuthGuard } from 'src/auth/auth.guard'

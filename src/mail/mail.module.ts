@@ -1,4 +1,3 @@
-//import appConfig from 'src/app.config'
 import { Module } from '@nestjs/common'
 import { MailerModule } from '@nestjs-modules/mailer'
 import { ConfigModule, ConfigService } from '@nestjs/config'

@@ -76,63 +76,6 @@ export class ChanmsgService {
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
             //////////b) S_CHANDTL_TBL 
-            /* (지우지 말 것) 아래 TYPEORM으로 처리시 이미지 담기에 노력(****)이 들어가므로 간단히 그 아래 SQL로 처리함
-            const chandtl = await this.chandtlRepo.createQueryBuilder('A')
-            .select(['A.USERID', 'A.USERNM', 'A.STATE', 'A.KIND'])
-            .where("A.CHANID = :chanid ", { 
-                chanid: chanid 
-            }).orderBy('A.USERNM', 'ASC').getMany()
-            if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, 'chanmsg>qry>chandtl')
-            }
-            const userqb = this.userRepo.createQueryBuilder('A')
-            for (let item of chandtl) {
-                const user = await userqb
-                .select(['A.PICTURE'])
-                .where("A.USER_ID = :userid ", { 
-                    userid: userid 
-                }).getOne()
-                if (user) { //(사진)이미지 없으면 그냥 넘어가면 됨
-                    item.buffer = user.PICTURE //item.buffer이 entity에 없으므로 오류 발생 ****
-                }
-                if (item.USERID == userid) {
-                    data.chanmst.USERID = item.USERID
-                    data.chanmst.KIND = item.KIND
-                    data.chanmst.STATEDTL = item.STATE //STATE(공용,비밀)가 이미 S_CHANMST_TBL에 존재함 (여기는 S_CHANDTL_TBL의 STATE임=STATEDTL=매니저(M)/참여대기(W))
-                    break
-                }
-            } */
-            /* 바로 아래와 같이 개선함
-            const picFld = includeBlob ? ", B.PICTURE" : ""
-            let sql = "SELECT A.USERID, A.USERNM, A.STATE, A.KIND " + picFld
-            sql += "     FROM S_CHANDTL_TBL A "
-            sql += "    INNER JOIN S_USER_TBL B ON A.USERID = B.USERID "
-            sql += "    WHERE A.CHANID = ? "
-            sql += "      AND A.STATE IN ('', 'M') " //사용중(빈칸)/매니저(M)/참여대기(W)
-            sql += "    ORDER BY A.USERNM "
-            const chandtl = await this.dataSource.query(sql, [chanid])
-            if (chandtl.length == 0) {
-                return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, 'chanmsg>chkAcl>chandtl')
-            }
-            for (let item of chandtl) {
-                if (item.USERID == userid) {
-                    data.chanmst.USERID = item.USERID
-                    data.chanmst.KIND = item.KIND //R(읽기전용)
-                    data.chanmst.STATEDTL = item.STATE //S_CHANDTL_TBL의 STATE=STATEDTL임 : 매니저(M)/참여대기(W)
-                    break
-                }
-            }
-            if (data.chanmst.STATE == 'A') {
-                //공개(All)된 채널이므로 채널멤버가 아니어도 읽을 수 있음
-            } else { //비공개(Private)
-                if (!data.chanmst.USERID) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (비공개 채널)' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>private')
-                }
-            }
-            //if (data.chanmst.STATEDTL == 'X' || data.chanmst.STATEDTL == 'Z') { //퇴장 or 강제퇴장
-            //    return hush.setResJson(resJson, '퇴장처리된 채널입니다.' + fv, hush.Code.NOT_AUTHORIZED, null, 'chanmsg>chkAcl>out')
-            //}
-            data.chandtl = chandtl */
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
             sql += "     FROM S_CHANDTL_TBL "
             sql += "    WHERE CHANID = ? "
@@ -238,11 +181,6 @@ export class ChanmsgService {
     }
 
     async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
-        // const msgdtl = await qb
-        // .select(['B.MSGID', 'B.KIND', 'B.USERID', 'B.USERNM'])
-        // .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP = 'touser' ", {
-        //     msgid: msgid, chanid: chanid
-        // }).orderBy('B.USERNM', 'ASC').getMany() //계속 GROUP BY 관련 오류가 나오는데 원인 못밝혀 아래 방식대로 바꿈
         let sql = "SELECT USERID, USERNM "
         sql += "     FROM S_MSGDTL_TBL "
         sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' "
@@ -1468,11 +1406,6 @@ export class ChanmsgService {
             if (msgmst[0].CNT > 0) {
                 return hush.setResJson(resJson, '해당 채널(또는 DM)에서 생성된 메시지가 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
-            // sql = "SELECT COUNT(*) CNT FROM S_CHANDTL_TBL WHERE CHANID = ? "
-            // const chandtl = await this.dataSource.query(sql, [CHANID])
-            // if (chandtl[0].CNT > 0) {
-            //     return hush.setResJson(resJson, '해당 채널(또는 DM)의의 멤버를 모두 제거해 주시기 바랍니다.' + fv, hush.Code.NOT_OK, null, methodName)
-            // }
             const chanmst = rs.data.chanmst
             if (chanmst.MASTERID != userid) {
                 return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
@@ -1491,8 +1424,6 @@ export class ChanmsgService {
             sqlDel += " WHERE CHANID = ? "
             await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID])
             //S_GRMSTDEL_TBL로의 백업 종료*/
-            //sql = "DELETE FROM S_CHANMST_TBL WHERE GR_ID = ? "
-            //await this.dataSource.query(sql, [CHANID]) //더 위로 올라가면 안됨
             await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
             await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)

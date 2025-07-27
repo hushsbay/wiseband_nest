@@ -1,6 +1,5 @@
 import { Controller, Get, Logger } from '@nestjs/common'
 import { AppService } from 'src/app.service'
-//import { Unauth } from 'src/common/unauth.decorator'
 
 @Controller()
 export class AppController {

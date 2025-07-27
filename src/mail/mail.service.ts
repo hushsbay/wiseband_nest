@@ -15,10 +15,10 @@ export class MailService {
             to, //string or array
             from: this.configService.get<string>('MAILER_USER'),
             subject,
-            html: body //'<b>welcome</b>' //HTML body content
+            html: body //'<b>welcome</b>'
             //text: body,
-            //cc: [ex1@kigo.com, ex2@kigo.com] //참조
-            //attachments: attachments //첨부파일
+            //cc: [ex1@kigo.com, ex2@kigo.com]
+            //attachments: attachments
         })
         .then((result) => {
             console.log(result)
