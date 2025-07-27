@@ -307,7 +307,7 @@ let UserService = class UserService {
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL ";
             sql += "     FROM S_GRMST_TBL A ";
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID ";
-            sql += "    WHERE B.USERID = ? AND B.KIND = 'admin' ";
+            sql += "    WHERE B.USERID = ? ";
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' ";
             }

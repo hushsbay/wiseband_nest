@@ -536,7 +536,7 @@ export class MenuService {
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
             sql += "     FROM S_GRMST_TBL A "
             sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
-            sql += "    WHERE B.USERID = ? AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
+            sql += "    WHERE B.USERID = ? " //AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
             sql += "    ORDER BY A.GR_NM, A.GR_ID "
             const list = await this.dataSource.query(sql, [userid, userid])
             if (list.length == 0) {
