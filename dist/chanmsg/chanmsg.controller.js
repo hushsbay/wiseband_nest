@@ -17,11 +17,13 @@ const common_1 = require("@nestjs/common");
 const multer_1 = require("@nestjs/platform-express/multer");
 const fs_1 = require("fs");
 const mime = require("mime-types");
+const config_1 = require("@nestjs/config");
 const hush = require("../common/common");
 const chanmsg_service_1 = require("./chanmsg.service");
 let ChanmsgController = class ChanmsgController {
-    constructor(chanmsgSvc) {
+    constructor(chanmsgSvc, configService) {
         this.chanmsgSvc = chanmsgSvc;
+        this.configService = configService;
     }
     qry(dto) { return this.chanmsgSvc.qry(dto); }
     qryChanMstDtl(dto) { return this.chanmsgSvc.qryChanMstDtl(dto); }
@@ -59,7 +61,7 @@ let ChanmsgController = class ChanmsgController {
                 return;
             }
             const buf = Buffer.from(new Uint8Array(rs.data.BUFFER));
-            const filePath = hush.cons.tempdir + filename;
+            const filePath = this.configService.get('FILE_DOWN_TEMP_FOLDER') + filename;
             const writer = (0, fs_1.createWriteStream)(filePath);
             writer.write(buf);
             writer.end();
@@ -304,6 +306,6 @@ __decorate([
 ], ChanmsgController.prototype, "readBlob1", null);
 exports.ChanmsgController = ChanmsgController = __decorate([
     (0, common_1.Controller)('chanmsg'),
-    __metadata("design:paramtypes", [chanmsg_service_1.ChanmsgService])
+    __metadata("design:paramtypes", [chanmsg_service_1.ChanmsgService, config_1.ConfigService])
 ], ChanmsgController);
 //# sourceMappingURL=chanmsg.controller.js.map

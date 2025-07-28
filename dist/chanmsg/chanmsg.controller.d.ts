@@ -1,10 +1,12 @@
 import { StreamableFile } from '@nestjs/common';
 import { ReadStream } from 'fs';
 import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { ChanmsgService } from 'src/chanmsg/chanmsg.service';
 export declare class ChanmsgController {
     private readonly chanmsgSvc;
-    constructor(chanmsgSvc: ChanmsgService);
+    private configService;
+    constructor(chanmsgSvc: ChanmsgService, configService: ConfigService);
     qry(dto: Record<string, any>): Promise<any>;
     qryChanMstDtl(dto: Record<string, any>): Promise<any>;
     qryOneMsgNotYet(dto: Record<string, any>): Promise<any>;

@@ -3,13 +3,14 @@ import { FileInterceptor } from '@nestjs/platform-express/multer'
 import { createReadStream, createWriteStream, ReadStream, unlink } from 'fs'
 import { Response } from 'express'
 import * as mime from 'mime-types'
+import { ConfigService } from '@nestjs/config'
 import * as hush from 'src/common/common'
 import { ChanmsgService } from 'src/chanmsg/chanmsg.service'
 
 @Controller('chanmsg')
 export class ChanmsgController {
 
-    constructor(private readonly chanmsgSvc: ChanmsgService) {}
+    constructor(private readonly chanmsgSvc: ChanmsgService, private configService: ConfigService) {}
     
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
@@ -101,8 +102,8 @@ export class ChanmsgController {
                 hush.procDownloadFailure(res) //res.json(rs). ##1 procDownloadFailure()도 현재 제대로 안됨
                 return
             }
-            const buf = Buffer.from(new Uint8Array(rs.data.BUFFER))            
-            const filePath = hush.cons.tempdir + filename
+            const buf = Buffer.from(new Uint8Array(rs.data.BUFFER)) //FILE_DOWN_TEMP_FOLDER : 파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임          
+            const filePath = this.configService.get<string>('FILE_DOWN_TEMP_FOLDER') + filename //const filePath = hush.cons.tempdir + filename 
             const writer = createWriteStream(filePath)
             writer.write(buf)
             writer.end()

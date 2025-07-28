@@ -37,7 +37,6 @@ export declare const cons: {
     rowsCnt: number;
     rowsCntForNotyet: number;
     replyCntLimit: number;
-    tempdir: string;
     picCnt: number;
     cdtAtFirst: string;
     cdtAtLast: string;

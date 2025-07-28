@@ -63,7 +63,6 @@ exports.cons = {
     rowsCnt: 30,
     rowsCntForNotyet: 1000,
     replyCntLimit: 2,
-    tempdir: 'd:/temp/',
     picCnt: 4,
     cdtAtFirst: "1111-11-11",
     cdtAtLast: "9999-99-99",
