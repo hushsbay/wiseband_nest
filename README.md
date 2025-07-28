@@ -1,5 +1,6 @@
 # wiseband_nest
 
-- Slack Clone 개발중입니다. (nest.js)
-- 현재 70%정도의 개발 진행중입니다. (2025년 8월 완료 목표)
-- 아직 운영서버에 배포되지 않았습니다.
+- 개발 진척도 : 약 90% (2025.7.28 현재)
+- 자세한 내용은 아래 wiseband_vue 참조 요망
+
+<https://github.com/hushsbay/wiseband_vue>
