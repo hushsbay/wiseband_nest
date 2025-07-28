@@ -136,19 +136,19 @@ export function setMsgBracket(msg: string, code?: string, req?: Request, smallTi
     }
 }
 
-export function procDownloadFailure(res: Response) { //임시폴더에 다운로드실패.txt를 미리 두고 다운로드시킴
-    //오류처리안하면 요청한 파일명이 그대로 내려가는데 그걸 열어봐야 깨진 줄 알게되므로 사용자 불편사항임
-    //그걸, 일단 response로 전환하기 쉽지 않아 그나마 일단 실패를 알리는 파일이라도 다운로드하는 방법을 택한 것임
-    //그런데, 결과적으로 잘안됨 (axios 호출결과에서도 실패인지 구분이 안되고 있어서 현재 방법 못찾고 있음)
-    const filename = '다운로드실패.txt'
-    const filePath = cons.tempdir + filename
-    res.setHeader('Content-Type', 'text/plain')
-    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
-    res.download(filePath, filename, (err) => {
-        if (err) writeLogError(err.toString())
-        //이 파일은 지우면 안됨 (안내용 파일)
-    })
-}
+// export function procDownloadFailure(res: Response) { //임시폴더에 다운로드실패.txt를 미리 두고 다운로드시킴
+//     //오류처리안하면 요청한 파일명이 그대로 내려가는데 그걸 열어봐야 깨진 줄 알게되므로 사용자 불편사항임
+//     //그걸, 일단 response로 전환하기 쉽지 않아 그나마 일단 실패를 알리는 파일이라도 다운로드하는 방법을 택한 것임
+//     //그런데, 결과적으로 잘안됨 (axios 호출결과에서도 실패인지 구분이 안되고 있어서 현재 방법 못찾고 있음)
+//     const filename = '다운로드실패.txt'
+//     //const filePath = cons.tempdir + filename
+//     res.setHeader('Content-Type', 'text/plain')
+//     res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+//     res.download(filePath, filename, (err) => {
+//         if (err) writeLogError(err.toString())
+//         //이 파일은 지우면 안됨 (안내용 파일)
+//     })
+// }
 
 //tanstack query 테스트용임 (code.service.ts 참조)
 export function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void {

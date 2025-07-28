@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { ResJson } from 'src/common/resjson';
 export declare enum Code {
@@ -47,7 +47,6 @@ export declare function throwCatchedEx(ex: any, req?: Request, fv?: string): voi
 export declare function setResJson(json: ResJson, msg: string, code?: string, req?: Request, smallTitle?: string): ResJson;
 export declare function writeLogError(msg: string, code?: string, req?: Request, smallTitle?: string): void;
 export declare function setMsgBracket(msg: string, code?: string, req?: Request, smallTitle?: string): string[];
-export declare function procDownloadFailure(res: Response): void;
 export declare function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void;
 export declare function getMysqlCurdt(dataSource: DataSource): Promise<any>;
 export declare function getMysqlUnid(dataSource: DataSource): Promise<any>;

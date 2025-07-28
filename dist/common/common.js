@@ -6,7 +6,6 @@ exports.throwCatchedEx = throwCatchedEx;
 exports.setResJson = setResJson;
 exports.writeLogError = writeLogError;
 exports.setMsgBracket = setMsgBracket;
-exports.procDownloadFailure = procDownloadFailure;
 exports.setPageInfo = setPageInfo;
 exports.getMysqlCurdt = getMysqlCurdt;
 exports.getMysqlUnid = getMysqlUnid;
@@ -132,16 +131,6 @@ function setMsgBracket(msg, code, req, smallTitle) {
     else {
         return [msgStr, null];
     }
-}
-function procDownloadFailure(res) {
-    const filename = '다운로드실패.txt';
-    const filePath = exports.cons.tempdir + filename;
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
-    res.download(filePath, filename, (err) => {
-        if (err)
-            writeLogError(err.toString());
-    });
 }
 function setPageInfo(perPage, curPage, totalCnt, resJson) {
     resJson.offsetPos = (curPage - 1) * perPage;

@@ -57,7 +57,6 @@ let ChanmsgController = class ChanmsgController {
             const filename = dto.name;
             const rs = await this.chanmsgSvc.readBlob(dto);
             if (rs.code != hush.Code.OK) {
-                hush.procDownloadFailure(res);
                 return;
             }
             const buf = Buffer.from(new Uint8Array(rs.data.BUFFER));
@@ -70,7 +69,6 @@ let ChanmsgController = class ChanmsgController {
                 res.setHeader('Content-Disposition', 'attachment; filename="' + encodeURIComponent(filename) + '"');
                 res.download(filePath, filename, (err) => {
                     if (err) {
-                        hush.procDownloadFailure(res);
                         return;
                     }
                     (0, fs_1.unlink)(filePath, () => { });

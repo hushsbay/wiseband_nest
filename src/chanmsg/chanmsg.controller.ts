@@ -99,7 +99,7 @@ export class ChanmsgController {
             const filename = dto.name
             const rs = await this.chanmsgSvc.readBlob(dto) //as ResJson //Promise
             if (rs.code != hush.Code.OK) { //비즈니스로직 실패시 오류처리에 대한 부분 구현이 현재 어려움 (procDownloadFailure in common.ts 참조)
-                hush.procDownloadFailure(res) //res.json(rs). ##1 procDownloadFailure()도 현재 제대로 안됨
+                //hush.procDownloadFailure(res) //res.json(rs). ##1 procDownloadFailure()도 현재 제대로 안됨
                 return
             }
             const buf = Buffer.from(new Uint8Array(rs.data.BUFFER)) //FILE_DOWN_TEMP_FOLDER : 파일업로드시 파일시스템에 넣지 않고 db에 넣는 경우, 나중에 다운로드시 파일로 내릴 때 필요한 폴더임          
@@ -112,7 +112,7 @@ export class ChanmsgController {
                 res.setHeader('Content-Disposition', 'attachment; filename="' + encodeURIComponent(filename) + '"')
                 res.download(filePath, filename, (err) => {
                     if (err) { //##1 잘안되고 있음
-                        hush.procDownloadFailure(res) //hush.throwHttpEx(err.toString())
+                        //hush.procDownloadFailure(res) //hush.throwHttpEx(err.toString())
                         return 
                     }
                     unlink(filePath, () => {}) //오류든 아니든 temp file은 삭제
