@@ -63,8 +63,6 @@ exports.cons = {
     rowsCnt: 30,
     rowsCntForNotyet: 1000,
     replyCntLimit: 2,
-    unidMySqlStr: "",
-    curdtMySqlStr: "",
     tempdir: 'd:/temp/',
     picCnt: 4,
     cdtAtFirst: "1111-11-11",

@@ -37,8 +37,6 @@ export declare const cons: {
     rowsCnt: number;
     rowsCntForNotyet: number;
     replyCntLimit: number;
-    unidMySqlStr: string;
-    curdtMySqlStr: string;
     tempdir: string;
     picCnt: number;
     cdtAtFirst: string;
