@@ -1,6 +1,7 @@
 import { ConfigModule } from '@nestjs/config'
 import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_FILTER } from '@nestjs/core'
+import { JwtModule } from '@nestjs/jwt'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { DataSource } from 'typeorm'
 import { addTransactionalDataSource } from 'typeorm-transactional'
@@ -24,7 +25,20 @@ import { EventsGateway } from 'src/socket/events.gateway'
         ConfigModule.forRoot({ //envFilePath : `.env.${process.env.NODE_ENV}`, //.env 하나로 local/ops 모두 커버
             load : [appConfig], //dbConfig 등 추가 가능하나 일단 하나만으로도 충분
             isGlobal : true
-        }),        
+        }),   
+        
+        JwtModule.registerAsync({ //JwtModule.register()는 process.env 읽어오기 전에 실행될 수도 있어 Async로 처리
+            useFactory() {  
+                const config = appConfig()
+                return {
+                    global: true,
+                    secret: config.jwt.key, //sendjay에 맞춘 것임
+                    signOptions: { algorithm: 'HS256', expiresIn: '4h' } //HS512도 있으나 기존 환경(sendjay)에 맞추는 목적. expiryIn 예) "59s", "1h", "365 days"
+                    //토큰 만료 및 갱신은 59s로 설정해 테스트 완료함 (갱신시 브라우저F12에서 토큰 스트링이 육안으로 (리프레시해도) 동일하게 보이는데 달라져야 하지 않을까 싶음 - 어쨋든 테스트 완료)
+                }
+            }            
+        }),
+
         TypeOrmModule.forRootAsync({
             useFactory() {
                 const config = appConfig()
