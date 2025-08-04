@@ -16,7 +16,8 @@ import { AuthModule } from 'src/auth/auth.module'
 import { MenuModule } from 'src/menu/menu.module'
 import { UserModule } from 'src/user/user.module'
 import { ChanmsgModule } from 'src/chanmsg/chanmsg.module'
-import { MailModule } from './mail/mail.module';
+import { MailModule } from 'src/mail/mail.module'
+import { EventsGateway } from 'src/socket/events.gateway'
 
 @Module({
     imports: [
@@ -54,7 +55,8 @@ import { MailModule } from './mail/mail.module';
             provide: APP_FILTER,
             useClass: HttpExceptionFilter
         },
-        AppService, 
+        AppService,
+        EventsGateway,
         Logger
     ],
 })

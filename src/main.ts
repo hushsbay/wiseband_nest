@@ -3,6 +3,7 @@ import { initializeTransactionalContext } from 'typeorm-transactional'
 import * as cookieParser from 'cookie-parser'
 import { AppModule } from 'src/app.module'
 import { winstonLogger } from 'src/common/winston.util'
+import { RedisIoAdapter } from 'src/socket/redis-io.adapter' //import { RedisIoAdapter } from 'src/socket/redis-io.adapter1' //##1
 
 async function bootstrap() {
 
@@ -16,12 +17,19 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
         logger: winstonLogger,      
         bufferLogs: true // 부트스트래핑 과정까지 nest-winston 로거 사용
-    }) 
+    })
+
     //app.useGlobalFilters(new HttpExceptionFilter()); //대신 app.module.ts에 적용
     //app.setGlobalPrefix('api') //@controller(api/auth/login) => @controller(auth/login)로 사용 가능 (다른 nestjs 서버를 같은 서버에 놓을 때 api말고 다른 것으로 하면 될 듯)
     app.enableCors({ origin: corsList, credentials: true }) //credentials 없으면 CORS Error 발생. vue의 main.js axios withCredential도 필요 (쿠키 공유) 
-    app.use(cookieParser())    
+    app.use(cookieParser())
+
+    const redisIoAdapter = new RedisIoAdapter(app)
+    await redisIoAdapter.connectToRedis()
+    app.useWebSocketAdapter(redisIoAdapter) //app.useWebSocketAdapter(new RedisIoAdapter(app)) //##1
+
     await app.listen(process.env.NODE_PORT)
+
 }
 
 bootstrap()
