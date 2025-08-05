@@ -25,3 +25,13 @@ export class RedisIoAdapter extends IoAdapter {
     }
 
 }
+
+//how to add socket. id into redis adapter on nest.js => googling + https://socket.io/docs/v4/redis-adapter/
+//How socket.id is handled:
+//When a client connects, socket.io assigns a unique socket.id. When the Redis adapter is in use, this socket.id is used internally by the adapter to:
+//Manage Rooms and Broadcasting:
+//When you join a room or emit to a specific socket.id, the Redis adapter leverages Redis's Pub/Sub mechanism to broadcast messages to the correct instances and clients across your cluster.
+//Track Sockets across Instances:
+//The adapter maintains information about which socket.id is connected to which server instance, allowing for seamless communication even when clients are connected to different nodes in a horizontally scaled environment.
+//You do not explicitly "add" socket.id to the Redis adapter; rather, the adapter utilizes the socket.id as part of its internal mechanism for distributed WebSocket communication. 
+//You interact with socket.id through the standard socket.io API (e.g., socket.id, io.to(socketId).emit(...)).

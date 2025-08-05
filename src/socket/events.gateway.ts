@@ -1,6 +1,6 @@
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
-import { MessageBody, OnGatewayConnection, OnGatewayInit, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, } from '@nestjs/websockets'
+import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, ConnectedSocket, } from '@nestjs/websockets' //OnGatewayInit
 import { Server, Socket } from 'socket.io'
 import { WsException } from '@nestjs/websockets'
 import { Logger, UseFilters } from '@nestjs/common'
@@ -19,25 +19,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     private readonly logger = new Logger('EventsGateway')
 
-    handleConnection(socket: Socket, ...args: any[]) {
+    handleConnection(socket: Socket, ...args: any[]) { //OnGatewayConnection에서 필요한 메소드
         console.log(`$$$$$$$Client connected: ${socket.id}`)
         socket.emit('welcome', `Hello, client ${socket.id}!`)
-        console.log(`Client connected: ${socket.id}`);
-        const token = socket.handshake.query.token as string
-        try {
-            const secret = this.configService.get<string>('JWT_KEY')
-            const decoded = this.jwtService.verify(token, { secret })
-            socket['user'] = decoded
-            console.log(JSON.stringify(decoded), "++++++++++")
-        } catch (err) {
-            console.log('Authentication failed: Invalid token.')
-            //next(new Error('Authentication failed: Invalid token.')) //reject connection
-            //throw new WsException('Invalid token') //서버 죽음. error handling with next() on socket.io nest.js on googling
-            socket.emit('error', 'error@@!!')
-        }
     }
 
-    /*@UseFilters(new WsExceptionFilter())
+    //@UseFilters(new WsExceptionFilter())
     afterInit(server: Server) {
         this.logger.log('WebSocket Gateway initialized!')
         // server.use((socket: Socket, next) => {
@@ -65,16 +52,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             //     //throw new WsException('Invalid token') //서버 죽음. error handling with next() on socket.io nest.js on googling
             //     //socket.emit('error', 'eeeeeeeeeeeeerrrrrrrrrr')
             // }
-        //     socket.on('error', (err) => {
-        //         console.error('Socket error:', err.message);
-        //         // Example: Disconnect if unauthorized
-        //         if (err.message === 'Unauthorized') {
-        //             socket.disconnect();
-        //         }
-        //     })
-        // })
-        
-        server.on('connection', (socket) => {
+            // socket.on('error', (err) => {
+            //     console.error('Socket error:', err.message);
+            //     // Example: Disconnect if unauthorized
+            //     if (err.message === 'Unauthorized') {
+            //         socket.disconnect();
+            //     }
+            // })
+        // })        
+        server.on('connection', (socket) => { //afterInit server.on socket.io on nest.js = googling
             console.log(`Client connected: ${socket.id}`);
             const token = socket.handshake.query.token as string
             try {
@@ -82,6 +68,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 const decoded = this.jwtService.verify(token, { secret })
                 socket['user'] = decoded
                 console.log(JSON.stringify(decoded), "++++++++++")
+                //redis setting
+
+                socket.on('error', (err) => {
+                    console.error('Socket error:', err.message);
+                    // Example: Disconnect if unauthorized
+                    if (err.message === 'Unauthorized') {
+                        socket.disconnect();
+                    }
+                })
             } catch (err) {
                 console.log('Authentication failed: Invalid token.')
                 //next(new Error('Authentication failed: Invalid token.')) //reject connection
@@ -89,12 +84,104 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 socket.emit('error', 'eeeeeeeeeeeeerrrrrrrrrr')
             }
         })
-    }*/
+    }
 
     @SubscribeMessage('ClientToServer')
-    async handleMessage(@MessageBody() data) {
+    async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) {
         console.log(JSON.stringify(data), "############")
         this.server.emit('ServerToClient', data+"123456")
+        //const chatUserId = Number(socket.handshake.query.id);
+        //const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
+        //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
+    }
+
+    @SubscribeMessage('create-room')
+    async handleCreateRoom(
+        @ConnectedSocket() socket: Socket, 
+        @MessageBody() roomName: string,
+    ) {
+        const chatUserId = Number(socket.handshake.query.id);
+        const invitedUserId = Number(socket.handshake.query.inviteId)
+        
+        
+        try {
+        
+        const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
+        const { nickName: invitedUserNickname } = await this.user.findUserByIdOrWhere(invitedUserId);  
+        
+        const {roomInfo} = await this.socketRepository.detailRoomInfo({accountId: chatUserId, invitedUserId: invitedUserId})
+        
+        if (roomInfo) {
+            throw new HttpException(exceptionMessagesSocket.THIS_ROOM_ALREADY_EXISTS, 400)
+        }
+
+        await this.socketRepository.createRoomWithUsers({
+            roomName,
+            accountId: chatUserId,
+            invitedUserId
+        })
+        
+        socket.join(roomName)
+        this.server.emit('createRoom', `${nickName}님이 ${invitedUserNickname}을 초대하였습니다`);
+        this.logger.debug(`${nickName} create ${roomName} room`);
+        } catch(err){
+        throw new HttpException(err.message, 400)
+        }
+    }
+
+    @SubscribeMessage('join-room')
+    async handleJoinRoom(
+        @ConnectedSocket() socket: Socket,
+        @MessageBody() roomName: string,
+    ) {
+        const chatUserId = Number(socket.handshake.query.id);
+
+        try{
+        const exRoom = await this.socketRepository.chatRoomWithAccount({
+            roomName,
+            accountId: chatUserId
+        })
+    
+        if(!exRoom){
+            throw new HttpException(exceptionMessagesSocket.THIS_ROOM_DOES_NOT_EXISTS, 400)
+        }
+        
+        }catch(err){
+        throw new HttpException(err.message, 400)
+        }
+        socket.join(roomName);
+        this.server.to(roomName).emit('joinMessage', `$${roomName}에 입장햇습니다`);
+    }
+
+    @SubscribeMessage('leave-room')
+    async leaveRoom(
+        roomName: string,
+        @ConnectedSocket() socket: Socket,
+        ) {
+        try{
+        const chatUserId = Number(socket.handshake.query.id);
+        
+        const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
+        const { roomInfo } = await this.socketRepository.chatRoomWithAccount({
+            roomName,
+            accountId: chatUserId
+        })
+
+        if(!roomInfo){
+            throw new HttpException(exceptionMessagesSocket.THIS_ROOM_DOES_NOT_EXISTS, 400)
+        }
+
+        socket.leave(roomName)
+
+        this.socketRepository.disconnectSocketWithRoom({
+            roomId: roomInfo.id,
+            accountId: chatUserId
+        })
+        
+        this.server.to(roomName).emit('leaveRoomMessage', `${nickName}님이 ${roomName}에서 퇴장하셨습니다`)
+        }catch(err){
+        throw new HttpException(err.message, 400)
+        }
     }
 
     handleDisconnect(socket: Socket) {
