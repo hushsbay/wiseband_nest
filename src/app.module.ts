@@ -19,6 +19,7 @@ import { UserModule } from 'src/user/user.module'
 import { ChanmsgModule } from 'src/chanmsg/chanmsg.module'
 import { MailModule } from 'src/mail/mail.module'
 import { EventsGateway } from 'src/socket/events.gateway'
+import { WsExceptionFilter } from 'src/common/ws-exception.filter'
 
 @Module({
     imports: [
@@ -68,6 +69,10 @@ import { EventsGateway } from 'src/socket/events.gateway'
         {
             provide: APP_FILTER,
             useClass: HttpExceptionFilter
+        },
+        {
+            provide: APP_FILTER,
+            useClass: WsExceptionFilter
         },
         AppService,
         EventsGateway,
