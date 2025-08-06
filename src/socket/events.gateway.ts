@@ -1,10 +1,9 @@
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
-import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, ConnectedSocket, } from '@nestjs/websockets' //OnGatewayInit
+import { DataSource } from 'typeorm'
+import { Logger } from '@nestjs/common'
+import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, ConnectedSocket, } from '@nestjs/websockets' //OnGatewayConnection, OnGatewayInit
 import { Server, Socket } from 'socket.io'
-import { WsException } from '@nestjs/websockets'
-import { Logger, UseFilters } from '@nestjs/common'
-import { WsExceptionFilter } from 'src/common/ws-exception.filter'
 import * as hush from 'src/common/common'
 
 @WebSocketGateway({ 
@@ -15,81 +14,51 @@ import * as hush from 'src/common/common'
     pingTimeout: 5000, 
     pingInterval: 25000
 })
-export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
 
     constructor(
+        private dataSource : DataSource,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
     ) {}
 
+    private readonly logger = new Logger('EventsGateway')
+
     @WebSocketServer()
     server: Server
 
-    private readonly logger = new Logger('EventsGateway')
+    //handleConnection(socket: Socket, ...args: any[]) { socket.emit('welcome', `Hello, client ${socket.id}!`) } //OnGatewayConnection에서 필요한 메소드
 
-    handleConnection(socket: Socket, ...args: any[]) { //OnGatewayConnection에서 필요한 메소드
-        console.log(`$$$$$$$Client connected: ${socket.id}`)
-        socket.emit('welcome', `Hello, client ${socket.id}!`)
-    }
-
-    //@UseFilters(new WsExceptionFilter()) //작동안됨
-    afterInit(server: Server) {
-        this.logger.log('WebSocket Gateway initialized!')
-        // server.use((socket: Socket, next) => {
-        //     //console.log(JSON.stringify(socket.handshake.query.token), "^^^")
-        //     // const authHeader = socket.handshake.headers.authorization
-        //     // if (!authHeader) {
-        //     //     console.log('Authentication failed: No token provided.')
-        //     //     return next(new Error('Authentication failed: No token provided.'))
-        //     // }
-        //     // const [type, token] = authHeader.split(' ')
-        //     // if (type !== 'Bearer' || !token) {
-        //     //     console.log('Authentication failed: Invalid token format.')
-        //     //     return next(new Error('Authentication failed: Invalid token format.'))
-        //     // }
-            // const token = socket.handshake.query.token as string
-            // try {
-            //     const secret = this.configService.get<string>('JWT_KEY')
-            //     const decoded = this.jwtService.verify(token, { secret })
-            //     socket['user'] = decoded
-            //     console.log(JSON.stringify(decoded), "++++++++++")
-            //     next()
-            // } catch (err) {
-            //     console.log('Authentication failed: Invalid token.')
-            //     //next(new Error('Authentication failed: Invalid token.')) //reject connection
-            //     //throw new WsException('Invalid token') //서버 죽음. error handling with next() on socket.io nest.js on googling
-            //     //socket.emit('error', 'eeeeeeeeeeeeerrrrrrrrrr')
-            // }
-            // socket.on('error', (err) => {
-            //     console.error('Socket error:', err.message);
-            //     // Example: Disconnect if unauthorized
-            //     if (err.message === 'Unauthorized') {
-            //         socket.disconnect();
-            //     }
-            // })
-        // })        
-        server.on('connection', (socket) => { //afterInit server.on socket.io on nest.js = googling
-            console.log(`Client connected: ${socket.id}`);
-            const token = socket.handshake.query.token as string
+    afterInit(server: Server) { //this.logger.log('WebSocket Gateway initialized')
+        //erver.use((socket: Socket, next) 사용시 오류 발생하면 next(new Error('Authentication failed: Invalid token.')) 방식으로 한다는데 어디로 전달되는지 파악이 안됨
+        //throw new WsException('Invalid token')로 처리시 서버 죽음 : error handling with next() on socket.io nest.js로 구글링하기
+        server.on('connection', async (socket) => { //console.log(`Client connected: ${socket.id}`)
+            let userid = ''
             try {
+                const token = socket.handshake.query.token as string
                 const secret = this.configService.get<string>('JWT_KEY')
                 const decoded = this.jwtService.verify(token, { secret })
-                socket['user'] = decoded
-                console.log(JSON.stringify(decoded), "++++++++++")
-                //redis setting
-
+                socket['user'] = decoded //console.log(JSON.stringify(decoded), "++++++++++")
+                userid = decoded.userid
+                let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL", true) //내가 권한을 가진 채널과 DM에 대해 room join 처리 : 내가 포함안된 공개채널은 제외
+                const list = await this.dataSource.query(sqlBasicAcl, null)
+                const sockets = await server.fetchSockets() //모든 소켓에서 
+                for (const socket of sockets) { //console.log(socket.id, socket.handshake, socket.rooms, socket.data, JSON.stringify(socket['user']))
+                    if (socket['user'] && socket['user'].userid == userid) { //사용자:소켓 = 1:N
+                        for (let room of list) { //console.log(room.CHANID, '===chanchan', userid)
+                            socket.join(room.CHANID)
+                        }
+                    }
+                }
                 socket.on('error', (err) => {
-                    console.error('Socket error:', err.message);
-                    // Example: Disconnect if unauthorized
-                    if (err.message === 'Unauthorized') {
-                        socket.disconnect();
+                    console.error(userid, socket, 'Socket error: ', err.message)
+                    if (err.message === 'Unauthorized') { //테스트 코딩
+                        socket.disconnect()
                     }
                 })
             } catch (err) {
-                console.log('Authentication failed: Invalid token.')
-                //next(new Error('Authentication failed: Invalid token.')) //reject connection
-                //throw new WsException('Invalid token') //서버 죽음. error handling with next() on socket.io nest.js on googling
-                socket.emit('error', 'eeeeeeeeeeeeerrrrrrrrrr')
+                console.log(userid, socket, err.toString())
+                socket.emit('error', userid + '/' + socket + '/' + err.toString())
             }
         })
     }
@@ -102,86 +71,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         } else {
             this.server.emit('ServerToClient', data+"123456")
         }
-        //const chatUserId = Number(socket.handshake.query.id);
-        //const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
         //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
     }
 
-    // @SubscribeMessage('create-room')
-    // async handleCreateRoom(
-    //     @ConnectedSocket() socket: Socket, 
-    //     @MessageBody() roomName: string,
-    // ) {
-    //     const chatUserId = Number(socket.handshake.query.id);
-    //     const invitedUserId = Number(socket.handshake.query.inviteId)
-        
-        
-    //     try {
-        
-    //     const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
-    //     const { nickName: invitedUserNickname } = await this.user.findUserByIdOrWhere(invitedUserId);  
-        
-    //     const {roomInfo} = await this.socketRepository.detailRoomInfo({accountId: chatUserId, invitedUserId: invitedUserId})
-        
-    //     if (roomInfo) {
-    //         throw new HttpException(exceptionMessagesSocket.THIS_ROOM_ALREADY_EXISTS, 400)
-    //     }
-
-    //     await this.socketRepository.createRoomWithUsers({
-    //         roomName,
-    //         accountId: chatUserId,
-    //         invitedUserId
-    //     })
-        
-    //     socket.join(roomName)
-    //     this.server.emit('createRoom', `${nickName}님이 ${invitedUserNickname}을 초대하였습니다`);
-    //     this.logger.debug(`${nickName} create ${roomName} room`);
-    //     } catch(err){
-    //     throw new HttpException(err.message, 400)
-    //     }
-    // }
-
-    @SubscribeMessage('join-room')
+    @SubscribeMessage('joinRoom')
     async handleJoinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
-        // const chatUserId = Number(socket.handshake.query.id);
-        // try{
-        //     const exRoom = await this.socketRepository.chatRoomWithAccount({
-        //         roomName,
-        //         accountId: chatUserId
-        //     })
-        
-        //     if(!exRoom){
-        //         throw new HttpException(exceptionMessagesSocket.THIS_ROOM_DOES_NOT_EXISTS, 400)
-        //     }
-        // }catch(err){
-        //     throw new HttpException(err.message, 400)
-        // }
         await socket.join(roomId)
-        console.log('joinRoom~~~~' + roomId)
-        this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
+        //this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
     }
 
-    @SubscribeMessage('leave-room')
+    @SubscribeMessage('leaveRoom')
     async leaveRoom(roomId: string, @ConnectedSocket() socket: Socket) {
-        try {
-            // const chatUserId = Number(socket.handshake.query.id);            
-            // const { nickName } = await this.user.findUserByIdOrWhere(chatUserId);
-            // const { roomInfo } = await this.socketRepository.chatRoomWithAccount({
-            //     roomName,
-            //     accountId: chatUserId
-            // })
-            // if(!roomInfo){
-            //     throw new HttpException(exceptionMessagesSocket.THIS_ROOM_DOES_NOT_EXISTS, 400)
-            // }
-            await socket.leave(roomId)
-            // this.socketRepository.disconnectSocketWithRoom({
-            //     roomId: roomInfo.id,
-            //     accountId: chatUserId
-            // })        
-            this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
-        }catch(err){
-            //throw new HttpException(err.message, 400)
-        }
+        await socket.leave(roomId)
+        //this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
     }
 
     handleDisconnect(socket: Socket) {
