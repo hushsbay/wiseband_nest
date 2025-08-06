@@ -22,7 +22,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         private readonly configService: ConfigService,
     ) {}
 
-    private readonly logger = new Logger('EventsGateway')
+    private readonly logger = new Logger('EventsGateway')                                        
 
     @WebSocketServer()
     server: Server
@@ -35,6 +35,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         server.on('connection', async (socket) => { //console.log(`Client connected: ${socket.id}`)
             let userid = ''
             try {
+                console.log("server connection ############")
                 const token = socket.handshake.query.token as string
                 const secret = this.configService.get<string>('JWT_KEY')
                 const decoded = this.jwtService.verify(token, { secret })
@@ -72,7 +73,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
 
     @SubscribeMessage('sendMsg')
     async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
-        console.log(JSON.stringify(data), "############")
+        console.log(JSON.stringify(data), "############sendMsg")
         this.server.to(data.roomid).emit('sendMsg', data)
     }
 
@@ -100,7 +101,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
     }
 
     handleDisconnect(socket: Socket) {
-        console.log(`Client disconnected: ${socket.id}`)
+        console.log(`@@@@@@@@@@@@@@@@@@@@Client disconnected: ${socket.id}`)
     }
 
 }
