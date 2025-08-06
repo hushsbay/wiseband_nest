@@ -42,14 +42,21 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                 userid = decoded.userid
                 let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL", true) //내가 권한을 가진 채널과 DM에 대해 room join 처리 : 내가 포함안된 공개채널은 제외
                 const list = await this.dataSource.query(sqlBasicAcl, null)
-                const sockets = await server.fetchSockets() //모든 소켓에서 
+                const rooms = [] //1안 처리
+                for (let room of list) rooms.push(room.CHANID)                
+                const sock = server.in(socket.id)
+                const sockets = await server.fetchSockets() //모든 소켓
                 for (const socket of sockets) { //console.log(socket.id, socket.handshake, socket.rooms, socket.data, JSON.stringify(socket['user']))
                     if (socket['user'] && socket['user'].userid == userid) { //사용자:소켓 = 1:N
-                        for (let room of list) { //console.log(room.CHANID, '===chanchan', userid)
-                            socket.join(room.CHANID)
-                        }
+                        sock.socketsJoin(rooms)
                     }
                 }
+                // const sockets = await server.fetchSockets() //2안 처리
+                // for (const socket of sockets) {
+                //     if (socket['user'] && socket['user'].userid == userid) {
+                //         for (let room of list) socket.join(room.CHANID)
+                //     }
+                // }
                 socket.on('error', (err) => {
                     console.error(userid, socket, 'Socket error: ', err.message)
                     if (err.message === 'Unauthorized') { //테스트 코딩
@@ -63,8 +70,14 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         })
     }
 
-    @SubscribeMessage('ClientToServer')
-    async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) {
+    @SubscribeMessage('sendMsg')
+    async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
+        console.log(JSON.stringify(data), "############")
+        this.server.to(data.roomid).emit('sendMsg', data)
+    }
+
+    @SubscribeMessage('ClientToServer') //test
+    async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) {
         console.log(JSON.stringify(data), "############")
         if (data == 'room') {
             this.server.to('20250806064600712609004245').emit('ServerToClient', `room join and talk test`);
@@ -74,13 +87,13 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
     }
 
-    @SubscribeMessage('joinRoom')
+    @SubscribeMessage('joinRoom') //test
     async handleJoinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
         await socket.join(roomId)
         //this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
     }
 
-    @SubscribeMessage('leaveRoom')
+    @SubscribeMessage('leaveRoom') //test
     async leaveRoom(roomId: string, @ConnectedSocket() socket: Socket) {
         await socket.leave(roomId)
         //this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
