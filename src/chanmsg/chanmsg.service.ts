@@ -1014,6 +1014,7 @@ export class ChanmsgService {
             const { msgid, chanid } = dto
             const oldKind = 'notyet'
             const newKind = 'read'
+            console.log(oldKind, newKind, msgid)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
@@ -1023,16 +1024,16 @@ export class ChanmsgService {
             if (ret[0].CNT > 0) { //read가 이미 있으면 굳이 다시 처리할 필요없음
                 console.log(msgid, chanid, userid, newKind, '000')
             } else {
-                console.log(msgid, chanid, userid, newKind, '111')
+                console.log(msgid, chanid, userid, newKind, '111111')
                 let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
                 if (msgdtl) {
-                    console.log(msgid, chanid, userid, newKind, '222')
+                    console.log(msgid, chanid, userid, newKind, '222222')
                     await qbMsgDtl.update()
                     .set({ KIND: newKind, UDT: curdtObj.DT })
                     .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                     }).execute()
-                    console.log(msgid, chanid, userid, newKind, '333')
+                    console.log(msgid, chanid, userid, newKind, '333333')
                     //아래는 MsgList.vue에서의 newParentAdded/newChildAdded배열에 들어 있는 msgid 항목을 제거하기 위해 로깅하는 것임 (CUD=D가 필요함)
                     //여기서는 기본창이든 새창이든 notyet->read처리된 것이 msgid가 있어야 제거처리가 가능한데 로깅테이블에서 읽어올 때는
                     //부하 고려해서 group by로 읽어와 msgid가 없음. 그래서 notyet->read인 경우만 여기서 로깅추가해 처리하고자 함 
@@ -1053,8 +1054,13 @@ export class ChanmsgService {
                     console.log(msgid, chanid, userid, newKind, '555')
                 }
             }
-            const msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid)
-            resJson.data.msgdtl = msgdtl
+            //읽음 처리시 브라우조로부터 거의 동일한 시각에 2회 동시처리가 일어나는데 (물론 근본 원인은 브라우저에서 2회 호출이 문제지만)
+            //어쨋든 아래 console.log(JSON.stringify(msgdtl), "0000000000") 찍어보면 두번째 데이터가 CNT가 더 적어져야 하는데 더 많음
+            //이건 트랜잭션상 아직 commit하지 않은 상태가 반영된 것이 아닌 가 하는 의심이 드는데 해결책을 구하지 못하고 있어 
+            //일단, 브라우저로 돌려 주는 아래 msgdtl을 제거하고 브라우저에서도 코딩을 항상 새로 서버호출해 데이터를 다시 가져오는 것으로 함
+            //const msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid)
+            //console.log(JSON.stringify(msgdtl), "0000000000")
+            //resJson.data.msgdtl = msgdtl
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
