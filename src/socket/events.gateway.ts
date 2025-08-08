@@ -34,13 +34,13 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         //throw new WsException('Invalid token')로 처리시 서버 죽음 : error handling with next() on socket.io nest.js로 구글링하기
         server.on('connection', async (socket) => { //console.log(`Client connected: ${socket.id}`)
             let userid = ''
-            try {
-                console.log("server connection ############")
+            try {                
                 const token = socket.handshake.query.token as string
                 const secret = this.configService.get<string>('JWT_KEY')
                 const decoded = this.jwtService.verify(token, { secret })
                 socket['user'] = decoded //console.log(JSON.stringify(decoded), "++++++++++")
                 userid = decoded.userid
+                console.log("server connection:", socket.id, userid)
                 let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL", true) //내가 권한을 가진 채널과 DM에 대해 room join 처리 : 내가 포함안된 공개채널은 제외
                 const list = await this.dataSource.query(sqlBasicAcl, null)
                 const rooms = [] //1안 처리
@@ -71,37 +71,43 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         })
     }
 
-    @SubscribeMessage('sendMsg')
+    @SubscribeMessage('room')
     async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
-        console.log(JSON.stringify(data), "############sendMsg")
-        this.server.to(data.roomid).emit('sendMsg', data)
+        console.log(JSON.stringify(data), '##room')
+        this.server.to(data.roomid).emit('room', data)
     }
 
-    @SubscribeMessage('ClientToServer') //test
-    async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) {
-        console.log(JSON.stringify(data), "############")
-        if (data == 'room') {
-            this.server.to('20250806064600712609004245').emit('ServerToClient', `room join and talk test`);
-        } else {
-            this.server.emit('ServerToClient', data+"123456")
-        }
-        //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
-    }
+    // @SubscribeMessage('sendMsg')
+    // async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
+    //     console.log(JSON.stringify(data), "############sendMsg")
+    //     this.server.to(data.roomid).emit('sendMsg', data)
+    // }
 
-    @SubscribeMessage('joinRoom') //test
-    async handleJoinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
-        await socket.join(roomId)
-        //this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
-    }
+    // @SubscribeMessage('ClientToServer') //test
+    // async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) {
+    //     console.log(JSON.stringify(data), "############")
+    //     if (data == 'room') {
+    //         this.server.to('20250806064600712609004245').emit('ServerToClient', `room join and talk test`);
+    //     } else {
+    //         this.server.emit('ServerToClient', data+"123456")
+    //     }
+    //     //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
+    // }
 
-    @SubscribeMessage('leaveRoom') //test
-    async leaveRoom(roomId: string, @ConnectedSocket() socket: Socket) {
-        await socket.leave(roomId)
-        //this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
-    }
+    // @SubscribeMessage('joinRoom') //test
+    // async handleJoinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
+    //     await socket.join(roomId)
+    //     //this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
+    // }
+
+    // @SubscribeMessage('leaveRoom') //test
+    // async leaveRoom(roomId: string, @ConnectedSocket() socket: Socket) {
+    //     await socket.leave(roomId)
+    //     //this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
+    // }
 
     handleDisconnect(socket: Socket) {
-        console.log(`@@@@@@@@@@@@@@@@@@@@Client disconnected: ${socket.id}`)
+        console.log(`Client disconnected: ${socket.id} ${socket['user'].userid}`)
     }
 
 }
