@@ -77,6 +77,35 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         this.server.to(data.roomid).emit('room', data)
     }
 
+    @SubscribeMessage('member') //해당 사용자에 대해 room내 전송만 필요한 경우
+    async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) { //해당 room내 해당 member만 골라 개별적으로 소켓 전송
+        console.log(JSON.stringify(data), '##member')
+        const sockets = await this.server.in(data.roomid).fetchSockets()
+        for (let sock of sockets) {
+            console.log(sock['user'].userid, data.memberid, '##member')
+            if (sock['user'].userid == data.memberid) {
+                sock.emit('member', data)
+            }
+        }
+    }
+
+    @SubscribeMessage('all')
+    async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
+        console.log(JSON.stringify(data), '##all')
+        this.server.emit('all', data)
+    }    
+
+    @SubscribeMessage('user') //해당 사용자에 대해 namespace내 전송만 필요한 경우 => 사용할 일이 거의 없어 보임
+    async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
+        console.log(JSON.stringify(data), '##user')
+        const sockets = await this.server.fetchSockets()
+        for (let sock of sockets) {
+            if (sock['user'].userid == data.targetid) {
+                sock.emit('user', data)
+            }
+        }
+    }
+
     // @SubscribeMessage('sendMsg')
     // async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
     //     console.log(JSON.stringify(data), "############sendMsg")
