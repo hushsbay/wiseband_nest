@@ -804,6 +804,7 @@ export class ChanmsgService {
         }
     }
 
+    @Transactional({ propagation: Propagation.REQUIRED })
     async forwardToChan(dto: Record<string, any>): Promise<any> {
         const methodName = 'chanmsg>forwardToChan'
         const resJson = new ResJson()
@@ -811,7 +812,7 @@ export class ChanmsgService {
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])       
         try {
-            const { chanid, msgid, targetChanid } = dto
+            const { kind, chanid, msgid, targetChanid } = dto
             let rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             rs = await this.chkAcl({ userid: userid, chanid: targetChanid, chkGuest: true })
@@ -823,6 +824,35 @@ export class ChanmsgService {
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [unidObj.ID, targetChanid, userid, usernm, unidObj.DT, msgid, chanid])
             resJson.data.newMsgid = unidObj.ID
+            //S_MSGSUB_TBL
+            sql = "INSERT INTO S_MSGSUB_TBL (MSGID, CHANID, KIND, BODY, FILESIZE, FILEEXT, BUFFER, CDT, UDT) "
+            sql += "SELECT ?, ?, KIND, BODY, FILESIZE, FILEEXT, BUFFER, ?, ? " 
+            sql += "  FROM S_MSGSUB_TBL "
+            sql += " WHERE MSGID = ? AND CHANID = ? "
+            await this.dataSource.query(sql, [unidObj.ID, targetChanid, unidObj.DT, unidObj.DT, msgid, chanid])
+            //S_MSGDTL_TBL
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
+            const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+            .select(['A.USERID', 'A.USERNM'])
+            .where("A.CHANID = :chanid ", { 
+                chanid: targetChanid
+            }).getMany()
+            chandtl.forEach(async (item) => {
+                const strKind = (item.USERID == userid) ? 'read' : 'notyet'
+                const typ = hush.getTypeForMsgDtl(strKind)
+                await qbMsgDtl
+                .insert().values({ 
+                    MSGID: unidObj.ID, CHANID: targetChanid, USERID: item.USERID, KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
+                }).execute()
+            }) //아래는 로깅
+            const kind1 = 'parent'
+            let typ = hush.getTypeForMsgDtl(kind1)
+            const logObj = { 
+                cdt: unidObj.DT, msgid: unidObj.ID, replyto: '', chanid: targetChanid, 
+                userid: userid, usernm: usernm, cud: 'C', kind: kind1, typ: typ, bodytext: msgid, subkind: kind == 'home' ? 'WS' : 'GS'
+            }
+            const ret = await hush.insertDataLog(this.dataSource, logObj)
+            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

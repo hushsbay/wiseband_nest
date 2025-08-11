@@ -74,6 +74,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
     @SubscribeMessage('room')
     async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
         console.log(JSON.stringify(data), '##room')
+        console.log('##room------------------------')
         this.server.to(data.roomid).emit('room', data)
     }
 
