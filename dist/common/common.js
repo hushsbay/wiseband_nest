@@ -182,12 +182,17 @@ async function insertDataLog(dataSource, obj) {
         return ex.message;
     }
 }
-function getBasicAclSql(userid, typ) {
+function getBasicAclSql(userid, typ, includeOnlyPrivate) {
     let sqlWs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT ";
     sqlWs += " FROM S_CHANMST_TBL A ";
     sqlWs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID ";
     sqlWs += "INNER JOIN S_GRDTL_TBL C ON A.GR_ID = C.GR_ID ";
-    sqlWs += "WHERE A.TYP = 'WS' AND (B.USERID = '" + userid + "' OR A.STATE = 'A') ";
+    if (includeOnlyPrivate) {
+        sqlWs += "WHERE A.TYP = 'WS' AND B.USERID = '" + userid + "' ";
+    }
+    else {
+        sqlWs += "WHERE A.TYP = 'WS' AND (B.USERID = '" + userid + "' OR A.STATE = 'A') ";
+    }
     let sqlGs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT ";
     sqlGs += " FROM S_CHANMST_TBL A ";
     sqlGs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID ";

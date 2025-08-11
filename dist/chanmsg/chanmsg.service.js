@@ -828,7 +828,7 @@ let ChanmsgService = class ChanmsgService {
         const usernm = this.req['user'].usernm;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const { chanid, msgid, targetChanid } = dto;
+            const { kind, chanid, msgid, targetChanid } = dto;
             let rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
@@ -842,6 +842,34 @@ let ChanmsgService = class ChanmsgService {
             sql += "    WHERE MSGID = ? AND CHANID = ? ";
             await this.dataSource.query(sql, [unidObj.ID, targetChanid, userid, usernm, unidObj.DT, msgid, chanid]);
             resJson.data.newMsgid = unidObj.ID;
+            sql = "INSERT INTO S_MSGSUB_TBL (MSGID, CHANID, KIND, BODY, FILESIZE, FILEEXT, BUFFER, CDT, UDT) ";
+            sql += "SELECT ?, ?, KIND, BODY, FILESIZE, FILEEXT, BUFFER, ?, ? ";
+            sql += "  FROM S_MSGSUB_TBL ";
+            sql += " WHERE MSGID = ? AND CHANID = ? ";
+            await this.dataSource.query(sql, [unidObj.ID, targetChanid, unidObj.DT, unidObj.DT, msgid, chanid]);
+            const qbMsgDtl = this.msgdtlRepo.createQueryBuilder();
+            const chandtl = await this.chandtlRepo.createQueryBuilder('A')
+                .select(['A.USERID', 'A.USERNM'])
+                .where("A.CHANID = :chanid ", {
+                chanid: targetChanid
+            }).getMany();
+            chandtl.forEach(async (item) => {
+                const strKind = (item.USERID == userid) ? 'read' : 'notyet';
+                const typ = hush.getTypeForMsgDtl(strKind);
+                await qbMsgDtl
+                    .insert().values({
+                    MSGID: unidObj.ID, CHANID: targetChanid, USERID: item.USERID, KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
+                }).execute();
+            });
+            const kind1 = 'parent';
+            let typ = hush.getTypeForMsgDtl(kind1);
+            const logObj = {
+                cdt: unidObj.DT, msgid: unidObj.ID, replyto: '', chanid: targetChanid,
+                userid: userid, usernm: usernm, cud: 'C', kind: kind1, typ: typ, bodytext: msgid, subkind: kind == 'home' ? 'WS' : 'GS'
+            };
+            const ret = await hush.insertDataLog(this.dataSource, logObj);
+            if (ret != '')
+                throw new Error(ret);
             return resJson;
         }
         catch (ex) {
@@ -1015,6 +1043,7 @@ let ChanmsgService = class ChanmsgService {
             const { msgid, chanid } = dto;
             const oldKind = 'notyet';
             const newKind = 'read';
+            console.log(oldKind, newKind, msgid);
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
@@ -1026,16 +1055,16 @@ let ChanmsgService = class ChanmsgService {
                 console.log(msgid, chanid, userid, newKind, '000');
             }
             else {
-                console.log(msgid, chanid, userid, newKind, '111');
+                console.log(msgid, chanid, userid, newKind, '111111');
                 let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind });
                 if (msgdtl) {
-                    console.log(msgid, chanid, userid, newKind, '222');
+                    console.log(msgid, chanid, userid, newKind, '222222');
                     await qbMsgDtl.update()
                         .set({ KIND: newKind, UDT: curdtObj.DT })
                         .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                     }).execute();
-                    console.log(msgid, chanid, userid, newKind, '333');
+                    console.log(msgid, chanid, userid, newKind, '333333');
                     const replyto = rs.data.msgmst.REPLYTO;
                     const kind = newKind;
                     const typ = hush.getTypeForMsgDtl(kind);
@@ -1055,8 +1084,6 @@ let ChanmsgService = class ChanmsgService {
                     console.log(msgid, chanid, userid, newKind, '555');
                 }
             }
-            const msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid);
-            resJson.data.msgdtl = msgdtl;
             return resJson;
         }
         catch (ex) {
@@ -1692,6 +1719,12 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], ChanmsgService.prototype, "saveMsg", null);
+__decorate([
+    (0, typeorm_transactional_1.Transactional)({ propagation: typeorm_transactional_1.Propagation.REQUIRED }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ChanmsgService.prototype, "forwardToChan", null);
 __decorate([
     (0, typeorm_transactional_1.Transactional)({ propagation: typeorm_transactional_1.Propagation.REQUIRED }),
     __metadata("design:type", Function),

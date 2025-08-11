@@ -52,7 +52,7 @@ export declare function getMysqlCurdt(dataSource: DataSource): Promise<any>;
 export declare function getMysqlUnid(dataSource: DataSource): Promise<any>;
 export declare function getTypeForMsgDtl(strKind: string): string;
 export declare function insertDataLog(dataSource: DataSource, obj: any): Promise<any>;
-export declare function getBasicAclSql(userid: string, typ: string): string;
+export declare function getBasicAclSql(userid: string, typ: string, includeOnlyPrivate?: boolean): string;
 export declare function isvoid(obj: any): boolean;
 export declare function isObject(value: any): boolean;
 export declare function addFieldValue(val: any, title?: any, includeOther?: any): string;

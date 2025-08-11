@@ -5,6 +5,7 @@ const typeorm_transactional_1 = require("typeorm-transactional");
 const cookieParser = require("cookie-parser");
 const app_module_1 = require("./app.module");
 const winston_util_1 = require("./common/winston.util");
+const redis_io_adapter_1 = require("./socket/redis-io.adapter");
 async function bootstrap() {
     const corsList = ['http://127.0.0.1:5173', 'http://localhost:5173', 'http://10.10.221.214:5173'];
     (0, typeorm_transactional_1.initializeTransactionalContext)();
@@ -14,6 +15,9 @@ async function bootstrap() {
     });
     app.enableCors({ origin: corsList, credentials: true });
     app.use(cookieParser());
+    const redisIoAdapter = new redis_io_adapter_1.RedisIoAdapter(app);
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
     await app.listen(process.env.NODE_PORT);
 }
 bootstrap();

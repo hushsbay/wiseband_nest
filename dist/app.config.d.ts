@@ -12,6 +12,11 @@ declare const _default: (() => {
     jwt: {
         key: string;
     };
+    redis: {
+        host: string;
+        port: string;
+        password: string;
+    };
 }) & import("@nestjs/config").ConfigFactoryKeyHost<{
     mysql: {
         host: string;
@@ -25,6 +30,11 @@ declare const _default: (() => {
     };
     jwt: {
         key: string;
+    };
+    redis: {
+        host: string;
+        port: string;
+        password: string;
     };
 }>;
 export default _default;

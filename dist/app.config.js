@@ -15,5 +15,10 @@ exports.default = (0, config_1.registerAs)('app', () => ({
     jwt: {
         key: process.env.JWT_KEY
     },
+    redis: {
+        host: process.env.REDIS_HOST,
+        port: process.env.REDIS_PORT,
+        password: process.env.REDIS_PASSWORD
+    }
 }));
 //# sourceMappingURL=app.config.js.map

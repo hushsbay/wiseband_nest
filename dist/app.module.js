@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const config_1 = require("@nestjs/config");
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
+const jwt_1 = require("@nestjs/jwt");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const typeorm_transactional_1 = require("typeorm-transactional");
@@ -25,6 +26,8 @@ const menu_module_1 = require("./menu/menu.module");
 const user_module_1 = require("./user/user.module");
 const chanmsg_module_1 = require("./chanmsg/chanmsg.module");
 const mail_module_1 = require("./mail/mail.module");
+const events_gateway_1 = require("./socket/events.gateway");
+const ws_exception_filter_1 = require("./common/ws-exception.filter");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(logger_middleware_1.LoggerMiddleware).forRoutes('*');
@@ -37,6 +40,16 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 load: [app_config_1.default],
                 isGlobal: true
+            }),
+            jwt_1.JwtModule.registerAsync({
+                useFactory() {
+                    const config = (0, app_config_1.default)();
+                    return {
+                        global: true,
+                        secret: config.jwt.key,
+                        signOptions: { algorithm: 'HS256', expiresIn: '4h' }
+                    };
+                }
             }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 useFactory() {
@@ -68,7 +81,12 @@ exports.AppModule = AppModule = __decorate([
                 provide: core_1.APP_FILTER,
                 useClass: http_exception_filter_1.HttpExceptionFilter
             },
+            {
+                provide: core_1.APP_FILTER,
+                useClass: ws_exception_filter_1.WsExceptionFilter
+            },
             app_service_1.AppService,
+            events_gateway_1.EventsGateway,
             common_1.Logger
         ],
     })
