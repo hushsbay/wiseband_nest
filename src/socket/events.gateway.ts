@@ -34,17 +34,17 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         //throw new WsException('Invalid token')로 처리시 서버 죽음 : error handling with next() on socket.io nest.js로 구글링하기
         server.on('connection', async (socket) => { //console.log(`Client connected: ${socket.id}`)
             let userid = ''
-            try {                
+            try {
                 const token = socket.handshake.query.token as string
                 const secret = this.configService.get<string>('JWT_KEY')
                 const decoded = this.jwtService.verify(token, { secret })
-                socket['user'] = decoded //console.log(JSON.stringify(decoded), "++++++++++")
+                socket['user'] = decoded //console.log(JSON.stringify(decoded), "++++++++++")              
                 userid = decoded.userid
                 console.log("server connection:", socket.id, userid)
                 let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL", true) //내가 권한을 가진 채널과 DM에 대해 room join 처리 : 내가 포함안된 공개채널은 제외
                 const list = await this.dataSource.query(sqlBasicAcl, null)
                 const rooms = [] //1안 처리
-                for (let room of list) rooms.push(room.CHANID)                
+                for (let room of list) rooms.push(room.CHANID)
                 const sock = server.in(socket.id)
                 const sockets = await server.fetchSockets() //모든 소켓
                 for (const socket of sockets) { //console.log(socket.id, socket.handshake, socket.rooms, socket.data, JSON.stringify(socket['user']))
@@ -59,30 +59,46 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                 //     }
                 // }
                 socket.on('error', (err) => {
-                    console.error(userid, socket, 'Socket error: ', err.message)
+                    console.error(userid, socket.id, 'Socket error: ', err.message)
                     if (err.message === 'Unauthorized') { //테스트 코딩
                         socket.disconnect()
                     }
                 })
             } catch (err) {
-                console.log(userid, socket, err.toString())
-                socket.emit('error', userid + '/' + socket + '/' + err.toString())
+                console.log(userid, socket.id, err.toString())
+                socket.emit('error', userid + '/' + socket.id + '/' + err.toString())
             }
         })
     }
 
     @SubscribeMessage('room')
-    async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
+    async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
         console.log(JSON.stringify(data), '##room')
         this.server.to(data.roomid).emit('room', data)
     }
 
+    @SubscribeMessage('myself')
+    async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
+        //console.log(JSON.stringify(data), '@@myself')
+        if (data.ev == 'chkAlive') {
+            const sockets = await this.server.fetchSockets()
+            const sockUserids = sockets.map(sock => sock['user'].userid)
+            //console.log(JSON.stringify(sockUserids), '##sockUserids')
+            let userids = []
+            if (sockUserids.length > 0) userids = data.userids.filter((memid: string) => sockUserids.includes(memid))
+            data.userids = userids
+        }
+        socket.emit('myself', data)
+    }
+
+    ////////////일단 아래 3개 더 필요해 보여서 만들어 두었으나 아직 사용할 일 없음 (심지어 broadcast인 all도 미사용 - chkAlive도 all이 아닌 myself 성격임)
+
     @SubscribeMessage('member') //해당 사용자에 대해 room내 전송만 필요한 경우
-    async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) { //해당 room내 해당 member만 골라 개별적으로 소켓 전송
-        console.log(JSON.stringify(data), '##member')
+    async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 room내 해당 member만 골라 개별적으로 소켓 전송
+        //console.log(JSON.stringify(data), '##member')
         const sockets = await this.server.in(data.roomid).fetchSockets()
         for (let sock of sockets) {
-            console.log(sock['user'].userid, data.memberid, '##member')
+            //console.log(sock['user'].userid, data.memberid, '##member')
             if (sock['user'].userid == data.memberid) {
                 sock.emit('member', data)
             }
@@ -90,14 +106,14 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
     }
 
     @SubscribeMessage('all')
-    async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
+    async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
         console.log(JSON.stringify(data), '##all')
         this.server.emit('all', data)
     }    
 
     @SubscribeMessage('user') //해당 사용자에 대해 namespace내 전송만 필요한 경우 => 사용할 일이 거의 없어 보임
-    async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
-        console.log(JSON.stringify(data), '##user')
+    async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
+        //console.log(JSON.stringify(data), '##user')
         const sockets = await this.server.fetchSockets()
         for (let sock of sockets) {
             if (sock['user'].userid == data.targetid) {
@@ -105,35 +121,6 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
             }
         }
     }
-
-    // @SubscribeMessage('sendMsg')
-    // async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data) { 
-    //     console.log(JSON.stringify(data), "############sendMsg")
-    //     this.server.to(data.roomid).emit('sendMsg', data)
-    // }
-
-    // @SubscribeMessage('ClientToServer') //test
-    // async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data) {
-    //     console.log(JSON.stringify(data), "############")
-    //     if (data == 'room') {
-    //         this.server.to('20250806064600712609004245').emit('ServerToClient', `room join and talk test`);
-    //     } else {
-    //         this.server.emit('ServerToClient', data+"123456")
-    //     }
-    //     //socket.broadcast.to(roomName).emit('msgToReciver', { nickName, message });
-    // }
-
-    // @SubscribeMessage('joinRoom') //test
-    // async handleJoinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
-    //     await socket.join(roomId)
-    //     //this.server.to(roomId).emit('joinRoom', `$${roomId}에 입장..`);
-    // }
-
-    // @SubscribeMessage('leaveRoom') //test
-    // async leaveRoom(roomId: string, @ConnectedSocket() socket: Socket) {
-    //     await socket.leave(roomId)
-    //     //this.server.to(roomId).emit('leaveRoomMessage', `${roomId}에서 퇴장하셨습니다`)
-    // }
 
     handleDisconnect(socket: Socket) {
         console.log(`Client disconnected: ${socket.id} ${socket['user'].userid}`)
