@@ -154,6 +154,7 @@ function getTypeForMsgDtl(strKind) {
         case 'stored':
         case 'finished':
         case 'fixed':
+        case 'delfixed':
             return 'user';
         case 'done':
         case 'checked':

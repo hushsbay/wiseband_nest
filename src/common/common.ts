@@ -176,6 +176,7 @@ export function getTypeForMsgDtl(strKind: string): string { //서버,클라언�
         case 'stored':
         case 'finished':
         case 'fixed':
+        case 'delfixed':
             return 'user'
         case 'done':
         case 'checked':

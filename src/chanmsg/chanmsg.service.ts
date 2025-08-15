@@ -745,9 +745,9 @@ export class ChanmsgService {
                 }).execute()
                 const qbMsgSub = this.msgsubRepo.createQueryBuilder()
                 let arr = []
-                if (num_file > 0) arr.push('F')
-                if (num_image > 0) arr.push('I')
-                if (num_link > 0) arr.push('L')
+                if (num_file > 0) arr.push('F') //사용자가 같은 두개의 화면에서 한쪽은 파일 올리고 다른 쪽은 안올린 상태에서 보내면 파일은 전송안되고 그 다음에 표시됨
+                if (num_image > 0) arr.push('I') //상동
+                if (num_link > 0) arr.push('L') //상동
                 for (let i = 0; i < arr.length; i++) {
                     const msgsub = await qbMsgSub
                     .select("COUNT(*) CNT")
@@ -1213,25 +1213,36 @@ export class ChanmsgService {
                     }
                     cud = 'D' //resJson.data.work = "delete" //LaterPanel 탭에 보이는 행을 제거하기
                 }
-            } else if (kind == 'fixed') {
+            } else if (kind == 'fixed' || kind == 'delfixed') {
                 const msgdtlforuser = await qbMsgDtl
                 .select("KIND")
-                .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                    msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND IN ('fixed', 'delfixed') ", {
+                    msgid: msgid, chanid: chanid, userid: userid
                 }).getRawOne() //console.log(msgdtl.length, "@@@@@@@@@@")
-                if (!msgdtlforuser) {
-                    await qbMsgDtl
-                    .insert().values({ 
-                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
-                    }).execute()
-                    cud = 'C' //resJson.data.work = "create"
-                } else {
-                    await qbMsgDtl
-                    .delete()
-                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                        msgid: msgid, chanid: chanid, userid: userid, kind: kind
-                    }).execute()
-                    cud = 'D' //resJson.data.work = "delete"
+                if (kind == 'fixed') {
+                    if (!msgdtlforuser) {
+                        await qbMsgDtl
+                        .insert().values({ 
+                            MSGID: msgid, CHANID: chanid, USERID: userid, KIND: 'fixed', TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
+                        }).execute()
+                    } else {
+                        await qbMsgDtl
+                        .update()
+                        .set({ KIND: 'fixed' })
+                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                            msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                        }).execute()
+                    }
+                    cud = 'C'
+                } else { //delfixed
+                    if (msgdtlforuser) {
+                        await qbMsgDtl
+                        .delete()
+                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = 'fixed' ", {
+                            msgid: msgid, chanid: chanid, userid: userid
+                        }).execute()
+                    }
+                    cud = 'D'
                 }
             } //아래는 로깅 (changeReaction과 동일)
             const logObj = { 
@@ -1240,7 +1251,7 @@ export class ChanmsgService {
             }
             const ret = await hush.insertDataLog(this.dataSource, logObj)
             if (ret != '') throw new Error(ret)
-            resJson.data.work = (cud == 'D') ? 'delete' : 'create'
+            //resJson.data.work = (cud == 'D') ? 'delete' : 'create'
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

@@ -1210,25 +1210,37 @@ let ChanmsgService = class ChanmsgService {
                     cud = 'D';
                 }
             }
-            else if (kind == 'fixed') {
+            else if (kind == 'fixed' || kind == 'delfixed') {
                 const msgdtlforuser = await qbMsgDtl
                     .select("KIND")
-                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                    msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND IN ('fixed', 'delfixed') ", {
+                    msgid: msgid, chanid: chanid, userid: userid
                 }).getRawOne();
-                if (!msgdtlforuser) {
-                    await qbMsgDtl
-                        .insert().values({
-                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: kind, TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
-                    }).execute();
+                if (kind == 'fixed') {
+                    if (!msgdtlforuser) {
+                        await qbMsgDtl
+                            .insert().values({
+                            MSGID: msgid, CHANID: chanid, USERID: userid, KIND: 'fixed', TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
+                        }).execute();
+                    }
+                    else {
+                        await qbMsgDtl
+                            .update()
+                            .set({ KIND: 'fixed' })
+                            .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                            msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                        }).execute();
+                    }
                     cud = 'C';
                 }
                 else {
-                    await qbMsgDtl
-                        .delete()
-                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                        msgid: msgid, chanid: chanid, userid: userid, kind: kind
-                    }).execute();
+                    if (msgdtlforuser) {
+                        await qbMsgDtl
+                            .delete()
+                            .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = 'fixed' ", {
+                            msgid: msgid, chanid: chanid, userid: userid
+                        }).execute();
+                    }
                     cud = 'D';
                 }
             }
@@ -1239,7 +1251,6 @@ let ChanmsgService = class ChanmsgService {
             const ret = await hush.insertDataLog(this.dataSource, logObj);
             if (ret != '')
                 throw new Error(ret);
-            resJson.data.work = (cud == 'D') ? 'delete' : 'create';
             return resJson;
         }
         catch (ex) {

@@ -58,7 +58,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                 //         for (let room of list) socket.join(room.CHANID)
                 //     }
                 // }
-                socket.on('error', (err) => {
+                socket.on('error', (err) => { //클라이언트에서 socket.emit(undefined, data)로 수신했을 때 invalid payload 오류 발생한 적 있음
                     console.error(userid, socket.id, 'Socket error: ', err.message)
                     if (err.message === 'Unauthorized') { //테스트 코딩
                         socket.disconnect()
@@ -91,9 +91,26 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
         socket.emit('myself', data)
     }
 
-    ////////////일단 아래 3개 더 필요해 보여서 만들어 두었으나 아직 사용할 일 없음 (심지어 broadcast인 all도 미사용 - chkAlive도 all이 아닌 myself 성격임)
+    @SubscribeMessage('all')
+    async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
+        console.log(JSON.stringify(data), '##all')
+        this.server.emit('all', data)
+    }  
+    
+    @SubscribeMessage('user') //해당 사용자에 대해 namespace내 전송만 필요한 경우
+    async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
+        //console.log(JSON.stringify(data), '##user')
+        const sockets = await this.server.fetchSockets()
+        for (let sock of sockets) {
+            if (sock['user'].userid == data.userid) {
+                sock.emit('user', data)
+            }
+        }
+    }
 
-    @SubscribeMessage('member') //해당 사용자에 대해 room내 전송만 필요한 경우
+    ////////////일단 아래 2개 필요해 보여서 만들어 두었으나 아직 사용할 일 없음 
+
+    @SubscribeMessage('member') //해당 사용자에 대해 room내 전송만 필요한 경우 : 필요해 보여서 만들어 두었으나 아직 사용할 일 없음 
     async handleMessage1(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 room내 해당 member만 골라 개별적으로 소켓 전송
         //console.log(JSON.stringify(data), '##member')
         const sockets = await this.server.in(data.roomid).fetchSockets()
@@ -101,23 +118,6 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
             //console.log(sock['user'].userid, data.memberid, '##member')
             if (sock['user'].userid == data.memberid) {
                 sock.emit('member', data)
-            }
-        }
-    }
-
-    @SubscribeMessage('all')
-    async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
-        console.log(JSON.stringify(data), '##all')
-        this.server.emit('all', data)
-    }    
-
-    @SubscribeMessage('user') //해당 사용자에 대해 namespace내 전송만 필요한 경우 => 사용할 일이 거의 없어 보임
-    async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
-        //console.log(JSON.stringify(data), '##user')
-        const sockets = await this.server.fetchSockets()
-        for (let sock of sockets) {
-            if (sock['user'].userid == data.targetid) {
-                sock.emit('user', data)
             }
         }
     }
