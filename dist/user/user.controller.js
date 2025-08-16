@@ -28,6 +28,7 @@ let UserController = class UserController {
     orgTree(dto) { return this.userSvc.orgTree(dto); }
     procOrgSearch(dto) { return this.userSvc.procOrgSearch(dto); }
     qryGroupWithUser(dto) { return this.userSvc.qryGroupWithUser(dto); }
+    getVip(dto) { return this.userSvc.getVip(dto); }
     setVip(dto) { return this.userSvc.setVip(dto); }
     saveMember(dto) { return this.userSvc.saveMember(dto); }
     deleteMember(dto) { return this.userSvc.deleteMember(dto); }
@@ -79,6 +80,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UserController.prototype, "qryGroupWithUser", null);
+__decorate([
+    (0, common_1.Post)('getVip'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "getVip", null);
 __decorate([
     (0, common_1.Post)('setVip'),
     __param(0, (0, common_1.Body)()),

@@ -35,6 +35,7 @@ let UserService = class UserService {
     async getVipList(userid) {
         let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? ";
         const vipList = await this.dataSource.query(sql, [userid]);
+        console.log(JSON.stringify(vipList[0]), "0000000000000");
         return vipList;
     }
     async chkUserRightForGroup(grid, userid) {
@@ -205,7 +206,7 @@ let UserService = class UserService {
         }
     }
     async orgTree(dto) {
-        const methodName = 'user>login';
+        const methodName = 'user>orgTree';
         const resJson = new resjson_1.ResJson();
         const userid = this.req['user'].userid;
         try {
@@ -341,12 +342,24 @@ let UserService = class UserService {
             hush.throwCatchedEx(ex, this.req, fv);
         }
     }
+    async getVip(dto) {
+        const resJson = new resjson_1.ResJson();
+        const userid = this.req['user'].userid;
+        let fv = hush.addFieldValue(dto, null, [userid]);
+        try {
+            const viplist = await this.getVipList(userid);
+            resJson.data.vipStr = viplist[0].VIPS;
+            return resJson;
+        }
+        catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv);
+        }
+    }
     async setVip(dto) {
         const resJson = new resjson_1.ResJson();
         const userid = this.req['user'].userid;
         try {
             const { list, bool } = dto;
-            let retCnt = 0;
             const qbUserCode = this.usercodeRepo.createQueryBuilder();
             for (let i = 0; i < list.length; i++) {
                 const usercode = await qbUserCode
@@ -360,7 +373,6 @@ let UserService = class UserService {
                             .insert().values({
                             KIND: 'vip', USERID: userid, UID: list[i].USERID, UNM: list[i].USERNM
                         }).execute();
-                        retCnt += 1;
                     }
                 }
                 else {
@@ -370,11 +382,9 @@ let UserService = class UserService {
                             .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
                             userid: userid, uid: list[i].USERID
                         }).execute();
-                        retCnt += 1;
                     }
                 }
             }
-            resJson.data.retCnt = retCnt;
             return resJson;
         }
         catch (ex) {

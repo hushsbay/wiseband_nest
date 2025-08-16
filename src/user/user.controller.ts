@@ -28,6 +28,9 @@ export class UserController {
     @Post('qryGroupWithUser')
     qryGroupWithUser(@Body() dto: Record<string, any>) { return this.userSvc.qryGroupWithUser(dto) }
 
+    @Post('getVip')
+    getVip(@Body() dto: Record<string, any>) { return this.userSvc.getVip(dto) }
+
     @Post('setVip')
     setVip(@Body() dto: Record<string, any>) { return this.userSvc.setVip(dto) }
 

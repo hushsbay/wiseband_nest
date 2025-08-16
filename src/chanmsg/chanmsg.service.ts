@@ -6,6 +6,7 @@ import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
+import { UserService } from 'src/user/user.service'
 import { MailService } from 'src/mail/mail.service'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 import { User } from 'src/user/user.entity'
@@ -32,6 +33,7 @@ export class ChanmsgService {
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         @InjectRepository(User) private userRepo: Repository<User>, 
         private dataSource : DataSource,
+        private userSvc: UserService,
         private mailSvc: MailService, 
         @Inject(REQUEST) private readonly req: Request
     ) {}
@@ -234,10 +236,10 @@ export class ChanmsgService {
         return replyInfo
     }
 
-    async qryVipList(userid: string): Promise<any> {
-        let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
-        return await this.dataSource.query(sql, [userid])
-    }
+    // async qryVipList(userid: string): Promise<any> {
+    //     let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
+    //     return await this.dataSource.query(sql, [userid])
+    // }
 
     getSqlWs(userid: string): string { //common.ts의 getBasicAclSql() 참조
         let sqlWs = "SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
@@ -283,8 +285,10 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
-            const viplist = await this.qryVipList(userid)
-            data.vipStr = viplist[0].UID
+            //const viplist = await this.qryVipList(userid)
+            //data.vipStr = viplist[0].UID
+            const viplist = await this.userSvc.getVipList(userid)
+            data.vipStr = viplist[0].VIPS
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')

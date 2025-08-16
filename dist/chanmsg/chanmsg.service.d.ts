@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
+import { UserService } from 'src/user/user.service';
 import { MailService } from 'src/mail/mail.service';
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity';
 import { User } from 'src/user/user.entity';
@@ -13,9 +14,10 @@ export declare class ChanmsgService {
     private grdtlRepo;
     private userRepo;
     private dataSource;
+    private userSvc;
     private mailSvc;
     private readonly req;
-    constructor(msgmstRepo: Repository<MsgMst>, msgsubRepo: Repository<MsgSub>, msgdtlRepo: Repository<MsgDtl>, chanmstRepo: Repository<ChanMst>, chandtlRepo: Repository<ChanDtl>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, userRepo: Repository<User>, dataSource: DataSource, mailSvc: MailService, req: Request);
+    constructor(msgmstRepo: Repository<MsgMst>, msgsubRepo: Repository<MsgSub>, msgdtlRepo: Repository<MsgDtl>, chanmstRepo: Repository<ChanMst>, chandtlRepo: Repository<ChanDtl>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, userRepo: Repository<User>, dataSource: DataSource, userSvc: UserService, mailSvc: MailService, req: Request);
     chkAcl(dto: Record<string, any>): Promise<any>;
     qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any>;
     qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any>;
@@ -23,7 +25,6 @@ export declare class ChanmsgService {
     qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any>;
     qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any>;
     qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any>;
-    qryVipList(userid: string): Promise<any>;
     getSqlWs(userid: string): string;
     getSqlGs(userid: string): string;
     qry(dto: Record<string, any>): Promise<any>;

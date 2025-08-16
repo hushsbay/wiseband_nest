@@ -73,11 +73,11 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
 
     @SubscribeMessage('room')
     async handleMessage(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
-        console.log(JSON.stringify(data), '##room')
+        //console.log(JSON.stringify(data), '##room')
         this.server.to(data.roomid).emit('room', data)
     }
 
-    @SubscribeMessage('myself')
+    @SubscribeMessage('myself') //해당 소켓에만 전송 (1:1)
     async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
         //console.log(JSON.stringify(data), '@@myself')
         if (data.ev == 'chkAlive') {
@@ -93,13 +93,13 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
 
     @SubscribeMessage('all')
     async handleMessage2(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
-        console.log(JSON.stringify(data), '##all')
+        //console.log(JSON.stringify(data), '##all')
         this.server.emit('all', data)
     }  
     
-    @SubscribeMessage('user') //해당 사용자에 대해 namespace내 전송만 필요한 경우
+    @SubscribeMessage('user') //namespace내 해당 유저가 가진 또 다른 소켓에도 전송 (1:N)
     async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
-        //console.log(JSON.stringify(data), '##user')
+        console.log(JSON.stringify(data), '##user')
         const sockets = await this.server.fetchSockets()
         for (let sock of sockets) {
             if (sock['user'].userid == data.userid) {

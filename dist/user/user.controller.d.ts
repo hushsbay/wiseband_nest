@@ -8,6 +8,7 @@ export declare class UserController {
     orgTree(dto: Record<string, any>): Promise<any>;
     procOrgSearch(dto: Record<string, any>): Promise<any>;
     qryGroupWithUser(dto: Record<string, any>): Promise<any>;
+    getVip(dto: Record<string, any>): Promise<any>;
     setVip(dto: Record<string, any>): Promise<any>;
     saveMember(dto: Record<string, any>): Promise<any>;
     deleteMember(dto: Record<string, any>): Promise<any>;

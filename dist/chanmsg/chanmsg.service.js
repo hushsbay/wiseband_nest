@@ -20,11 +20,12 @@ const typeorm_2 = require("typeorm");
 const typeorm_transactional_1 = require("typeorm-transactional");
 const hush = require("../common/common");
 const resjson_1 = require("../common/resjson");
+const user_service_1 = require("../user/user.service");
 const mail_service_1 = require("../mail/mail.service");
 const chanmsg_entity_1 = require("./chanmsg.entity");
 const user_entity_1 = require("../user/user.entity");
 let ChanmsgService = class ChanmsgService {
-    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, mailSvc, req) {
+    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, userSvc, mailSvc, req) {
         this.msgmstRepo = msgmstRepo;
         this.msgsubRepo = msgsubRepo;
         this.msgdtlRepo = msgdtlRepo;
@@ -34,6 +35,7 @@ let ChanmsgService = class ChanmsgService {
         this.grdtlRepo = grdtlRepo;
         this.userRepo = userRepo;
         this.dataSource = dataSource;
+        this.userSvc = userSvc;
         this.mailSvc = mailSvc;
         this.req = req;
     }
@@ -232,10 +234,6 @@ let ChanmsgService = class ChanmsgService {
         replyInfo[0].MYNOTYETCNT = replyUnread[0].MYNOTYETCNT;
         return replyInfo;
     }
-    async qryVipList(userid) {
-        let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? ";
-        return await this.dataSource.query(sql, [userid]);
-    }
     getSqlWs(userid) {
         let sqlWs = "SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM ";
         sqlWs += "     FROM (SELECT A.GR_ID, A.GR_NM ";
@@ -277,8 +275,8 @@ let ChanmsgService = class ChanmsgService {
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
             data.chandtl = rs.data.chandtl;
-            const viplist = await this.qryVipList(userid);
-            data.vipStr = viplist[0].UID;
+            const viplist = await this.userSvc.getVipList(userid);
+            data.vipStr = viplist[0].VIPS;
             const qb = this.msgmstRepo.createQueryBuilder('A');
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B');
             const qbSub = this.msgsubRepo.createQueryBuilder('C');
@@ -1806,7 +1804,7 @@ exports.ChanmsgService = ChanmsgService = __decorate([
     __param(5, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrMst)),
     __param(6, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrDtl)),
     __param(7, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __param(10, (0, common_1.Inject)(core_1.REQUEST)),
+    __param(11, (0, common_1.Inject)(core_1.REQUEST)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -1816,6 +1814,7 @@ exports.ChanmsgService = ChanmsgService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
+        user_service_1.UserService,
         mail_service_1.MailService, Object])
 ], ChanmsgService);
 //# sourceMappingURL=chanmsg.service.js.map

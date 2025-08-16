@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChanmsgModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
+const user_module_1 = require("../user/user.module");
 const mail_module_1 = require("../mail/mail.module");
 const chanmsg_entity_1 = require("./chanmsg.entity");
 const user_entity_1 = require("../user/user.entity");
@@ -20,7 +21,8 @@ exports.ChanmsgModule = ChanmsgModule;
 exports.ChanmsgModule = ChanmsgModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([chanmsg_entity_1.MsgMst, chanmsg_entity_1.MsgSub, chanmsg_entity_1.MsgDtl, chanmsg_entity_1.ChanMst, chanmsg_entity_1.ChanDtl, chanmsg_entity_1.GrMst, chanmsg_entity_1.GrDtl, user_entity_1.User]), mail_module_1.MailModule
+            typeorm_1.TypeOrmModule.forFeature([chanmsg_entity_1.MsgMst, chanmsg_entity_1.MsgSub, chanmsg_entity_1.MsgDtl, chanmsg_entity_1.ChanMst, chanmsg_entity_1.ChanDtl, chanmsg_entity_1.GrMst, chanmsg_entity_1.GrDtl, user_entity_1.User]),
+            user_module_1.UserModule, mail_module_1.MailModule
         ],
         controllers: [chanmsg_controller_1.ChanmsgController],
         providers: [chanmsg_service_1.ChanmsgService]

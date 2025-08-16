@@ -25,6 +25,7 @@ export class UserService {
     async getVipList(userid: string): Promise<any> {
         let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
         const vipList = await this.dataSource.query(sql, [userid])
+        console.log(JSON.stringify(vipList[0]), "0000000000000")
         return vipList //데이터 없으면 vipList[0].VIP = null로 나옴
     }
 
@@ -189,7 +190,7 @@ export class UserService {
     }
 
     async orgTree(dto: Record<string, any>): Promise<any> {
-        const methodName = 'user>login'
+        const methodName = 'user>orgTree'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {
@@ -331,13 +332,26 @@ export class UserService {
         }
     }
 
+    async getVip(dto: Record<string, any>): Promise<any> {
+        const resJson = new ResJson()
+        const userid = this.req['user'].userid
+        let fv = hush.addFieldValue(dto, null, [userid])
+        try { //vipList가 아닌 vipStr임을 유의 (chanmsg>qry 참조)
+            const viplist = await this.getVipList(userid) //데이터 없으면 vipList[0].VIP = null로 나옴
+            resJson.data.vipStr = viplist[0].VIPS
+            return resJson
+        } catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv) 
+        }
+    }
+
     @Transactional({ propagation: Propagation.REQUIRED })
     async setVip(dto: Record<string, any>): Promise<any> {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {            
             const { list, bool } = dto
-            let retCnt = 0
+            //let retCnt = 0
             const qbUserCode = this.usercodeRepo.createQueryBuilder()
             for (let i = 0; i < list.length; i++) { //list.forEach(async (item, index) => {            
                 const usercode = await qbUserCode
@@ -351,7 +365,7 @@ export class UserService {
                         .insert().values({ 
                             KIND: 'vip', USERID: userid, UID: list[i].USERID, UNM: list[i].USERNM
                         }).execute()
-                        retCnt += 1
+                        //retCnt += 1
                     }
                 } else {
                     if (usercode.CNT > 0) {
@@ -360,11 +374,11 @@ export class UserService {
                         .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
                             userid: userid, uid: list[i].USERID
                         }).execute()
-                        retCnt += 1
+                        //retCnt += 1
                     }
                 }
             }
-            resJson.data.retCnt = retCnt
+            //resJson.data.retCnt = retCnt
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)

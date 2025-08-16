@@ -23,6 +23,7 @@ export declare class UserService {
     orgTree(dto: Record<string, any>): Promise<any>;
     procOrgSearch(dto: Record<string, any>): Promise<any>;
     qryGroupWithUser(dto: Record<string, any>): Promise<any>;
+    getVip(dto: Record<string, any>): Promise<any>;
     setVip(dto: Record<string, any>): Promise<any>;
     chkFieldValidSync(rmks: string): string;
     chkFieldValidNoSync(usernm: string, org: string, job: string, email: string, telno: string, rmks: string, kind: string): string;
