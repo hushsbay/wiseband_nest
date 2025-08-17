@@ -134,6 +134,56 @@ let UserService = class UserService {
             hush.throwCatchedEx(ex, this.req, fv);
         }
     }
+    async setNoti(dto) {
+        const methodName = 'user>setNoti';
+        const resJson = new resjson_1.ResJson();
+        const userid = this.req['user'].userid;
+        let fv = hush.addFieldValue(dto, null, [userid]);
+        try {
+            const { kind, bool } = dto;
+            const user = await this.userRepo.findOneBy({ USERID: userid });
+            if (!user)
+                return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + userid, hush.Code.NOT_OK, null, methodName);
+            const qbUserEnv = this.userenvRepo.createQueryBuilder();
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource);
+            const userEnv = await this.userenvRepo.findOneBy({ USERID: userid });
+            if (!userEnv) {
+                let notiBool = 'N', bodyBool = 'N', authorBool = 'N';
+                if (kind == "body") {
+                    bodyBool = bool;
+                }
+                else if (kind == "author") {
+                    authorBool = bool;
+                }
+                else {
+                    notiBool = bool;
+                }
+                await qbUserEnv
+                    .insert().values({
+                    USERID: userid, USERNM: user.USERNM, NOTI_OFF: notiBool, BODY_OFF: bodyBool, AUTHOR_OFF: authorBool,
+                    ISUR: userid, ISUDT: curdtObj.DT, MODR: userid, MODDT: curdtObj.DT
+                }).execute();
+            }
+            else {
+                if (kind == "body") {
+                    await qbUserEnv.update().set({ BODY_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
+                        .where("USERID = :userid ", { userid: userid }).execute();
+                }
+                else if (kind == "author") {
+                    await qbUserEnv.update().set({ AUTHOR_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
+                        .where("USERID = :userid ", { userid: userid }).execute();
+                }
+                else {
+                    await qbUserEnv.update().set({ NOTI_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
+                        .where("USERID = :userid ", { userid: userid }).execute();
+                }
+            }
+            return resJson;
+        }
+        catch (ex) {
+            hush.throwCatchedEx(ex, this.req, fv);
+        }
+    }
     async changePwd(dto) {
         const methodName = 'user>changePwd';
         const resJson = new resjson_1.ResJson();

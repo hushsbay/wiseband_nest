@@ -18,6 +18,7 @@ export declare class UserService {
     login(uid: string, pwd: string): Promise<ResJson>;
     getUserInfo(dto: Record<string, any>): Promise<any>;
     setUserInfo(dto: Record<string, any>, file: Express.Multer.File): Promise<any>;
+    setNoti(dto: Record<string, any>): Promise<ResJson>;
     changePwd(dto: Record<string, any>): Promise<any>;
     setOtp(uid: string, otpNum: string): Promise<ResJson>;
     verifyOtp(uid: string, otpNum: string): Promise<ResJson>;

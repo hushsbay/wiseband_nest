@@ -16,6 +16,9 @@ export class UserController {
         return this.userSvc.setUserInfo(dto, file) 
     }
 
+    @Post('setNoti')
+    setNoti(@Body() dto: Record<string, any>) { return this.userSvc.setNoti(dto) }
+
     @Post('changePwd')
     changePwd(@Body() dto: Record<string, any>) { return this.userSvc.changePwd(dto) }
     

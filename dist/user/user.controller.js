@@ -24,6 +24,7 @@ let UserController = class UserController {
     setUserInfo(dto, file) {
         return this.userSvc.setUserInfo(dto, file);
     }
+    setNoti(dto) { return this.userSvc.setNoti(dto); }
     changePwd(dto) { return this.userSvc.changePwd(dto); }
     orgTree(dto) { return this.userSvc.orgTree(dto); }
     procOrgSearch(dto) { return this.userSvc.procOrgSearch(dto); }
@@ -52,6 +53,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], UserController.prototype, "setUserInfo", null);
+__decorate([
+    (0, common_1.Post)('setNoti'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "setNoti", null);
 __decorate([
     (0, common_1.Post)('changePwd'),
     __param(0, (0, common_1.Body)()),
