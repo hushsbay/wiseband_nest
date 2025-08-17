@@ -49,7 +49,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                 const sockets = await server.fetchSockets() //모든 소켓
                 for (const socket of sockets) { //console.log(socket.id, socket.handshake, socket.rooms, socket.data, JSON.stringify(socket['user']))
                     if (socket['user'] && socket['user'].userid == userid) { //사용자:소켓 = 1:N
-                        sock.socketsJoin(rooms)
+                        sock.socketsJoin(rooms) //해당 소켓을 여러 개의 룸에 한번에 Join
                     }
                 }
                 // const sockets = await server.fetchSockets() //2안 처리
@@ -87,6 +87,20 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
             let userids = []
             if (sockUserids.length > 0) userids = data.userids.filter((memid: string) => sockUserids.includes(memid))
             data.userids = userids
+        } else if (data.ev == 'roomJoin') {
+            const sockets = await this.server.fetchSockets()
+            for (const sock of sockets) {
+                if (sock['user'] && data.memberIdAdded.includes(sock['user'].userid)) {
+                    sock.join(data.roomid) //memberIdAdded엔 추가할 멤버들만 들어 있음
+                }
+            } //this.server.to(data.roomid).emit('room', data) //myself가 아닌 room로 바로 전달하지 않고 local로 내려서 inviteMsg 처리 (in Main.vue)
+        } else if (data.ev == 'roomLeave') {
+            const sockets = await this.server.in(data.roomid).fetchSockets()
+            for (const sock of sockets) {
+                if (sock['user'] && data.memberIdLeft.includes(sock['user'].userid)) {
+                    sock.leave(data.roomid) //memberIdLeft엔 퇴장한 멤버들만 들어 있음
+                }
+            }
         }
         socket.emit('myself', data)
     }
