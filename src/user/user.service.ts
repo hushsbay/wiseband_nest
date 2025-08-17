@@ -7,7 +7,7 @@ import { Propagation, Transactional } from 'typeorm-transactional'
 import appConfig from 'src/app.config'
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
-import { Org, User, UserCode } from 'src/user/user.entity'
+import { Org, User, UserCode, UserEnv } from 'src/user/user.entity'
 import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 
 @Injectable({ scope: Scope.REQUEST })
@@ -17,6 +17,7 @@ export class UserService {
         //@InjectRepository(Org) private orgRepo: Repository<Org>, 
         @InjectRepository(User) private userRepo: Repository<User>, 
         @InjectRepository(UserCode) private usercodeRepo: Repository<UserCode>, 
+        @InjectRepository(UserEnv) private userenvRepo: Repository<UserEnv>, 
         @InjectRepository(GrMst) private grmstRepo: Repository<GrMst>, 
         @InjectRepository(GrDtl) private grdtlRepo: Repository<GrDtl>, 
         private dataSource : DataSource,
@@ -84,8 +85,10 @@ export class UserService {
             const uid = dto.uid ? dto.uid : userid
             const user = await this.userRepo.findOneBy({ USERID: uid })
             if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
-            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user 
+            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user
+            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid })
             resJson.data = userFiltered
+            resJson.list = userEnv //not array but object
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

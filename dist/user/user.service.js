@@ -24,9 +24,10 @@ const resjson_1 = require("../common/resjson");
 const user_entity_1 = require("./user.entity");
 const chanmsg_entity_1 = require("../chanmsg/chanmsg.entity");
 let UserService = class UserService {
-    constructor(userRepo, usercodeRepo, grmstRepo, grdtlRepo, dataSource, req) {
+    constructor(userRepo, usercodeRepo, userenvRepo, grmstRepo, grdtlRepo, dataSource, req) {
         this.userRepo = userRepo;
         this.usercodeRepo = usercodeRepo;
+        this.userenvRepo = userenvRepo;
         this.grmstRepo = grmstRepo;
         this.grdtlRepo = grdtlRepo;
         this.dataSource = dataSource;
@@ -96,7 +97,9 @@ let UserService = class UserService {
             if (!user)
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
             const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
+            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid });
             resJson.data = userFiltered;
+            resJson.list = userEnv;
             return resJson;
         }
         catch (ex) {
@@ -704,10 +707,12 @@ exports.UserService = UserService = __decorate([
     (0, common_1.Injectable)({ scope: common_1.Scope.REQUEST }),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.UserCode)),
-    __param(2, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrMst)),
-    __param(3, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrDtl)),
-    __param(5, (0, common_1.Inject)(core_1.REQUEST)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.UserEnv)),
+    __param(3, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrMst)),
+    __param(4, (0, typeorm_1.InjectRepository)(chanmsg_entity_1.GrDtl)),
+    __param(6, (0, common_1.Inject)(core_1.REQUEST)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

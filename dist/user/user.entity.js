@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserCode = exports.User = exports.Org = void 0;
+exports.UserEnv = exports.UserCode = exports.User = exports.Org = void 0;
 const typeorm_1 = require("typeorm");
 let Org = class Org {
 };
@@ -141,4 +141,58 @@ __decorate([
 exports.UserCode = UserCode = __decorate([
     (0, typeorm_1.Entity)({ name: 'S_USERCODE_TBL' })
 ], UserCode);
+let UserEnv = class UserEnv {
+};
+exports.UserEnv = UserEnv;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "USERID", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "USERNM", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "NICKNM", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "AB_CD", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "AB_NM", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "NOTI_OFF", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "BODY_OFF", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "AUTHOR_OFF", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "ISUR", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "ISUDT", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "MODR", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserEnv.prototype, "MODDT", void 0);
+exports.UserEnv = UserEnv = __decorate([
+    (0, typeorm_1.Entity)({ name: 'S_USERENV_TBL' })
+], UserEnv);
 //# sourceMappingURL=user.entity.js.map

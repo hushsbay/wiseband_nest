@@ -32,3 +32,17 @@ export declare class UserCode {
     UID: string;
     UNM: string;
 }
+export declare class UserEnv {
+    USERID: string;
+    USERNM: string;
+    NICKNM: string;
+    AB_CD: string;
+    AB_NM: string;
+    NOTI_OFF: string;
+    BODY_OFF: string;
+    AUTHOR_OFF: string;
+    ISUR: string;
+    ISUDT: string;
+    MODR: string;
+    MODDT: string;
+}

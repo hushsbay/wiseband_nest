@@ -98,3 +98,44 @@ export class UserCode {
     UNM: string
 
 }
+
+@Entity({ name: 'S_USERENV_TBL' })
+export class UserEnv {
+
+    @PrimaryColumn()
+    USERID: string
+
+    @Column()
+    USERNM: string
+
+    @Column()
+    NICKNM: string
+
+    @Column()
+    AB_CD: string
+
+    @Column()
+    AB_NM: string
+
+    @Column()
+    NOTI_OFF: string
+
+    @Column()
+    BODY_OFF: string
+
+    @Column()
+    AUTHOR_OFF: string
+
+    @Column()
+    ISUR: string
+
+    @Column()
+    ISUDT: string
+
+    @Column()
+    MODR: string
+
+    @Column()
+    MODDT: string
+
+}

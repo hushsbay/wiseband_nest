@@ -1,16 +1,17 @@
 import { Request } from 'express';
 import { Repository, DataSource } from 'typeorm';
 import { ResJson } from 'src/common/resjson';
-import { User, UserCode } from 'src/user/user.entity';
+import { User, UserCode, UserEnv } from 'src/user/user.entity';
 import { GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity';
 export declare class UserService {
     private userRepo;
     private usercodeRepo;
+    private userenvRepo;
     private grmstRepo;
     private grdtlRepo;
     private dataSource;
     private readonly req;
-    constructor(userRepo: Repository<User>, usercodeRepo: Repository<UserCode>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, dataSource: DataSource, req: Request);
+    constructor(userRepo: Repository<User>, usercodeRepo: Repository<UserCode>, userenvRepo: Repository<UserEnv>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, dataSource: DataSource, req: Request);
     getVipList(userid: string): Promise<any>;
     chkUserRightForGroup(grid: string, userid: string): Promise<[GrMst, string]>;
     chkUser(uid: string, secret: string): Promise<[User, string]>;
