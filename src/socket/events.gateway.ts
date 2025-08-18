@@ -94,11 +94,12 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                     sock.join(data.roomid) //memberIdAdded엔 추가할 멤버들만 들어 있음
                 }
             } //this.server.to(data.roomid).emit('room', data) //myself가 아닌 room로 바로 전달하지 않고 local로 내려서 inviteMsg 처리 (in Main.vue)
-        } else if (data.ev == 'roomLeave') {
+        } else if (data.ev == 'roomLeave') { //퇴장 or 강제퇴장
             const sockets = await this.server.in(data.roomid).fetchSockets()
             for (const sock of sockets) {
                 if (sock['user'] && data.memberIdLeft.includes(sock['user'].userid)) {
                     sock.leave(data.roomid) //memberIdLeft엔 퇴장한 멤버들만 들어 있음
+                    sock.emit('myself', data) //퇴장한 소켓으로 전달해서 해당 노드 제거하라고 하기
                 }
             }
         }

@@ -1537,7 +1537,7 @@ let ChanmsgService = class ChanmsgService {
         const usernm = this.req['user'].usernm;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const { CHANID, USERID } = dto;
+            const { CHANID, USERID, chkOnly } = dto;
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
@@ -1556,15 +1556,19 @@ let ChanmsgService = class ChanmsgService {
             if (!chandtl) {
                 return hush.setResJson(resJson, '해당 채널에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName);
             }
-            await this.chandtlRepo.delete(chandtl);
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource);
-            const logObj = {
-                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID,
-                userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
-            };
-            const ret = await hush.insertDataLog(this.dataSource, logObj);
-            if (ret != '')
-                throw new Error(ret);
+            if (chkOnly) {
+            }
+            else {
+                await this.chandtlRepo.delete(chandtl);
+                const curdtObj = await hush.getMysqlCurdt(this.dataSource);
+                const logObj = {
+                    cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID,
+                    userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
+                };
+                const ret = await hush.insertDataLog(this.dataSource, logObj);
+                if (ret != '')
+                    throw new Error(ret);
+            }
             return resJson;
         }
         catch (ex) {

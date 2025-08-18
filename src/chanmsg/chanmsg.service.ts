@@ -1554,7 +1554,7 @@ export class ChanmsgService {
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { CHANID, USERID } = dto
+            const { CHANID, USERID, chkOnly } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const chanmst = rs.data.chanmst
@@ -1572,28 +1572,33 @@ export class ChanmsgService {
             if (!chandtl) {
                 return hush.setResJson(resJson, '해당 채널에 사용자가 없습니다.' + fv, hush.Code.NOT_FOUND, null, methodName)
             }
-            /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
-            const deldtl = await this.dataSource.query(sqlDel, [CHANID, USERID])
-            if (deldtl[0].CNT > 0) {
-                sqlDel =  "DELETE FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
-                await this.dataSource.query(sqlDel, [CHANID, USERID])
+            if (chkOnly) {
+                //퇴장 메시지 등은 시스템에서 해당 룸으로 보내면 문제없을 것이나 data polling 등 구조적으로 어려워 (다음 과제로 넘기고)
+                //일단, delete해도 되는지 미리 체크하고자 함 (본인이 나가는 경우에 먼저 chkOnly 알아보지 않으면 멤버제거후 권한이 없어져 퇴장메시지 전송이 안됨)
+            } else {
+                /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
+                const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+                let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
+                const deldtl = await this.dataSource.query(sqlDel, [CHANID, USERID])
+                if (deldtl[0].CNT > 0) {
+                    sqlDel =  "DELETE FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
+                    await this.dataSource.query(sqlDel, [CHANID, USERID])
+                }
+                sqlDel = " INSERT INTO S_CHANDTLDEL_TBL (CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, MODR, UDT) "
+                sqlDel += "SELECT CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, ?, ? "
+                sqlDel += "  FROM S_CHANDTL_TBL "
+                sqlDel += " WHERE CHANID = ? AND USERID = ? "
+                await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID, USERID])
+                //S_GRDTLDEL_TBL로의 백업 종료*/
+                await this.chandtlRepo.delete(chandtl) //더 위로 올라가면 안됨
+                const curdtObj = await hush.getMysqlCurdt(this.dataSource)
+                const logObj = { 
+                    cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
+                    userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
+                }
+                const ret = await hush.insertDataLog(this.dataSource, logObj)
+                if (ret != '') throw new Error(ret)
             }
-            sqlDel = " INSERT INTO S_CHANDTLDEL_TBL (CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, MODR, UDT) "
-            sqlDel += "SELECT CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, ?, ? "
-            sqlDel += "  FROM S_CHANDTL_TBL "
-            sqlDel += " WHERE CHANID = ? AND USERID = ? "
-            await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID, USERID])
-            //S_GRDTLDEL_TBL로의 백업 종료*/
-            await this.chandtlRepo.delete(chandtl) //더 위로 올라가면 안됨
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            const logObj = { 
-                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
-                userid: userid, usernm: usernm, cud: 'D', kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
-            }
-            const ret = await hush.insertDataLog(this.dataSource, logObj)
-            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
