@@ -150,8 +150,7 @@ export function setMsgBracket(msg: string, code?: string, req?: Request, smallTi
 //     })
 // }
 
-//tanstack query 테스트용임 (code.service.ts 참조)
-export function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void {
+export function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void { //tanstack query 테스트용임 (code.service.ts 참조)
     resJson.offsetPos = (curPage - 1) * perPage //offsetPos를 resJson에 넣은 것은 별도 객체 안 만들고 resJson으로 한번에 이용하려는 단순한 목적임
     resJson.totalCnt = totalCnt
     resJson.totalPage = Math.ceil(totalCnt / perPage)
@@ -162,6 +161,12 @@ export async function getMysqlCurdt(dataSource: DataSource): Promise<any> {
     let sql = "SELECT DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT "
     const list = await dataSource.query(sql, null)
     return list[0]
+}
+
+export async function insertIntoSockTbl(dataSource: DataSource, obj: any): Promise<any> {
+    let sql = "INSERT INTO S_SOCK_TBL (ROOMID, USERID, USERNM, SOCKETID, KIND, ISUR, ISUDT) "
+    sql += " VALUES (?, ?, ?, ?, ?, ?, ?) "
+    await dataSource.query(sql, [obj.roomid, obj.memberid, obj.membernm, obj.socketid, obj.kind, obj.userid, obj.dt])
 }
 
 export async function getMysqlUnid(dataSource: DataSource): Promise<any> {

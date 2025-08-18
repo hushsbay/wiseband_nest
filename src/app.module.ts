@@ -55,8 +55,8 @@ import { WsExceptionFilter } from 'src/common/ws-exception.filter'
                 };
             },
             async dataSourceFactory(option) {
-                if (!option) throw new Error('Invalid options passed');
-                return addTransactionalDataSource(new DataSource(option));
+                if (!option) throw new Error('Invalid options passed')
+                return addTransactionalDataSource(new DataSource(option))
             },
         }),
         ServeStaticModule.forRoot({ //https://dev.to/zakmiller/how-to-serve-vue-with-nest-1e11 향후 운영서버에서 배포를 위한 기본 설정

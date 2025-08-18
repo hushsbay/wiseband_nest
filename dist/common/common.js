@@ -8,6 +8,7 @@ exports.writeLogError = writeLogError;
 exports.setMsgBracket = setMsgBracket;
 exports.setPageInfo = setPageInfo;
 exports.getMysqlCurdt = getMysqlCurdt;
+exports.insertIntoSockTbl = insertIntoSockTbl;
 exports.getMysqlUnid = getMysqlUnid;
 exports.getTypeForMsgDtl = getTypeForMsgDtl;
 exports.insertDataLog = insertDataLog;
@@ -142,6 +143,11 @@ async function getMysqlCurdt(dataSource) {
     let sql = "SELECT DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT ";
     const list = await dataSource.query(sql, null);
     return list[0];
+}
+async function insertIntoSockTbl(dataSource, obj) {
+    let sql = "INSERT INTO S_SOCK_TBL (ROOMID, USERID, USERNM, SOCKETID, KIND, ISUR, ISUDT) ";
+    sql += " VALUES (?, ?, ?, ?, ?, ?, ?) ";
+    await dataSource.query(sql, [obj.roomid, obj.memberid, obj.membernm, obj.socketid, obj.kind, obj.userid, obj.dt]);
 }
 async function getMysqlUnid(dataSource) {
     let sql = "SELECT CONCAT(DATE_FORMAT(now(6), '%Y%m%d%H%i%s%f'), LPAD(CAST(RAND() * 100000 AS SIGNED), '6', '0')) AS ID, DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT ";

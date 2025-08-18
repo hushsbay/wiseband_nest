@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import { DataSource } from 'typeorm'
-import { Logger } from '@nestjs/common'
+import { Logger, Inject } from '@nestjs/common'
 import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, ConnectedSocket, } from '@nestjs/websockets' //OnGatewayConnection, OnGatewayInit
 import { Server, Socket } from 'socket.io'
 import * as hush from 'src/common/common'
@@ -17,7 +17,7 @@ import * as hush from 'src/common/common'
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
 
     constructor(
-        private dataSource : DataSource,
+        @Inject(DataSource) private readonly dataSource: DataSource, //private dataSource : DataSource,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
     ) {}
@@ -78,7 +78,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
     }
 
     @SubscribeMessage('myself') //해당 소켓에만 전송 (1:1)
-    async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { 
+    async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any): Promise<any> { 
         //console.log(JSON.stringify(data), '@@myself')
         if (data.ev == 'chkAlive') {
             const sockets = await this.server.fetchSockets()
@@ -103,6 +103,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                 }
             }
         } else if (data.ev == 'qrySock') { //Admin 전용
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             const list = []            
             if (data.kind == 'all') {
                 const sockets = await this.server.fetchSockets()
@@ -112,20 +113,22 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                         row.userid = sock['user'].userid
                         row.usernm = sock['user'].usernm
                         row.socketid = sock.id
-                        const arr = []
-                        for (let item of sock.rooms) { //rooms => Set
-                            //console.log(JSON.stringify(item))
-                            arr.push(item)
-                        }
+                        const arr = [...sock.rooms] //rooms(Set) into Array
                         row['rooms'] = arr
+                        for (let item of arr) { //console.log(JSON.stringify(item))
+                            const obj = { 
+                                roomid: item, memberid: sock['user'].userid, membernm: sock['user'].usernm, 
+                                socketid: sock.id, kind: data.kind, userid: socket['user'].userid, dt: curdtObj.DT
+                            } //여기서 dataSource.query() 실행하면 usedQueryRunner.query is not a function 오류 발생 : 해결못해 일단 common.ts(hush)로 넘겨 처리함
+                            await hush.insertIntoSockTbl(this.dataSource, obj)
+                        }                        
                     } else {
-                        row.socketid = sock.id
+                        console.log('EventsGateway: 여기로 들어오면 안됨')
                     }
-                    //console.log(JSON.stringify(row), "##qrySock")
                     list.push(row)
                 }
             }
-            data.list = list
+            data.list = list //현재는 data return해서 클라이언트에서 사용하는 것 없음 (admin이 db 열어서 조회해 사용하는 것으로 마무리함)
         }
         socket.emit('myself', data)
     }
