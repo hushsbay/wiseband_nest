@@ -102,6 +102,30 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
                     sock.emit('myself', data) //퇴장한 소켓으로 전달해서 해당 노드 제거하라고 하기
                 }
             }
+        } else if (data.ev == 'qrySock') { //Admin 전용
+            const list = []            
+            if (data.kind == 'all') {
+                const sockets = await this.server.fetchSockets()
+                for (const sock of sockets) { //console.log(sock)
+                    let row = { userid: '', usernm: '', socketid: '' }
+                    if (sock['user']) {
+                        row.userid = sock['user'].userid
+                        row.usernm = sock['user'].usernm
+                        row.socketid = sock.id
+                        const arr = []
+                        for (let item of sock.rooms) { //rooms => Set
+                            //console.log(JSON.stringify(item))
+                            arr.push(item)
+                        }
+                        row['rooms'] = arr
+                    } else {
+                        row.socketid = sock.id
+                    }
+                    //console.log(JSON.stringify(row), "##qrySock")
+                    list.push(row)
+                }
+            }
+            data.list = list
         }
         socket.emit('myself', data)
     }
