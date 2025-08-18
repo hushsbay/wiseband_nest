@@ -79,7 +79,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
 
     @SubscribeMessage('myself') //해당 소켓에만 전송 (1:1)
     async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any): Promise<any> { 
-        //console.log(JSON.stringify(data), '@@myself')
+        console.log(JSON.stringify(data), '@@myself')
         if (data.ev == 'chkAlive') {
             const sockets = await this.server.fetchSockets()
             const sockUserids = sockets.map(sock => sock['user'].userid)
