@@ -79,7 +79,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
 
     @SubscribeMessage('myself') //해당 소켓에만 전송 (1:1)
     async handleMessage0(@ConnectedSocket() socket: Socket, @MessageBody() data: any): Promise<any> { 
-        console.log(JSON.stringify(data), '@@myself')
+        //console.log(JSON.stringify(data), '@@myself')
         if (data.ev == 'chkAlive') {
             const sockets = await this.server.fetchSockets()
             const sockUserids = sockets.map(sock => sock['user'].userid)
@@ -141,7 +141,7 @@ export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnectio
     
     @SubscribeMessage('user') //namespace내 해당 유저가 가진 또 다른 소켓에도 전송 (1:N)
     async handleMessage3(@ConnectedSocket() socket: Socket, @MessageBody() data: any) { //해당 namespace내 해당 user만 골라 개별적으로 소켓 전송
-        console.log(JSON.stringify(data), '##user')
+        //console.log(JSON.stringify(data), '##user')
         const sockets = await this.server.fetchSockets()
         for (let sock of sockets) {
             if (sock['user'].userid == data.userid) {
