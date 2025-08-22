@@ -157,16 +157,16 @@ export function setPageInfo(perPage: number, curPage: number, totalCnt: number, 
     console.log(perPage, curPage, resJson.offsetPos, "====", resJson.offsetPos, resJson.totalCnt, resJson.totalPage)
 }
 
-export async function getMysqlCurdt(dataSource: DataSource): Promise<any> {
-    let sql = "SELECT DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT "
-    const list = await dataSource.query(sql, null)
-    return list[0]
-}
-
 export async function insertIntoSockTbl(dataSource: DataSource, obj: any): Promise<any> {
     let sql = "INSERT INTO S_SOCK_TBL (ROOMID, USERID, USERNM, SOCKETID, KIND, ISUR, ISUDT) "
     sql += " VALUES (?, ?, ?, ?, ?, ?, ?) "
     await dataSource.query(sql, [obj.roomid, obj.memberid, obj.membernm, obj.socketid, obj.kind, obj.userid, obj.dt])
+}
+
+export async function getMysqlCurdt(dataSource: DataSource): Promise<any> {
+    let sql = "SELECT DATE_FORMAT(now(6), '%Y-%m-%d %H:%i:%s.%f') AS DT "
+    const list = await dataSource.query(sql, null)
+    return list[0]
 }
 
 export async function getMysqlUnid(dataSource: DataSource): Promise<any> {

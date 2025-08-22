@@ -80,15 +80,15 @@ export class UserService {
         const methodName = 'user>getUserInfo'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
-        let fv = hush.addFieldValue(dto, null, [userid]) //dto에 요청받아 조회 (사용자 아이디 어떤 것이라도 허용)
+        let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const uid = dto.uid ? dto.uid : userid
+            const uid = dto.uid ? dto.uid : userid //사용자 아이디 어떤 것이라도 허용
             const user = await this.userRepo.findOneBy({ USERID: uid })
             if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
-            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user
-            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid })
-            resJson.data = userFiltered
+            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user //PWD 등 제외
+            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid }) //개인설정정보
             resJson.list = userEnv //not array but object
+            resJson.data = userFiltered
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

@@ -98,8 +98,8 @@ let UserService = class UserService {
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
             const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
             const userEnv = await this.userenvRepo.findOneBy({ USERID: uid });
-            resJson.data = userFiltered;
             resJson.list = userEnv;
+            resJson.data = userFiltered;
             return resJson;
         }
         catch (ex) {

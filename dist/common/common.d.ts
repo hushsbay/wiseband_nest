@@ -48,8 +48,8 @@ export declare function setResJson(json: ResJson, msg: string, code?: string, re
 export declare function writeLogError(msg: string, code?: string, req?: Request, smallTitle?: string): void;
 export declare function setMsgBracket(msg: string, code?: string, req?: Request, smallTitle?: string): string[];
 export declare function setPageInfo(perPage: number, curPage: number, totalCnt: number, resJson: ResJson): void;
-export declare function getMysqlCurdt(dataSource: DataSource): Promise<any>;
 export declare function insertIntoSockTbl(dataSource: DataSource, obj: any): Promise<any>;
+export declare function getMysqlCurdt(dataSource: DataSource): Promise<any>;
 export declare function getMysqlUnid(dataSource: DataSource): Promise<any>;
 export declare function getTypeForMsgDtl(strKind: string): string;
 export declare function insertDataLog(dataSource: DataSource, obj: any): Promise<any>;

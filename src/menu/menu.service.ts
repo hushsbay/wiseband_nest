@@ -64,7 +64,7 @@ export class MenuService {
     
     ///////////////////////////////////////////////////////////////////////////////위는 서비스내 공통 모듈
 
-    async qry(dto: Record<string, any>): Promise<any> { //사이드메뉴
+    async qry(dto: Record<string, any>): Promise<any> { //사이드 메뉴
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {            
