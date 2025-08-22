@@ -203,7 +203,7 @@ let UserService = class UserService {
                 }
             }
             if (pwdNew.includes('@')) {
-                return hush.setResJson(resJson, '기호중 @는 지원하지 않습니다.', hush.Code.NOT_OK, null, methodName);
+                return hush.setResJson(resJson, '기호 @는 지원하지 않습니다.', hush.Code.NOT_OK, null, methodName);
             }
             const encoded = hush.encrypt(pwdNew, config.crypto.key);
             user.PWD = encoded;

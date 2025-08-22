@@ -1686,8 +1686,7 @@ export class ChanmsgService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { logdt } = dto 
-            //console.log(logdt, "qryDataLogEach", userid)
+            const { logdt } = dto  //console.log(logdt, "qryDataLogEach", userid)
             let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "

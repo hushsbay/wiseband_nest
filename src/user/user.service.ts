@@ -183,7 +183,7 @@ export class UserService {
                 }
             }
             if (pwdNew.includes('@')) {
-                return hush.setResJson(resJson, '기호중 @는 지원하지 않습니다.', hush.Code.NOT_OK, null, methodName)
+                return hush.setResJson(resJson, '기호 @는 지원하지 않습니다.', hush.Code.NOT_OK, null, methodName)
             }
             const encoded = hush.encrypt(pwdNew, config.crypto.key)
             user.PWD = encoded
@@ -203,7 +203,7 @@ export class UserService {
         try {
             const [user, retStr] = await this.chkUser(uid, otpNum)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.userRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
+            const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             user.OTP_NUM = otpNum
             user.OTP_DT = curdtObj.DT
             await this.userRepo.save(user)
