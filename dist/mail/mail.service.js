@@ -26,10 +26,10 @@ let MailService = class MailService {
             html: body
         })
             .then((result) => {
-            console.log(result);
+            console.log('mailerService ok: ', result);
         })
             .catch((error) => {
-            console.log(error);
+            console.log('mailerService error: ', error);
         });
     }
 };
