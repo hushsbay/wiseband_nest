@@ -1223,31 +1223,47 @@ export class ChanmsgService {
                 .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND IN ('fixed', 'delfixed') ", {
                     msgid: msgid, chanid: chanid, userid: userid
                 }).getRawOne() //console.log(msgdtl.length, "@@@@@@@@@@")
-                if (kind == 'fixed') {
-                    if (!msgdtlforuser) {
-                        await qbMsgDtl
-                        .insert().values({ 
-                            MSGID: msgid, CHANID: chanid, USERID: userid, KIND: 'fixed', TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
-                        }).execute()
-                    } else {
-                        await qbMsgDtl
-                        .update()
-                        .set({ KIND: 'fixed' })
-                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
-                            msgid: msgid, chanid: chanid, userid: userid, kind: kind
-                        }).execute()
-                    }
+                if (!msgdtlforuser) {
+                    await qbMsgDtl
+                    .insert().values({ 
+                        MSGID: msgid, CHANID: chanid, USERID: userid, KIND: 'fixed', TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
+                    }).execute()
                     cud = 'C'
-                } else { //delfixed
-                    if (msgdtlforuser) {
-                        await qbMsgDtl
-                        .delete()
-                        .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = 'fixed' ", {
-                            msgid: msgid, chanid: chanid, userid: userid
-                        }).execute()
-                    }
-                    cud = 'D'
+                } else {
+                    const newKInd = (msgdtlforuser.KIND == 'fixed') ? 'delfixed' : 'fixed'
+                    cud = (msgdtlforuser.KIND == 'fixed') ? 'D' : 'C'
+                    await qbMsgDtl
+                    .update()
+                    .set({ KIND: newKInd })
+                    .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND IN ('fixed', 'delfixed') ", {
+                        msgid: msgid, chanid: chanid, userid: userid
+                    }).execute()
                 }
+                // if (kind == 'fixed') {
+                //     if (!msgdtlforuser) {
+                //         await qbMsgDtl
+                //         .insert().values({ 
+                //             MSGID: msgid, CHANID: chanid, USERID: userid, KIND: 'fixed', TYP: 'user', CDT: curdtObj.DT, UDT: curdtObj.DT, USERNM: usernm
+                //         }).execute()
+                //     } else {
+                //         await qbMsgDtl
+                //         .update()
+                //         .set({ KIND: 'fixed' })
+                //         .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
+                //             msgid: msgid, chanid: chanid, userid: userid, kind: kind
+                //         }).execute()
+                //     }
+                //     cud = 'C'
+                // } else { //delfixed
+                //     if (msgdtlforuser) {
+                //         await qbMsgDtl
+                //         .delete()
+                //         .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = 'fixed' ", {
+                //             msgid: msgid, chanid: chanid, userid: userid
+                //         }).execute()
+                //     }
+                //     cud = 'D'
+                // }
             } //아래는 로깅 (changeReaction과 동일)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: msgid, replyto: rs.data.msgmst.REPLYTO ? rs.data.msgmst.REPLYTO : '', chanid: chanid, 
