@@ -414,8 +414,7 @@ export class MenuService {
                 sql += "WHERE Y.DT < '" + prevMsgMstCdt + "' "
             }
             sql += "ORDER BY Y.DT DESC "
-            if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt
-            console.log(sql)
+            if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt //console.log(sql)
             const list = await this.dataSource.query(sql, null)
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
