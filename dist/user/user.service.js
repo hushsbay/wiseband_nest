@@ -36,7 +36,6 @@ let UserService = class UserService {
     async getVipList(userid) {
         let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? ";
         const vipList = await this.dataSource.query(sql, [userid]);
-        console.log(JSON.stringify(vipList[0]), "0000000000000");
         return vipList;
     }
     async chkUserRightForGroup(grid, userid) {
@@ -55,7 +54,7 @@ let UserService = class UserService {
             return [null, '아이디/OTP(비번) 값이 없습니다 : ' + uid + '/' + secret];
         const user = await this.userRepo.findOneBy({ USERID: uid });
         if (!user)
-            return [null, '아이디가 없습니다 : ' + uid];
+            return [null, '해당 아이디가 없습니다 : ' + uid];
         return [user, ''];
     }
     async login(uid, pwd) {
@@ -73,7 +72,6 @@ let UserService = class UserService {
                     return hush.setResJson(resJson, '비번을 입력하시기 바랍니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
                 const config = (0, app_config_1.default)();
                 const decoded = hush.decrypt(user.PWD, config.crypto.key);
-                console.log(pwd, 'CCCCCCCC', decoded);
                 if (pwd !== decoded) {
                     return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName);
                 }
@@ -165,18 +163,10 @@ let UserService = class UserService {
                 }).execute();
             }
             else {
-                if (kind == "body") {
-                    await qbUserEnv.update().set({ BODY_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                        .where("USERID = :userid ", { userid: userid }).execute();
-                }
-                else if (kind == "author") {
-                    await qbUserEnv.update().set({ AUTHOR_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                        .where("USERID = :userid ", { userid: userid }).execute();
-                }
-                else {
-                    await qbUserEnv.update().set({ NOTI_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                        .where("USERID = :userid ", { userid: userid }).execute();
-                }
+                let obj = { MODR: userid, MODDT: curdtObj.DT };
+                const obj1 = (kind == "body") ? { BODY_OFF: bool } : (kind == "author") ? { AUTHOR_OFF: bool } : { NOTI_OFF: bool };
+                Object.assign(obj, obj1);
+                await qbUserEnv.update().set(obj).where("USERID = :userid ", { userid: userid }).execute();
             }
             return resJson;
         }
@@ -417,14 +407,14 @@ let UserService = class UserService {
             for (let i = 0; i < list.length; i++) {
                 const usercode = await qbUserCode
                     .select("COUNT(*) CNT")
-                    .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                    .where("USERID = :userid and KIND = 'vip' and UID = :uid ", {
                     userid: userid, uid: list[i].USERID
                 }).getRawOne();
                 if (bool) {
                     if (usercode.CNT == 0) {
                         await qbUserCode
                             .insert().values({
-                            KIND: 'vip', USERID: userid, UID: list[i].USERID, UNM: list[i].USERNM
+                            USERID: userid, KIND: 'vip', UID: list[i].USERID, UNM: list[i].USERNM
                         }).execute();
                     }
                 }
@@ -432,7 +422,7 @@ let UserService = class UserService {
                     if (usercode.CNT > 0) {
                         await qbUserCode
                             .delete()
-                            .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                            .where("USERID = :userid and KIND = 'vip' and UID = :uid ", {
                             userid: userid, uid: list[i].USERID
                         }).execute();
                     }

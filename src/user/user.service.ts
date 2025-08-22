@@ -25,12 +25,12 @@ export class UserService {
 
     async getVipList(userid: string): Promise<any> {
         let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
-        const vipList = await this.dataSource.query(sql, [userid])
-        console.log(JSON.stringify(vipList[0]), "0000000000000")
+        const vipList = await this.dataSource.query(sql, [userid]) //console.log(JSON.stringify(vipList[0]), "0000000000000")
         return vipList //데이터 없으면 vipList[0].VIP = null로 나옴
     }
 
-    async chkUserRightForGroup(grid: string, userid: string): Promise<[GrMst, string]> {
+    async chkUserRightForGroup(grid: string, userid: string): Promise<[GrMst, string]> { 
+        //userid는 본인이어야 함. req['user']를 전달받지 않는 것은 혹시나 req를 받지못하는 상황이 올 수도 있어서임
         const grmst = await this.grmstRepo.findOneBy({ GR_ID: grid })
         if (!grmst) return [null, '해당 그룹이 없습니다 : ' + grid + '/' + userid]
         let grdtl = await this.grdtlRepo.findOneBy({ GR_ID: grid, USERID: userid }) //1) useridToProc이 아닌 현재 사용자인 userid의 자격을 먼저 체크
@@ -44,7 +44,7 @@ export class UserService {
     async chkUser(uid: string, secret: string): Promise<[User, string]> {
         if (!uid || !secret) return [null, '아이디/OTP(비번) 값이 없습니다 : ' + uid + '/' + secret]
         const user = await this.userRepo.findOneBy({ USERID: uid })
-        if (!user) return [null, '아이디가 없습니다 : ' + uid]
+        if (!user) return [null, '해당 아이디가 없습니다 : ' + uid]
         return [user, '']
     }
 
@@ -62,8 +62,7 @@ export class UserService {
             } else {
                 if (!pwd) return hush.setResJson(resJson, '비번을 입력하시기 바랍니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
                 const config = appConfig()
-                const decoded = hush.decrypt(user.PWD, config.crypto.key)
-                console.log(pwd, 'CCCCCCCC', decoded)
+                const decoded = hush.decrypt(user.PWD, config.crypto.key) //console.log(pwd, 'CCCCCCCC', decoded)
                 if (pwd !== decoded) {
                     return hush.setResJson(resJson, hush.Msg.PWD_MISMATCH + fv, hush.Code.PWD_MISMATCH, this.req, methodName)
                 }
@@ -148,16 +147,10 @@ export class UserService {
                     ISUR: userid, ISUDT: curdtObj.DT, MODR: userid, MODDT: curdtObj.DT
                 }).execute()
             } else {
-                if (kind == "body") {
-                    await qbUserEnv.update().set({ BODY_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                    .where("USERID = :userid ", { userid: userid }).execute()
-                } else if (kind == "author") {
-                    await qbUserEnv.update().set({ AUTHOR_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                    .where("USERID = :userid ", { userid: userid }).execute()
-                } else { //noti
-                    await qbUserEnv.update().set({ NOTI_OFF: bool, MODR: userid, MODDT: curdtObj.DT })
-                    .where("USERID = :userid ", { userid: userid }).execute()
-                }
+                let obj = { MODR: userid, MODDT: curdtObj.DT }
+                const obj1 = (kind == "body") ? { BODY_OFF: bool } : (kind == "author") ? { AUTHOR_OFF: bool } : { NOTI_OFF: bool }
+                Object.assign(obj, obj1)
+                await qbUserEnv.update().set(obj).where("USERID = :userid ", { userid: userid }).execute()
             }
             return resJson
         } catch (ex) {
@@ -236,7 +229,7 @@ export class UserService {
         }
     }
 
-    async orgTree(dto: Record<string, any>): Promise<any> {
+    async orgTree(dto: Record<string, any>): Promise<any> { //권한체크X
         const methodName = 'user>orgTree'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
@@ -244,15 +237,9 @@ export class UserService {
             const { myteam, mycomp } = dto
             let maxLevel = -1
             // const orglist = await this.dataSource.createQueryBuilder()
-            // .select('A.ORG_CD', 'ORG_CD')
-            // .addSelect('A.ORG_NM', 'ORG_NM')
-            // .addSelect('A.SEQ', 'SEQ')
-            // .addSelect('A.LVL', 'LVL')  
-            // .addSelect((subQuery) => {
-            //     return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")
-            // }, 'CNT')
-            // .from(Org, 'A')
-            // .orderBy('A.SEQ', 'ASC').getRawMany()
+            // .select('A.ORG_CD', 'ORG_CD').addSelect('A.ORG_NM', 'ORG_NM').addSelect('A.SEQ', 'SEQ').addSelect('A.LVL', 'LVL')  
+            // .addSelect((subQuery) => { return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")}, 'CNT')
+            // .from(Org, 'A').orderBy('A.SEQ', 'ASC').getRawMany()
             let sql = "SELECT ORG_CD, ORG_NM, TOP_ORG_CD, SEQ, LVL, (SELECT COUNT(*) FROM S_USER_TBL WHERE ORG_CD = A.ORG_CD) CNT "
             sql += "     FROM S_ORG_TBL A "
             if (mycomp) {
@@ -306,7 +293,7 @@ export class UserService {
         }
     }
 
-    async procOrgSearch(dto: Record<string, any>): Promise<any> {
+    async procOrgSearch(dto: Record<string, any>): Promise<any> { //권한체크X
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
@@ -335,7 +322,7 @@ export class UserService {
         }
     }
 
-    async qryGroupWithUser(dto: Record<string, any>): Promise<any> { //umenu의 qryGroup all과 거의 동일하나 user가 있음
+    async qryGroupWithUser(dto: Record<string, any>): Promise<any> { //menu의 qryGroup all과 거의 동일하나 user가 있음
         const methodName = 'user>qryGroupWithUser'
         const resJson = new ResJson()
         const userid = this.req['user'].userid
@@ -397,35 +384,31 @@ export class UserService {
         const resJson = new ResJson()
         const userid = this.req['user'].userid
         try {            
-            const { list, bool } = dto
-            //let retCnt = 0
+            const { list, bool } = dto //let retCnt = 0
             const qbUserCode = this.usercodeRepo.createQueryBuilder()
             for (let i = 0; i < list.length; i++) { //list.forEach(async (item, index) => {            
                 const usercode = await qbUserCode
                 .select("COUNT(*) CNT")
-                .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                .where("USERID = :userid and KIND = 'vip' and UID = :uid ", {
                     userid: userid, uid: list[i].USERID
                 }).getRawOne()
                 if (bool) {
                     if (usercode.CNT == 0) {
                         await qbUserCode
                         .insert().values({ 
-                            KIND: 'vip', USERID: userid, UID: list[i].USERID, UNM: list[i].USERNM
-                        }).execute()
-                        //retCnt += 1
+                            USERID: userid, KIND: 'vip', UID: list[i].USERID, UNM: list[i].USERNM
+                        }).execute() //retCnt += 1
                     }
                 } else {
                     if (usercode.CNT > 0) {
                         await qbUserCode
                         .delete()
-                        .where("KIND = 'vip' and USERID = :userid and UID = :uid ", {
+                        .where("USERID = :userid and KIND = 'vip' and UID = :uid ", {
                             userid: userid, uid: list[i].USERID
-                        }).execute()
-                        //retCnt += 1
+                        }).execute() //retCnt += 1
                     }
                 }
-            }
-            //resJson.data.retCnt = retCnt
+            } //resJson.data.retCnt = retCnt
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req)
