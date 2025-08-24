@@ -514,8 +514,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             const { chanid, prevMsgMstCdt, rdoOpt, kind, fileName, fileExt, frYm, toYm, authorNm, searchText } = dto
-            const kindStr = kind.substr(0, 1).toUpperCase()
-            //console.log("searchMedia", chanid, prevMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
+            const kindStr = kind.substr(0, 1).toUpperCase() //console.log("searchMedia", chanid, prevMsgMstCdt, rdoOpt, kindStr, fileName, fileExt, frYm, toYm, authorNm, searchText)
             let frDash = hush.cons.cdtAtFirst, toDash = hush.cons.cdtAtLast
             if (frYm.length == 6) frDash = frYm.substr(0, 4) + '-' + frYm.substr(4, 2)
             if (toYm.length == 6) toDash = toYm.substr(0, 4) + '-' + toYm.substr(4, 2) + '-99'            
@@ -984,14 +983,10 @@ export class ChanmsgService {
             const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
             if (ret[0].CNT > 0) {
                 sql = " DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
-                await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
-                console.log(msgid, chanid, userid, newKind, '000')
-            } else {
-                console.log(msgid, chanid, userid, newKind, '111')
+                await this.dataSource.query(sql, [msgid, chanid, userid, newKind]) //console.log(msgid, chanid, userid, newKind, '000')
             }
             let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
-            if (msgdtl) {
-                console.log(msgid, chanid, userid, newKind, '222')
+            if (msgdtl) { //console.log(msgid, chanid, userid, newKind, '222')
                 await qbMsgDtl.update()
                 .set({ KIND: newKind, UDT: curdtObj.DT })
                 .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
@@ -1002,14 +997,11 @@ export class ChanmsgService {
                 //         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                 //     })
                 // })
-                // await qbMsgDtl.update().set({ KIND: newKind, UDT: curdtObj.DT }).where(bracket).execute()
-                console.log(msgid, chanid, userid, newKind, '333')
-            } else {
-                console.log(msgid, chanid, userid, newKind, '444')
+                // await qbMsgDtl.update().set({ KIND: newKind, UDT: curdtObj.DT }).where(bracket).execute() //console.log(msgid, chanid, userid, newKind, '333')
+            } else { //console.log(msgid, chanid, userid, newKind, '444')
                 await qbMsgDtl.insert().values({ 
                     MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: '', CDT: curdtObj.DT, UDT: curdtObj.DT
                 }).execute()
-                console.log(msgid, chanid, userid, newKind, '555')
             }
             //위의 save()는 kind가 primary key인데 그걸 update하는 것으로서 아래처럼 코딩하면 update가 아닌 insert되어 버리는 문제가 발생함
             //primary key, unique 인덱스 잘 설정되어 있어야 하고 제대로 사용(primary key는 고치지 않는 것만 사용)해야 문제를 막을 수 있는데 키가 많으면 복잡하고 어려울 것임
@@ -1047,8 +1039,7 @@ export class ChanmsgService {
         try {            
             const { msgid, chanid } = dto
             const oldKind = 'notyet'
-            const newKind = 'read'
-            console.log(oldKind, newKind, msgid)
+            const newKind = 'read' //console.log(oldKind, newKind, msgid)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
@@ -1056,18 +1047,15 @@ export class ChanmsgService {
             let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
             const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
             if (ret[0].CNT > 0) { //read가 이미 있으면 굳이 다시 처리할 필요없음
-                console.log(msgid, chanid, userid, newKind, '000')
-            } else {
-                console.log(msgid, chanid, userid, newKind, '111111')
+                //console.log(msgid, chanid, userid, newKind, '000')
+            } else { //console.log(msgid, chanid, userid, newKind, '111111')
                 let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
-                if (msgdtl) {
-                    console.log(msgid, chanid, userid, newKind, '222222')
+                if (msgdtl) { //console.log(msgid, chanid, userid, newKind, '222222')
                     await qbMsgDtl.update()
                     .set({ KIND: newKind, UDT: curdtObj.DT })
                     .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
-                    }).execute()
-                    console.log(msgid, chanid, userid, newKind, '333333')
+                    }).execute() //console.log(msgid, chanid, userid, newKind, '333333')
                     //아래는 MsgList.vue에서의 newParentAdded/newChildAdded배열에 들어 있는 msgid 항목을 제거하기 위해 로깅하는 것임 (CUD=D가 필요함)
                     //여기서는 기본창이든 새창이든 notyet->read처리된 것이 msgid가 있어야 제거처리가 가능한데 로깅테이블에서 읽어올 때는
                     //부하 고려해서 group by로 읽어와 msgid가 없음. 그래서 notyet->read인 경우만 여기서 로깅추가해 처리하고자 함 
@@ -1081,11 +1069,10 @@ export class ChanmsgService {
                     const ret = await hush.insertDataLog(this.dataSource, logObj)
                     if (ret != '') throw new Error(ret)
                 } else { //원래 notyet은 기본적으로 insert되어 있으므로 여기로 들어오면 로직 이상이나 일단 처리해주는 것으로 함
-                    console.log(msgid, chanid, userid, newKind, '444')
+                    //console.log(msgid, chanid, userid, newKind, '444')
                     await qbMsgDtl.insert().values({ 
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: 'read', CDT: curdtObj.DT, UDT: curdtObj.DT
-                    }).execute()
-                    console.log(msgid, chanid, userid, newKind, '555')
+                    }).execute() //console.log(msgid, chanid, userid, newKind, '555')
                 }
             }
             //읽음 처리시 브라우조로부터 거의 동일한 시각에 2회 동시처리가 일어나는데 (물론 근본 원인은 브라우저에서 2회 호출이 문제지만)

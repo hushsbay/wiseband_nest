@@ -1001,27 +1001,19 @@ let ChanmsgService = class ChanmsgService {
             if (ret[0].CNT > 0) {
                 sql = " DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? ";
                 await this.dataSource.query(sql, [msgid, chanid, userid, newKind]);
-                console.log(msgid, chanid, userid, newKind, '000');
-            }
-            else {
-                console.log(msgid, chanid, userid, newKind, '111');
             }
             let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind });
             if (msgdtl) {
-                console.log(msgid, chanid, userid, newKind, '222');
                 await qbMsgDtl.update()
                     .set({ KIND: newKind, UDT: curdtObj.DT })
                     .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                     msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                 }).execute();
-                console.log(msgid, chanid, userid, newKind, '333');
             }
             else {
-                console.log(msgid, chanid, userid, newKind, '444');
                 await qbMsgDtl.insert().values({
                     MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: '', CDT: curdtObj.DT, UDT: curdtObj.DT
                 }).execute();
-                console.log(msgid, chanid, userid, newKind, '555');
             }
             msgdtl = await this.qryMsgDtl(qbMsgDtl, msgid, chanid);
             resJson.data.msgdtl = msgdtl;
@@ -1041,7 +1033,6 @@ let ChanmsgService = class ChanmsgService {
             const { msgid, chanid } = dto;
             const oldKind = 'notyet';
             const newKind = 'read';
-            console.log(oldKind, newKind, msgid);
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, msgid: msgid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
@@ -1050,19 +1041,15 @@ let ChanmsgService = class ChanmsgService {
             let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? ";
             const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind]);
             if (ret[0].CNT > 0) {
-                console.log(msgid, chanid, userid, newKind, '000');
             }
             else {
-                console.log(msgid, chanid, userid, newKind, '111111');
                 let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind });
                 if (msgdtl) {
-                    console.log(msgid, chanid, userid, newKind, '222222');
                     await qbMsgDtl.update()
                         .set({ KIND: newKind, UDT: curdtObj.DT })
                         .where("MSGID = :msgid and CHANID = :chanid and USERID = :userid and KIND = :kind ", {
                         msgid: msgid, chanid: chanid, userid: userid, kind: oldKind
                     }).execute();
-                    console.log(msgid, chanid, userid, newKind, '333333');
                     const replyto = rs.data.msgmst.REPLYTO;
                     const kind = newKind;
                     const typ = hush.getTypeForMsgDtl(kind);
@@ -1075,11 +1062,9 @@ let ChanmsgService = class ChanmsgService {
                         throw new Error(ret);
                 }
                 else {
-                    console.log(msgid, chanid, userid, newKind, '444');
                     await qbMsgDtl.insert().values({
                         MSGID: msgid, CHANID: chanid, USERID: userid, KIND: newKind, USERNM: usernm, TYP: 'read', CDT: curdtObj.DT, UDT: curdtObj.DT
                     }).execute();
-                    console.log(msgid, chanid, userid, newKind, '555');
                 }
             }
             return resJson;

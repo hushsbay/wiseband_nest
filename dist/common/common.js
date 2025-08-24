@@ -195,7 +195,7 @@ function getBasicAclSql(userid, typ, includeOnlyPrivate) {
     sqlWs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID ";
     sqlWs += "INNER JOIN S_GRDTL_TBL C ON A.GR_ID = C.GR_ID ";
     if (includeOnlyPrivate) {
-        sqlWs += "WHERE A.TYP = 'WS' AND B.USERID = '" + userid + "' ";
+        sqlWs += "WHERE B.USERID = '" + userid + "' AND A.TYP = 'WS' ";
     }
     else {
         sqlWs += "WHERE A.TYP = 'WS' AND (B.USERID = '" + userid + "' OR A.STATE = 'A') ";
@@ -203,7 +203,7 @@ function getBasicAclSql(userid, typ, includeOnlyPrivate) {
     let sqlGs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT ";
     sqlGs += " FROM S_CHANMST_TBL A ";
     sqlGs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID ";
-    sqlGs += "WHERE A.TYP = 'GS' AND B.USERID = '" + userid + "' ";
+    sqlGs += "WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' ";
     if (typ == 'WS') {
         return sqlWs;
     }

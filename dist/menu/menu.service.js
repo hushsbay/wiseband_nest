@@ -347,7 +347,7 @@ let MenuService = class MenuService {
             if (notyet == 'Y') {
                 sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' ";
             }
-            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') ";
+            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE USERID = '" + userid + "' AND KIND = 'vip') ";
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM ";
             let sqlThread = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, ";
             sqlThread += "          '' SUBKIND, 'thread' TITLE, MAX(CDT) DT ";

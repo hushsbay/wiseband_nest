@@ -338,7 +338,7 @@ export class MenuService {
             if (notyet == 'Y') {
                 sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
             }
-            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = '" + userid + "') "
+            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE USERID = '" + userid + "' AND KIND = 'vip') "
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM "
             //2. mention
             //웹에디터와 같이 개발
