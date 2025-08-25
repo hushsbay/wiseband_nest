@@ -1500,7 +1500,7 @@ export class ChanmsgService {
         const usernm = this.req['user'].usernm
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const { crud, CHANID, USERID, USERNM, KIND, SYNC } = dto
+            const { crud, CHANID, USERID, USERNM, KIND, SYNC, chkOnly } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const chanmst = rs.data.chanmst
@@ -1536,13 +1536,15 @@ export class ChanmsgService {
                 chandtl.MODR = userid
                 chandtl.UDT = curdtObj.DT
             }
-            await this.chandtlRepo.save(chandtl)
-            const logObj = { 
-                cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
-                userid: userid, usernm: usernm, cud: crud, kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
+            if (!chkOnly) {
+                await this.chandtlRepo.save(chandtl)
+                const logObj = { 
+                    cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
+                    userid: userid, usernm: usernm, cud: crud, kind: 'mem', typ: 'chan', bodytext: '', subkind: chanmst.TYP
+                }
+                const ret = await hush.insertDataLog(this.dataSource, logObj)
+                if (ret != '') throw new Error(ret)
             }
-            const ret = await hush.insertDataLog(this.dataSource, logObj)
-            if (ret != '') throw new Error(ret)
             return resJson
         } catch (ex) {            
             hush.throwCatchedEx(ex, this.req, fv)
