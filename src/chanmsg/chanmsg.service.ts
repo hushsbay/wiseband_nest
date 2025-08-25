@@ -1464,20 +1464,6 @@ export class ChanmsgService {
             if (chanmst.MASTERID != userid) {
                 return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
-            /*아래는 S_CHANMSTDEL_TBL로의 백업 시작
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chanmstRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-            let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANMSTDEL_TBL WHERE CHANID = ? "
-            const delchanmst = await this.dataSource.query(sqlDel, [CHANID])
-            if (delchanmst[0].CNT > 0) {
-                sqlDel =  "DELETE FROM S_CHANMSTDEL_TBL WHERE CHANID = ? "
-                await this.dataSource.query(sqlDel, [CHANID])
-            }
-            sqlDel = " INSERT INTO S_CHANMSTDEL_TBL (CHANID, CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE, ISUR, CDT, MODR, UDT) "
-            sqlDel += "SELECT CHANID, CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE, ISUR, CDT, ?, ? "
-            sqlDel += "  FROM S_CHANMST_TBL "
-            sqlDel += " WHERE CHANID = ? "
-            await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID])
-            //S_GRMSTDEL_TBL로의 백업 종료*/
             await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
             await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
@@ -1581,20 +1567,6 @@ export class ChanmsgService {
                 //퇴장 메시지 등은 시스템에서 해당 룸으로 보내면 문제없을 것이나 data polling 등 구조적으로 어려워 (다음 과제로 넘기고)
                 //일단, delete해도 되는지 미리 체크하고자 함 (본인이 나가는 경우에 먼저 chkOnly 알아보지 않으면 멤버제거후 권한이 없어져 퇴장메시지 전송이 안됨)
             } else {
-                /*아래는 S_CHANDTLDEL_TBL로의 백업 시작
-                const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await this.chandtlRepo.createQueryBuilder().select(hush.cons.curdtMySqlStr).getRawOne()
-                let sqlDel = "SELECT COUNT(*) CNT FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
-                const deldtl = await this.dataSource.query(sqlDel, [CHANID, USERID])
-                if (deldtl[0].CNT > 0) {
-                    sqlDel =  "DELETE FROM S_CHANDTLDEL_TBL WHERE CHANID = ? AND USERID = ? "
-                    await this.dataSource.query(sqlDel, [CHANID, USERID])
-                }
-                sqlDel = " INSERT INTO S_CHANDTLDEL_TBL (CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, MODR, UDT) "
-                sqlDel += "SELECT CHANID, USERID, USERNM, STATE, KIND, NOTI, BOOKMARK, SYNC, ISUR, CDT, ?, ? "
-                sqlDel += "  FROM S_CHANDTL_TBL "
-                sqlDel += " WHERE CHANID = ? AND USERID = ? "
-                await this.dataSource.query(sqlDel, [userid, curdtObj.DT, CHANID, USERID])
-                //S_GRDTLDEL_TBL로의 백업 종료*/
                 await this.chandtlRepo.delete(chandtl) //더 위로 올라가면 안됨
                 const curdtObj = await hush.getMysqlCurdt(this.dataSource)
                 const logObj = { 
