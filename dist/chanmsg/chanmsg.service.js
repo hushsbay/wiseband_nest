@@ -48,15 +48,13 @@ let ChanmsgService = class ChanmsgService {
             let data = { chanmst: null, chandtl: [], msgmst: null };
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto;
             console.log("111");
-            const chanmst = await this.chanmstRepo.createQueryBuilder('A')
-                .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
-                .where("A.CHANID = :chanid ", {
-                chanid: chanid
-            }).getOne();
+            let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM S_CHANMST_TBL WHERE CHANID = ? ";
+            const list = await this.dataSource.query(sql, [chanid]);
+            const chanmst = list[0];
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst');
             }
-            console.log("111222");
+            console.log("111222222222222222222");
             let grnm = '';
             if (chanmst.TYP == 'GS') {
             }
@@ -66,7 +64,7 @@ let ChanmsgService = class ChanmsgService {
                         return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, methodName + '>grid');
                     }
                 }
-                let sql = "SELECT A.GR_NM ";
+                sql = "SELECT A.GR_NM ";
                 sql += "     FROM S_GRMST_TBL A ";
                 sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID ";
                 sql += "    WHERE A.GR_ID = ? AND B.USERID = ? ";
@@ -75,12 +73,11 @@ let ChanmsgService = class ChanmsgService {
                     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName);
                 }
                 grnm = list[0].GR_NM;
-                console.log(grnm + "==========");
             }
             data.chanmst = chanmst;
             data.chanmst.GR_NM = grnm;
             console.log("111333");
-            let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
+            sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
             sql += "     FROM S_CHANDTL_TBL ";
             sql += "    WHERE CHANID = ? ";
             sql += "    ORDER BY USERNM ";
