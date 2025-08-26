@@ -48,9 +48,11 @@ let ChanmsgService = class ChanmsgService {
             let data = { chanmst: null, chandtl: [], msgmst: null };
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto;
             console.log("111");
-            let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM S_CHANMST_TBL WHERE CHANID = ? ";
-            const list = await this.dataSource.query(sql, [chanid]);
-            const chanmst = list[0];
+            const chanmst = await this.chanmstRepo.createQueryBuilder('A')
+                .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
+                .where("A.CHANID = :chanid ", {
+                chanid: chanid
+            }).getOne();
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst');
             }
@@ -64,7 +66,7 @@ let ChanmsgService = class ChanmsgService {
                         return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, methodName + '>grid');
                     }
                 }
-                sql = "SELECT A.GR_NM ";
+                let sql = "SELECT A.GR_NM ";
                 sql += "     FROM S_GRMST_TBL A ";
                 sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID ";
                 sql += "    WHERE A.GR_ID = ? AND B.USERID = ? ";
@@ -77,7 +79,7 @@ let ChanmsgService = class ChanmsgService {
             data.chanmst = chanmst;
             data.chanmst.GR_NM = grnm;
             console.log("111333");
-            sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
+            let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
             sql += "     FROM S_CHANDTL_TBL ";
             sql += "    WHERE CHANID = ? ";
             sql += "    ORDER BY USERNM ";
@@ -92,6 +94,7 @@ let ChanmsgService = class ChanmsgService {
                 }
                 if (item.SYNC == 'Y') {
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID });
+                    console.log("111444@@@@");
                     if (user) {
                         item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM;
                         item.JOB = user.JOB;
@@ -104,6 +107,7 @@ let ChanmsgService = class ChanmsgService {
                 }
                 else {
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID });
+                    console.log("111444$$$$4");
                     if (grdtl) {
                         item.ORG = grdtl.ORG;
                         item.JOB = grdtl.JOB;

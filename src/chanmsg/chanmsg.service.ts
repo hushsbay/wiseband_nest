@@ -48,14 +48,14 @@ export class ChanmsgService {
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             console.log("111")
-            // const chanmst = await this.chanmstRepo.createQueryBuilder('A')
-            // .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
-            // .where("A.CHANID = :chanid ", { 
-            //     chanid: chanid 
-            // }).getOne()
-            let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM S_CHANMST_TBL WHERE CHANID = ? "
-            const list = await this.dataSource.query(sql, [chanid])
-            const chanmst = list[0] //chanmst를 typeorm으로 가져 오니 느린 적이 가끔 있어 전환한 것임
+            const chanmst = await this.chanmstRepo.createQueryBuilder('A')
+            .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
+            .where("A.CHANID = :chanid ", { 
+                chanid: chanid 
+            }).getOne()
+            //let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM S_CHANMST_TBL WHERE CHANID = ? "
+            //const list = await this.dataSource.query(sql, [chanid])
+            //const chanmst = list[0] //chanmst를 typeorm으로 가져 오니 느린 적 있어 전환한 것임
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst')
             }
@@ -79,7 +79,7 @@ export class ChanmsgService {
                 //     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName + '>gr')
                 // }
                 //grnm = gr.GR_NM
-                sql = "SELECT A.GR_NM "
+                let sql = "SELECT A.GR_NM "
                 sql += "     FROM S_GRMST_TBL A "
                 sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
                 sql += "    WHERE A.GR_ID = ? AND B.USERID = ? "
@@ -93,7 +93,7 @@ export class ChanmsgService {
             data.chanmst.GR_NM = grnm
             //////////b) S_CHANDTL_TBL 
             console.log("111333")
-            sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
+            let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
             sql += "     FROM S_CHANDTL_TBL "
             sql += "    WHERE CHANID = ? "
             sql += "    ORDER BY USERNM "
@@ -108,6 +108,7 @@ export class ChanmsgService {
                 }
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
+                    console.log("111444@@@@")
                     if (user) {
                         item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM
                         item.JOB = user.JOB
@@ -118,6 +119,7 @@ export class ChanmsgService {
                     }
                 } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
+                    console.log("111444$$$$4")
                     if (grdtl) {
                         item.ORG = grdtl.ORG
                         item.JOB = grdtl.JOB
