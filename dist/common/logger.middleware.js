@@ -29,7 +29,7 @@ let LoggerMiddleware = class LoggerMiddleware {
             else {
                 if (originalUrl.includes('chanmsg/qryDataLogEach')) {
                 }
-                else if (originalUrl.includes('assets/images')) {
+                else if (originalUrl.includes('assets') || originalUrl.includes('favicon.ico')) {
                 }
                 else {
                     winston_util_1.winstonLogger.log(str);

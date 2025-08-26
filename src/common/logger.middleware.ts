@@ -20,8 +20,8 @@ export class LoggerMiddleware implements NestMiddleware {
             } else {
                 if (originalUrl.includes('chanmsg/qryDataLogEach')) {
                     //Polling은 콘솔 로그에 들어가면 너무 발리 올라가버려서 정작 중요한 내용은 못봄
-                } else if (originalUrl.includes('assets/images')) {
-                    //image get 제외
+                } else if (originalUrl.includes('assets') || originalUrl.includes('favicon.ico')) {
+                    //js,css,image get 제외
                 } else {
                     winstonLogger.log(str) 
                 }
