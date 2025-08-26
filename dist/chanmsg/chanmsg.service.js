@@ -269,6 +269,9 @@ let ChanmsgService = class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             };
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto;
+            resJson.data = data;
+            console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
+            return resJson;
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
@@ -276,9 +279,6 @@ let ChanmsgService = class ChanmsgService {
             data.chandtl = rs.data.chandtl;
             const viplist = await this.userSvc.getVipList(userid);
             data.vipStr = viplist[0].VIPS;
-            resJson.data = data;
-            console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
-            return resJson;
             const qb = this.msgmstRepo.createQueryBuilder('A');
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B');
             const qbSub = this.msgsubRepo.createQueryBuilder('C');

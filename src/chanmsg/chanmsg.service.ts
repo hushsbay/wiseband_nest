@@ -292,14 +292,10 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
-            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
-            data.chanmst = rs.data.chanmst
-            data.chandtl = rs.data.chandtl
-            const viplist = await this.userSvc.getVipList(userid)
-            data.vipStr = viplist[0].VIPS
 
+
+            
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
             resJson.data = data
             console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             return resJson
@@ -307,11 +303,12 @@ export class ChanmsgService {
 
 
 
-
-
-
-
-
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
+            if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
+            data.chanmst = rs.data.chanmst
+            data.chandtl = rs.data.chandtl
+            const viplist = await this.userSvc.getVipList(userid)
+            data.vipStr = viplist[0].VIPS
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
