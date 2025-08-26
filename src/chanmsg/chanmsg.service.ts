@@ -66,16 +66,26 @@ export class ChanmsgService {
                         return hush.setResJson(resJson, '요청한 grid와 chanid가 속한 grid가 다릅니다.' + fv, hush.Code.NOT_OK, null, methodName + '>grid')
                     }
                 }
-                const gr = await this.grmstRepo.createQueryBuilder('A')
-                .select(['A.GR_NM'])
-                .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
-                .where("A.GR_ID = :grid and B.USERID = :userid ", { 
-                    grid: chanmst.GR_ID, userid: userid 
-                }).getOne()
-                if (!gr) {
-                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName + '>gr')
+                // const gr = await this.grmstRepo.createQueryBuilder('A')
+                // .select(['A.GR_NM'])
+                // .innerJoin('A.dtl', 'B', 'A.GR_ID = B.GR_ID') 
+                // .where("A.GR_ID = :grid and B.USERID = :userid ", { 
+                //     grid: chanmst.GR_ID, userid: userid 
+                // }).getOne()
+                // if (!gr) {
+                //     return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName + '>gr')
+                // }
+                //grnm = gr.GR_NM
+                let sql = "SELECT A.GR_NM "
+                sql += "     FROM S_GRMST_TBL A "
+                sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+                sql += "    WHERE A.GR_ID = ? AND B.USERID = ? "
+                const list = await this.dataSource.query(sql, [chanmst.GR_ID, userid])
+                if (list.length == 0) {
+                    return hush.setResJson(resJson, '채널에 대한 권한이 없습니다. (이 채널의 그룹에 해당 사용자가 없습니다)' + fv, hush.Code.NOT_FOUND, null, methodName)
                 }
-                grnm = gr.GR_NM
+                grnm = list[0].GR_NM
+                console.log(grnm+"==========")
             }
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
