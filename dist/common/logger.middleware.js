@@ -29,6 +29,8 @@ let LoggerMiddleware = class LoggerMiddleware {
             else {
                 if (originalUrl.includes('chanmsg/qryDataLogEach')) {
                 }
+                else if (originalUrl.includes('assets/images')) {
+                }
                 else {
                     winston_util_1.winstonLogger.log(str);
                 }
