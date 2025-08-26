@@ -47,7 +47,6 @@ export class ChanmsgService {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
-            console.log("111")
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
             .where("A.CHANID = :chanid ", { 
@@ -59,7 +58,6 @@ export class ChanmsgService {
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst')
             }
-            console.log("111222222222222222222")
             let grnm = ''
             if (chanmst.TYP == 'GS') {
                 //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
@@ -92,7 +90,6 @@ export class ChanmsgService {
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
             //////////b) S_CHANDTL_TBL 
-            console.log("111333")
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
             sql += "     FROM S_CHANDTL_TBL "
             sql += "    WHERE CHANID = ? "
@@ -108,7 +105,6 @@ export class ChanmsgService {
                 }
                 if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
-                    console.log("111444@@@@")
                     if (user) {
                         item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM
                         item.JOB = user.JOB
@@ -119,7 +115,6 @@ export class ChanmsgService {
                     }
                 } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
-                    console.log("111444$$$$4")
                     if (grdtl) {
                         item.ORG = grdtl.ORG
                         item.JOB = grdtl.JOB
@@ -143,7 +138,6 @@ export class ChanmsgService {
             }
             data.chandtl = chandtl            
             //////////c) S_MSGMST_TBL
-            console.log("111444")
             if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
@@ -162,7 +156,6 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, methodName + 'chkGuest')    
                 }                
             }
-            console.log("111555")
             resJson.data = data
             return resJson
         } catch (ex) {
@@ -300,14 +293,12 @@ export class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
-            console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
             //const viplist = await this.qryVipList(userid)
             //data.vipStr = viplist[0].UID
-            console.log("qry@@@1", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const viplist = await this.userSvc.getVipList(userid)
             data.vipStr = viplist[0].VIPS
             const qb = this.msgmstRepo.createQueryBuilder('A')
@@ -413,7 +404,6 @@ export class ChanmsgService {
             const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
             if (msglist && msglist.length > 0) data.msglist = msglist  
-            console.log("qry@@@2", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)          
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
@@ -443,7 +433,6 @@ export class ChanmsgService {
                     if (ret != '') throw new Error(ret)
                 }
             }
-            console.log("qry@@@3", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             const arr = ['F', 'I', 'L'] //파일,이미지,링크
             for (let i = 0; i < arr.length; i++) {

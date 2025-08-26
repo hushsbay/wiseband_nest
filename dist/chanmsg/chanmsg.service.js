@@ -47,7 +47,6 @@ let ChanmsgService = class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null };
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto;
-            console.log("111");
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
                 .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
                 .where("A.CHANID = :chanid ", {
@@ -56,7 +55,6 @@ let ChanmsgService = class ChanmsgService {
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst');
             }
-            console.log("111222222222222222222");
             let grnm = '';
             if (chanmst.TYP == 'GS') {
             }
@@ -78,7 +76,6 @@ let ChanmsgService = class ChanmsgService {
             }
             data.chanmst = chanmst;
             data.chanmst.GR_NM = grnm;
-            console.log("111333");
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
             sql += "     FROM S_CHANDTL_TBL ";
             sql += "    WHERE CHANID = ? ";
@@ -94,7 +91,6 @@ let ChanmsgService = class ChanmsgService {
                 }
                 if (item.SYNC == 'Y') {
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID });
-                    console.log("111444@@@@");
                     if (user) {
                         item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM;
                         item.JOB = user.JOB;
@@ -107,7 +103,6 @@ let ChanmsgService = class ChanmsgService {
                 }
                 else {
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID });
-                    console.log("111444$$$$4");
                     if (grdtl) {
                         item.ORG = grdtl.ORG;
                         item.JOB = grdtl.JOB;
@@ -131,7 +126,6 @@ let ChanmsgService = class ChanmsgService {
                 }
             }
             data.chandtl = chandtl;
-            console.log("111444");
             if (msgid && msgid != userid) {
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                     .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
@@ -151,7 +145,6 @@ let ChanmsgService = class ChanmsgService {
                     return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, methodName + 'chkGuest');
                 }
             }
-            console.log("111555");
             resJson.data = data;
             return resJson;
         }
@@ -276,13 +269,11 @@ let ChanmsgService = class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             };
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto;
-            console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
             data.chandtl = rs.data.chandtl;
-            console.log("qry@@@1", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const viplist = await this.userSvc.getVipList(userid);
             data.vipStr = viplist[0].VIPS;
             const qb = this.msgmstRepo.createQueryBuilder('A');
@@ -392,7 +383,6 @@ let ChanmsgService = class ChanmsgService {
             const curdtObj = await hush.getMysqlCurdt(this.dataSource);
             if (msglist && msglist.length > 0)
                 data.msglist = msglist;
-            console.log("qry@@@2", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i];
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid);
@@ -420,7 +410,6 @@ let ChanmsgService = class ChanmsgService {
                         throw new Error(ret);
                 }
             }
-            console.log("qry@@@3", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const arr = ['F', 'I', 'L'];
             for (let i = 0; i < arr.length; i++) {
                 const msgsub = await qbSub
