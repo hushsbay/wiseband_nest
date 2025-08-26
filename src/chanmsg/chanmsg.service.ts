@@ -47,6 +47,7 @@ export class ChanmsgService {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
+            console.log("111")
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
             .where("A.CHANID = :chanid ", { 
@@ -55,6 +56,7 @@ export class ChanmsgService {
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst')
             }
+            console.log("111222")
             let grnm = ''
             if (chanmst.TYP == 'GS') {
                 //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
@@ -78,6 +80,7 @@ export class ChanmsgService {
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
             //////////b) S_CHANDTL_TBL 
+            console.log("111333")
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
             sql += "     FROM S_CHANDTL_TBL "
             sql += "    WHERE CHANID = ? "
@@ -126,6 +129,7 @@ export class ChanmsgService {
             }
             data.chandtl = chandtl            
             //////////c) S_MSGMST_TBL
+            console.log("111444")
             if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
@@ -144,6 +148,7 @@ export class ChanmsgService {
                     return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, methodName + 'chkGuest')    
                 }                
             }
+            console.log("111555")
             resJson.data = data
             return resJson
         } catch (ex) {

@@ -47,6 +47,7 @@ let ChanmsgService = class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null };
             const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto;
+            console.log("111");
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
                 .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
                 .where("A.CHANID = :chanid ", {
@@ -55,6 +56,7 @@ let ChanmsgService = class ChanmsgService {
             if (!chanmst) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, null, methodName + '>chanmst');
             }
+            console.log("111222");
             let grnm = '';
             if (chanmst.TYP == 'GS') {
             }
@@ -77,6 +79,7 @@ let ChanmsgService = class ChanmsgService {
             }
             data.chanmst = chanmst;
             data.chanmst.GR_NM = grnm;
+            console.log("111333");
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC ";
             sql += "     FROM S_CHANDTL_TBL ";
             sql += "    WHERE CHANID = ? ";
@@ -127,6 +130,7 @@ let ChanmsgService = class ChanmsgService {
                 }
             }
             data.chandtl = chandtl;
+            console.log("111444");
             if (msgid && msgid != userid) {
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                     .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
@@ -146,6 +150,7 @@ let ChanmsgService = class ChanmsgService {
                     return hush.setResJson(resJson, '게스트(사용자)는 열람만 가능합니다.' + fv, hush.Code.NOT_OK, this.req, methodName + 'chkGuest');
                 }
             }
+            console.log("111555");
             resJson.data = data;
             return resJson;
         }
