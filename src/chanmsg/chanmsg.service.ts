@@ -280,7 +280,8 @@ export class ChanmsgService {
                 chanmst: null, chandtl: [], msglist: [], tempfilelist: [], tempimagelist: [], templinklist: [], 
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
-            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto //console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
+            const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
+            console.log("qry@@@", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
@@ -444,6 +445,7 @@ export class ChanmsgService {
             //이 때 realLastList처럼 마지막 메시지를 별도로 가져와서, 리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 
             //사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기. realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 그냥 추가분을 배열에 추가해 화면에 뿌리면 됨
             resJson.data = data
+            console.log("qry!!!", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)
