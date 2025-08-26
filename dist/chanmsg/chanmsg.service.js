@@ -276,6 +276,7 @@ let ChanmsgService = class ChanmsgService {
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
             data.chandtl = rs.data.chandtl;
+            console.log("qry@@@1", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const viplist = await this.userSvc.getVipList(userid);
             data.vipStr = viplist[0].VIPS;
             const qb = this.msgmstRepo.createQueryBuilder('A');
@@ -385,6 +386,7 @@ let ChanmsgService = class ChanmsgService {
             const curdtObj = await hush.getMysqlCurdt(this.dataSource);
             if (msglist && msglist.length > 0)
                 data.msglist = msglist;
+            console.log("qry@@@2", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i];
                 const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, item.MSGID, chanid, userid);
@@ -412,6 +414,7 @@ let ChanmsgService = class ChanmsgService {
                         throw new Error(ret);
                 }
             }
+            console.log("qry@@@3", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const arr = ['F', 'I', 'L'];
             for (let i = 0; i < arr.length; i++) {
                 const msgsub = await qbSub

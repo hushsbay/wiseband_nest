@@ -288,6 +288,7 @@ export class ChanmsgService {
             data.chandtl = rs.data.chandtl
             //const viplist = await this.qryVipList(userid)
             //data.vipStr = viplist[0].UID
+            console.log("qry@@@1", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const viplist = await this.userSvc.getVipList(userid)
             data.vipStr = viplist[0].VIPS
             const qb = this.msgmstRepo.createQueryBuilder('A')
@@ -392,7 +393,8 @@ export class ChanmsgService {
             let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
             const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
-            if (msglist && msglist.length > 0) data.msglist = msglist            
+            if (msglist && msglist.length > 0) data.msglist = msglist  
+            console.log("qry@@@2", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)          
             ///////////////////////////////////////////////////////////d-1),d-2),d-3),d-4) => qry()의 메시지 콘텐츠와 동일 : msgmst가 msglist 루트에 붙는 경우만 다르나 역시 유사함
             for (let i = 0; i < data.msglist.length; i++) {
                 const item = data.msglist[i] //item.isVip = vipStr.includes(item.AUTHORID) ? true : false
@@ -422,6 +424,7 @@ export class ChanmsgService {
                     if (ret != '') throw new Error(ret)
                 }
             }
+            console.log("qry@@@3", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             const arr = ['F', 'I', 'L'] //파일,이미지,링크
             for (let i = 0; i < arr.length; i++) {
