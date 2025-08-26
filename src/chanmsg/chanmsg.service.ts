@@ -297,10 +297,21 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
-            //const viplist = await this.qryVipList(userid)
-            //data.vipStr = viplist[0].UID
             const viplist = await this.userSvc.getVipList(userid)
             data.vipStr = viplist[0].VIPS
+
+            resJson.data = data
+            console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
+            return resJson
+
+
+
+
+
+
+
+
+
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')

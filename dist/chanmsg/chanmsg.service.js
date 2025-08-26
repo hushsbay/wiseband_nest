@@ -276,6 +276,9 @@ let ChanmsgService = class ChanmsgService {
             data.chandtl = rs.data.chandtl;
             const viplist = await this.userSvc.getVipList(userid);
             data.vipStr = viplist[0].VIPS;
+            resJson.data = data;
+            console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
+            return resJson;
             const qb = this.msgmstRepo.createQueryBuilder('A');
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B');
             const qbSub = this.msgsubRepo.createQueryBuilder('C');
