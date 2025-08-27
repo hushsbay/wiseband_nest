@@ -300,7 +300,7 @@ export class ChanmsgService {
             data.chandtl = rs.data.chandtl
             const viplist = await this.userSvc.getVipList(userid)
             data.vipStr = viplist[0].VIPS
-/*            const qb = this.msgmstRepo.createQueryBuilder('A')
+            const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
@@ -452,14 +452,6 @@ export class ChanmsgService {
             }
             data.logdt = curdtObj.DT //실시간반영 폴링을 위한 로그일시 (데이터 가져올후록 커짐) => 무조건 내려주긴 하되, 클라이언트에서 받아서 한번만 사용함
             resJson.list = realLastList //실제로 제일 최근인 일시. atHome 등에서 조회시는 그 채널의 마지막 메시지는 가져오지 않는 경우도 많을텐데 
-*/          
-
-
-            const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
-            data.logdt = curdtObj.DT
-
-
-
             //이 때 realLastList처럼 마지막 메시지를 별도로 가져와서, 리얼타임 반영시 그 이전 메시지는 화면에 표시하지 않고 사용자에게 보이도록 정보만 쌓아 두고 있다가 
             //사용자가 클릭하거나 스크롤이 갈 때마다 해당 표시를 업데이트만 하기. realLastList의 메시지정보가 실제 마지막에 뿌린 메시지와 같으면 리얼타임 반영시 그냥 추가분을 배열에 추가해 화면에 뿌리면 됨
             resJson.data = data
