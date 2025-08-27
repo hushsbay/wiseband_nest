@@ -18,6 +18,7 @@ const serve_static_1 = require("@nestjs/serve-static");
 const path_1 = require("path");
 const app_config_1 = require("./app.config");
 const http_exception_filter_1 = require("./common/http-exception.filter");
+const logger_middleware_1 = require("./common/logger.middleware");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
@@ -25,10 +26,10 @@ const menu_module_1 = require("./menu/menu.module");
 const user_module_1 = require("./user/user.module");
 const chanmsg_module_1 = require("./chanmsg/chanmsg.module");
 const mail_module_1 = require("./mail/mail.module");
-const events_gateway_1 = require("./socket/events.gateway");
 const ws_exception_filter_1 = require("./common/ws-exception.filter");
 let AppModule = class AppModule {
     configure(consumer) {
+        consumer.apply(logger_middleware_1.LoggerMiddleware).forRoutes('*');
     }
 };
 exports.AppModule = AppModule;
@@ -84,7 +85,7 @@ exports.AppModule = AppModule = __decorate([
                 useClass: ws_exception_filter_1.WsExceptionFilter
             },
             app_service_1.AppService,
-            events_gateway_1.EventsGateway,
+            common_1.Logger
         ],
     })
 ], AppModule);
