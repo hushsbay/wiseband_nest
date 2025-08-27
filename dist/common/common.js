@@ -60,7 +60,7 @@ var Msg;
 exports.cons = {
     appName: 'WiSEBand',
     otpDiffMax: 1,
-    rowsCnt: 3,
+    rowsCnt: 30,
     rowsCntForNotyet: 1000,
     replyCntLimit: 2,
     picCnt: 4,
