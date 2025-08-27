@@ -41,7 +41,7 @@ export class ChanmsgService {
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
         const methodName = 'chanmsg>chkAcl'
         const resJson = new ResJson()
-        const userid = this.req['user'].userid
+        const userid = 'S787449' //this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }

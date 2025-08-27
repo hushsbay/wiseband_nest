@@ -42,7 +42,7 @@ let ChanmsgService = class ChanmsgService {
     async chkAcl(dto) {
         const methodName = 'chanmsg>chkAcl';
         const resJson = new resjson_1.ResJson();
-        const userid = this.req['user'].userid;
+        const userid = 'S787449';
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null };
