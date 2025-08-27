@@ -10,7 +10,7 @@ import { join } from 'path'
 
 import appConfig from 'src/app.config' //https://suyeonme.tistory.com/109
 import { HttpExceptionFilter } from 'src/common/http-exception.filter'
-//import { LoggerMiddleware } from 'src/common/logger.middleware'
+import { LoggerMiddleware } from 'src/common/logger.middleware'
 import { AppController } from 'src/app.controller'
 import { AppService } from 'src/app.service'
 import { AuthModule } from 'src/auth/auth.module'
@@ -18,7 +18,7 @@ import { MenuModule } from 'src/menu/menu.module'
 import { UserModule } from 'src/user/user.module'
 import { ChanmsgModule } from 'src/chanmsg/chanmsg.module'
 import { MailModule } from 'src/mail/mail.module'
-import { EventsGateway } from 'src/socket/events.gateway'
+//import { EventsGateway } from 'src/socket/events.gateway'
 import { WsExceptionFilter } from 'src/common/ws-exception.filter'
 
 @Module({
@@ -75,13 +75,13 @@ import { WsExceptionFilter } from 'src/common/ws-exception.filter'
             useClass: WsExceptionFilter
         },
         AppService,
-        EventsGateway,
+        //EventsGateway,
         Logger
     ],
 })
 
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-        //consumer.apply(LoggerMiddleware).forRoutes('*')
+        consumer.apply(LoggerMiddleware).forRoutes('*')
     }
 }
