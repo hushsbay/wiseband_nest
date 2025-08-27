@@ -25,6 +25,7 @@ export class LoggerMiddleware implements NestMiddleware {
                 } else if (originalUrl.includes('socket.io/')) {
                     //socket.io 제외
                 } else {
+                    console.log("@@@@@@@@@@@@###################")
                     winstonLogger.log(str) 
                 }
             }
