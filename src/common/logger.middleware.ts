@@ -24,8 +24,7 @@ export class LoggerMiddleware implements NestMiddleware {
                     //js,css,image get 제외
                 } else if (originalUrl.includes('socket.io/')) {
                     //socket.io 제외
-                } else {
-                    console.log("###################") //이 로그가 늦게 찍히는데 결국 위에서 보면 res.on('finish')가 될 때 찍히는 것이므로 여기보다 앞 부분을 살펴봐야 함
+                } else { //console.log("###################") //이 로그가 늦게 찍히는데 결국 위에서 보면 res.on('finish')가 될 때 찍히는 것이므로 여기보다 앞 부분을 살펴봐야 함
                     winstonLogger.log(str) 
                 }
             }
