@@ -1,5 +1,6 @@
 import { ConfigModule } from '@nestjs/config'
-import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+//import { Logger, MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_FILTER } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { TypeOrmModule } from '@nestjs/typeorm'
@@ -10,7 +11,7 @@ import { join } from 'path'
 
 import appConfig from 'src/app.config' //https://suyeonme.tistory.com/109
 import { HttpExceptionFilter } from 'src/common/http-exception.filter'
-import { LoggerMiddleware } from 'src/common/logger.middleware'
+//import { LoggerMiddleware } from 'src/common/logger.middleware'
 import { AppController } from 'src/app.controller'
 import { AppService } from 'src/app.service'
 import { AuthModule } from 'src/auth/auth.module'
@@ -76,12 +77,12 @@ import { WsExceptionFilter } from 'src/common/ws-exception.filter'
         },
         AppService,
         EventsGateway,
-        Logger
+        //Logger
     ],
 })
 
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
-        consumer.apply(LoggerMiddleware).forRoutes('*')
+        //consumer.apply(LoggerMiddleware).forRoutes('*')
     }
 }

@@ -34,6 +34,7 @@ let LoggerMiddleware = class LoggerMiddleware {
                 else if (originalUrl.includes('socket.io/')) {
                 }
                 else {
+                    winston_util_1.winstonLogger.log(str);
                 }
             }
         });
