@@ -7,7 +7,12 @@ const app_module_1 = require("./app.module");
 const winston_util_1 = require("./common/winston.util");
 const redis_io_adapter_1 = require("./socket/redis-io.adapter");
 async function bootstrap() {
-    const corsList = ['https://hushsbay.com:444', 'https://hushsbay.com:446', 'http://127.0.0.1:5173', 'http://localhost:5173'];
+    const corsList = [
+        'https://hushsbay.com:444',
+        'https://hushsbay.com:446', 'https://hushsbay.com:443', 'https://hushsbay.com',
+        'http://127.0.0.1:5173',
+        'http://localhost:5173'
+    ];
     (0, typeorm_transactional_1.initializeTransactionalContext)();
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: winston_util_1.winstonLogger,
