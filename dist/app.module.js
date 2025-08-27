@@ -26,6 +26,7 @@ const menu_module_1 = require("./menu/menu.module");
 const user_module_1 = require("./user/user.module");
 const chanmsg_module_1 = require("./chanmsg/chanmsg.module");
 const mail_module_1 = require("./mail/mail.module");
+const events_gateway_1 = require("./socket/events.gateway");
 const ws_exception_filter_1 = require("./common/ws-exception.filter");
 let AppModule = class AppModule {
     configure(consumer) {
@@ -85,6 +86,7 @@ exports.AppModule = AppModule = __decorate([
                 useClass: ws_exception_filter_1.WsExceptionFilter
             },
             app_service_1.AppService,
+            events_gateway_1.EventsGateway,
             common_1.Logger
         ],
     })

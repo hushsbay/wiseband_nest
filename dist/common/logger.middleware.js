@@ -11,33 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoggerMiddleware = void 0;
 const common_1 = require("@nestjs/common");
-const winston_util_1 = require("./winston.util");
 let LoggerMiddleware = class LoggerMiddleware {
     constructor() { }
     use(req, res, next) {
-        const { ip, method, originalUrl } = req;
-        const userAgent = req.get('user-agent');
-        res.on('finish', () => {
-            const { statusCode } = res;
-            const str = `[${method}]${originalUrl}(${statusCode}) ${ip} ${userAgent}`;
-            if (statusCode >= 400 && statusCode < 500) {
-                winston_util_1.winstonLogger.warn(str);
-            }
-            else if (statusCode >= 500) {
-                winston_util_1.winstonLogger.error(str);
-            }
-            else {
-                if (originalUrl.includes('chanmsg/qryDataLogEach')) {
-                }
-                else if (originalUrl.includes('assets') || originalUrl.includes('favicon.ico')) {
-                }
-                else if (originalUrl.includes('socket.io/')) {
-                }
-                else {
-                    winston_util_1.winstonLogger.log(str);
-                }
-            }
-        });
         next();
     }
 };
