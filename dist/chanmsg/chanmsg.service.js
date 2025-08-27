@@ -261,7 +261,7 @@ let ChanmsgService = class ChanmsgService {
     async qry(dto) {
         const methodName = 'chanmsg>qry';
         const resJson = new resjson_1.ResJson();
-        const userid = this.req['user'].userid;
+        const userid = 'S787449';
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             let data = {
