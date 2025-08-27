@@ -25,11 +25,7 @@ let ChanmsgController = class ChanmsgController {
         this.chanmsgSvc = chanmsgSvc;
         this.configService = configService;
     }
-    qry(dto) {
-        const xx = this.chanmsgSvc.qry(dto);
-        console.log("@@@@@@@@@@@@");
-        return xx;
-    }
+    qry(dto) { return this.chanmsgSvc.qry(dto); }
     qryChanMstDtl(dto) { return this.chanmsgSvc.qryChanMstDtl(dto); }
     qryOneMsgNotYet(dto) { return this.chanmsgSvc.qryOneMsgNotYet(dto); }
     qryMsg(dto) { return this.chanmsgSvc.qryMsg(dto); }
