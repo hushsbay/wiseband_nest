@@ -10,12 +10,11 @@ async function bootstrap() {
     //https://inpa.tistory.com/entry/AXIOS-%F0%9F%93%9A-CORS-%EC%BF%A0%ED%82%A4-%EC%A0%84%EC%86%A1withCredentials-%EC%98%B5%EC%85%98
     //https://blog.thereed.io/main/25/article/%5BNestJS%5D%20%EC%9A%94%EC%B2%AD%EC%97%90%EC%84%9C%20withCredentials%20%EC%82%AC%EC%9A%A9%ED%95%A0%20%EB%95%8C%20%EC%84%9C%EB%B2%84%EC%97%90%EC%84%9C%20origin%EC%9D%84%20%EC%99%80%EC%9D%BC%EB%93%9C%EC%B9%B4%EB%93%9C%28*%29%EB%A1%9C%20%EC%82%AC%EC%9A%A9%ED%95%98%EB%A9%B4%20%EC%95%88%20%EB%90%A8-443bc8678f7ab0a9adc8eaebb04d34b8
     //const corsList = ['http://127.0.0.1:5173', 'http://localhost:5173'] //Postman, MobileApp 등에서는 cors 설정이 없어도 들어올 수 있으므로 설정으로 모두 막을 수 없음 //'http://10.10.221.214:5173'
-    const corsList = [
-        'https://hushsbay.com:444', 
-        'https://hushsbay.com:446', 'https://hushsbay.com:443', 'https://hushsbay.com', 
-        'http://127.0.0.1:5173', 
-        'http://localhost:5173']
-
+    // const corsList = [
+    //     'https://hushsbay.com:444', 'https://hushsbay.com:446', 'https://hushsbay.com:443', 'https://hushsbay.com', 
+    //     'http://127.0.0.1:5173', 'http://localhost:5173'        
+    // ]
+    const corsList = [ '*' ]
 
     initializeTransactionalContext()
 

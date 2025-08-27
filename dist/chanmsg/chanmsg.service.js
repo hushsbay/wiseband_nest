@@ -270,7 +270,7 @@ let ChanmsgService = class ChanmsgService {
             };
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto;
             console.log("qry###", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: false });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
