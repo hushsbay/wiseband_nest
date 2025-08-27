@@ -269,6 +269,7 @@ let ChanmsgService = class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             };
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto;
+            console.log("qry###", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);

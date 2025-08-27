@@ -293,9 +293,7 @@ export class ChanmsgService {
                 msgidParent: '', msgidChild: '', vipStr: null, logdt: null
             }
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
-            //resJson.data = data
-            //console.log("qry####################", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
-            //return resJson
+            console.log("qry###", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
             const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
