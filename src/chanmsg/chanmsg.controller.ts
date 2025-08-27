@@ -6,14 +6,12 @@ import * as mime from 'mime-types'
 import { ConfigService } from '@nestjs/config'
 import * as hush from 'src/common/common'
 import { ChanmsgService } from 'src/chanmsg/chanmsg.service'
-import { Unauth } from 'src/common/unauth.decorator'
 
 @Controller('chanmsg')
 export class ChanmsgController {
 
     constructor(private readonly chanmsgSvc: ChanmsgService, private configService: ConfigService) {}
     
-    @Unauth()
     @Post('qry')
     qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
 

@@ -41,7 +41,7 @@ export class ChanmsgService {
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
         const methodName = 'chanmsg>chkAcl'
         const resJson = new ResJson()
-        const userid = 'S787449' //this.req['user'].userid
+        const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
@@ -285,7 +285,7 @@ export class ChanmsgService {
     async qry(dto: Record<string, any>): Promise<any> { //채널내 메시지 리스트를 무한스크롤로 가져 오는 경우에도 마스터 정보는 어차피 ACL때문이라도 읽어야 함
         const methodName = 'chanmsg>qry'
         const resJson = new ResJson()
-        const userid = 'S787449' //this.req['user'].userid
+        const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //어차피 권한체크때문이라도 chanmst,chandtl를 읽어야 하므로 읽는 김에 데이터 가져와서 사용하기로 함
             let data = { 

@@ -20,7 +20,6 @@ const mime = require("mime-types");
 const config_1 = require("@nestjs/config");
 const hush = require("../common/common");
 const chanmsg_service_1 = require("./chanmsg.service");
-const unauth_decorator_1 = require("../common/unauth.decorator");
 let ChanmsgController = class ChanmsgController {
     constructor(chanmsgSvc, configService) {
         this.chanmsgSvc = chanmsgSvc;
@@ -111,7 +110,6 @@ let ChanmsgController = class ChanmsgController {
 };
 exports.ChanmsgController = ChanmsgController;
 __decorate([
-    (0, unauth_decorator_1.Unauth)(),
     (0, common_1.Post)('qry'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
