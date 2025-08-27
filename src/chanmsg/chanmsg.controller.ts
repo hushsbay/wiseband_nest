@@ -13,11 +13,7 @@ export class ChanmsgController {
     constructor(private readonly chanmsgSvc: ChanmsgService, private configService: ConfigService) {}
     
     @Post('qry')
-    qry(@Body() dto: Record<string, any>) { 
-        const xx = this.chanmsgSvc.qry(dto) 
-        console.log("@@@@@@@@@@@@")
-        return xx
-    }
+    qry(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qry(dto) }
 
     @Post('qryChanMstDtl')
     qryChanMstDtl(@Body() dto: Record<string, any>) { return this.chanmsgSvc.qryChanMstDtl(dto) }
