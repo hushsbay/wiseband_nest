@@ -6,8 +6,9 @@ const cookieParser = require("cookie-parser");
 const app_module_1 = require("./app.module");
 const winston_util_1 = require("./common/winston.util");
 const redis_io_adapter_1 = require("./socket/redis-io.adapter");
+const hush = require("./common/common");
 async function bootstrap() {
-    const corsList = ['*'];
+    const corsList = hush.cons.corsOrigin;
     (0, typeorm_transactional_1.initializeTransactionalContext)();
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         logger: winston_util_1.winstonLogger,
