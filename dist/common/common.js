@@ -59,7 +59,7 @@ var Msg;
 })(Msg || (exports.Msg = Msg = {}));
 exports.cons = {
     appName: 'WiSEBand',
-    corsOrigin: ['http://localhost:5173', 'https://hushsbay.com:*'],
+    corsOrigin: ['http://localhost:5173', 'https://hushsbay.com:446', 'https://hushsbay.com:3052'],
     otpDiffMax: 1,
     rowsCnt: 30,
     rowsCntForNotyet: 1000,
