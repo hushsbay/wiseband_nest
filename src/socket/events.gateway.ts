@@ -6,7 +6,7 @@ import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, W
 import { Server, Socket } from 'socket.io'
 import * as hush from 'src/common/common'
 
-@WebSocketGateway(hush.cons.sockPort, { 
+@WebSocketGateway(hush.cons.sockPort, { //appConfig.sock.port로 시도했으나 안읽혀서 hush.cons.sockPort로 공유함 (클라이언트에서도 동일하게 처리해야 함)
     transports: ['websocket', 'polling'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 
 })
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
