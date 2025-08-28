@@ -57,6 +57,7 @@ export class UserService {
         try {
             const user = await this.userRepo.findOneBy({ USERID: uid })
             if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
+            console.log(user.PWD, "##################", uid)
             if (user.PWD == '') { //from Vue 로그인 화면
                 //fake id이므로 인증없이 그냥 넘어가기
             } else {

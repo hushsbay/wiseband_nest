@@ -65,6 +65,7 @@ let UserService = class UserService {
             const user = await this.userRepo.findOneBy({ USERID: uid });
             if (!user)
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
+            console.log(user.PWD, "##################", uid);
             if (user.PWD == '') {
             }
             else {

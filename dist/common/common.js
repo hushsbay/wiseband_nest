@@ -61,7 +61,11 @@ var Msg;
 exports.cons = {
     appName: 'WiSEBand',
     sockPort: SOCK_PORT,
-    corsOrigin: ['http://localhost:5173', 'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString()],
+    corsOrigin: [
+        'http://localhost:5173',
+        'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString(),
+        'https://domdev2.sbs.co.kr:9450', 'https://domdev2.sbs.co.kr:' + SOCK_PORT.toString()
+    ],
     otpDiffMax: 1,
     rowsCnt: 30,
     rowsCntForNotyet: 1000,
