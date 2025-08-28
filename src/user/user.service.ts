@@ -81,13 +81,18 @@ export class UserService {
         const userid = this.req['user'].userid
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
-            const uid = dto.uid ? dto.uid : userid //사용자 아이디 어떤 것이라도 허용
-            const user = await this.userRepo.findOneBy({ USERID: uid })
-            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName)
-            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user //PWD 등 제외
-            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid }) //개인설정정보
-            resJson.list = userEnv //not array but object
-            resJson.data = userFiltered
+            const { uid, pictureOnly } = dto //console.log(uid, pictureOnly)
+            const uidReal = uid ? uid : userid //사용자 아이디 어떤 것이라도 허용
+            const user = await this.userRepo.findOneBy({ USERID: uidReal })
+            if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uidReal, hush.Code.NOT_OK, null, methodName)
+            if (pictureOnly) {
+                resJson.data.PICTURE = user.PICTURE
+            } else {
+                const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user //PWD 등 제외
+                const userEnv = await this.userenvRepo.findOneBy({ USERID: uidReal }) //개인설정정보
+                resJson.list = userEnv //not array but object
+                resJson.data = userFiltered
+            }
             return resJson
         } catch (ex) {
             hush.throwCatchedEx(ex, this.req, fv)

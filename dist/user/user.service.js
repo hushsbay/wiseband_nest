@@ -90,14 +90,20 @@ let UserService = class UserService {
         const userid = this.req['user'].userid;
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
-            const uid = dto.uid ? dto.uid : userid;
-            const user = await this.userRepo.findOneBy({ USERID: uid });
+            const { uid, pictureOnly } = dto;
+            const uidReal = uid ? uid : userid;
+            const user = await this.userRepo.findOneBy({ USERID: uidReal });
             if (!user)
-                return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
-            const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
-            const userEnv = await this.userenvRepo.findOneBy({ USERID: uid });
-            resJson.list = userEnv;
-            resJson.data = userFiltered;
+                return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uidReal, hush.Code.NOT_OK, null, methodName);
+            if (pictureOnly) {
+                resJson.data.PICTURE = user.PICTURE;
+            }
+            else {
+                const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
+                const userEnv = await this.userenvRepo.findOneBy({ USERID: uidReal });
+                resJson.list = userEnv;
+                resJson.data = userFiltered;
+            }
             return resJson;
         }
         catch (ex) {

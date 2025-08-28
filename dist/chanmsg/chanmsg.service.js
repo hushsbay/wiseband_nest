@@ -46,7 +46,7 @@ let ChanmsgService = class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null };
-            const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto;
+            const { userid, grid, chanid, msgid, chkAuthor, chkGuest } = dto;
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
                 .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
                 .where("A.CHANID = :chanid ", {
@@ -97,8 +97,7 @@ let ChanmsgService = class ChanmsgService {
                         item.EMAIL = user.EMAIL;
                         item.TELNO = user.TELNO;
                         item.RMKS = '';
-                        if (includeBlob)
-                            item.PICTURE = user.PICTURE;
+                        item.PICTURE = null;
                     }
                 }
                 else {
@@ -270,7 +269,7 @@ let ChanmsgService = class ChanmsgService {
             };
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto;
             console.log("qry###", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply);
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: false });
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
@@ -447,7 +446,7 @@ let ChanmsgService = class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { chanid, state } = dto;
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             resJson.data.chanmst = rs.data.chanmst;
@@ -638,7 +637,7 @@ let ChanmsgService = class ChanmsgService {
                 msgfile: null, msgimg: null, msglink: null, reply: null, replyinfo: null
             };
             const { chanid, msgid } = dto;
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true });
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid });
             if (rs.code != hush.Code.OK)
                 return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName);
             data.chanmst = rs.data.chanmst;
@@ -1664,7 +1663,7 @@ let ChanmsgService = class ChanmsgService {
                     if (row.KIND == 'mst' && row.CUD == 'D') {
                     }
                     else {
-                        const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID, includeBlob: true });
+                        const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID });
                         row.chanmst = rs.data.chanmst;
                         row.chandtl = rs.data.chandtl;
                     }

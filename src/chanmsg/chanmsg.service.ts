@@ -45,7 +45,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
-            const { userid, grid, chanid, msgid, includeBlob, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
+            const { userid, grid, chanid, msgid, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
             //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
@@ -111,7 +111,7 @@ export class ChanmsgService {
                         item.EMAIL = user.EMAIL
                         item.TELNO = user.TELNO
                         item.RMKS = ''
-                        if (includeBlob) item.PICTURE = user.PICTURE
+                        item.PICTURE = null //if (includeBlob) item.PICTURE = user.PICTURE //includeBlob 제거하지 않으면 멤버수가 많은 경우 동기로 내려 받기 때문에 504 발생할 정도로 오래 걸림
                     }
                 } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
@@ -294,7 +294,7 @@ export class ChanmsgService {
             }
             const { chanid, prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply } = dto 
             console.log("qry###", prevMsgMstCdt, nextMsgMstCdt, msgid, kind, msgidReply)
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: false }) //a),b),c) 가져옴 //msgid 들어가면 안됨
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid }) //a),b),c) 가져옴 //msgid 들어가면 안됨
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
@@ -469,7 +469,7 @@ export class ChanmsgService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //DM아닌 채널인 경우 그룹도 체크하는데 내가 멤버로 들어가 있는 그룹만 조회 가능. 비공개채널은 채널멤버로 들어가 있어야만 열람 가능
             const { chanid, state } = dto
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             resJson.data.chanmst = rs.data.chanmst
             resJson.data.chandtl = rs.data.chandtl 
@@ -643,7 +643,7 @@ export class ChanmsgService {
             //excludeMsgSub은 리얼타임 반영등에서 polling 부담을 조금이라도 줄이기 위해 본문 업데이트가 아니면 이미지는 빼고 내리는 옵션을 개발자에게 부여함
             //원래는 qryMsg() 간단 버전으로 qryDtlRealTime() 만들어 이미지, 댓글정보 등을 제외하고 가져왔는데 댓글정보는 쓰임이 많은 등 이미지 등 제외하고는 모두 가져와도 되서 걍 qryDtlRealTime() 안쓰고 여기 옵션으로 해결함
             const { chanid, msgid } = dto //const { chanid, msgid, excludeMsgSub } = dto
-            const rs = await this.chkAcl({ userid: userid, chanid: chanid, includeBlob: true })
+            const rs = await this.chkAcl({ userid: userid, chanid: chanid })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             data.chanmst = rs.data.chanmst
             data.chandtl = rs.data.chandtl
@@ -1704,7 +1704,7 @@ export class ChanmsgService {
                     if (row.KIND == 'mst' && row.CUD == 'D') {
                         //S_CHANDTL_TBL에 INNERJOIN할 데이터 없어 권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
                     } else {
-                        const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID, includeBlob: true })
+                        const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID })
                         row.chanmst = rs.data.chanmst
                         row.chandtl = rs.data.chandtl
                     }
