@@ -25,6 +25,7 @@ exports.getDateTimeDiff = getDateTimeDiff;
 const common_1 = require("@nestjs/common");
 const crypto_1 = require("crypto");
 const comLog = new common_1.Logger();
+const SOCK_PORT = 3052;
 var Code;
 (function (Code) {
     Code["OK"] = "0";
@@ -59,7 +60,8 @@ var Msg;
 })(Msg || (exports.Msg = Msg = {}));
 exports.cons = {
     appName: 'WiSEBand',
-    corsOrigin: ['http://localhost:5173', 'https://hushsbay.com:446', 'https://hushsbay.com:3052'],
+    sockPort: SOCK_PORT,
+    corsOrigin: ['http://localhost:5173', 'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString()],
     otpDiffMax: 1,
     rowsCnt: 30,
     rowsCntForNotyet: 1000,

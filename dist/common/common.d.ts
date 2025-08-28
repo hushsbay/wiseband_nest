@@ -33,6 +33,7 @@ export declare enum Msg {
 }
 export declare const cons: {
     appName: string;
+    sockPort: number;
     corsOrigin: string[];
     otpDiffMax: number;
     rowsCnt: number;

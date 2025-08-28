@@ -1,15 +1,12 @@
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
-import appConfig from 'src/app.config'
 import { DataSource } from 'typeorm'
 import { Logger, Inject } from '@nestjs/common'
 import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer, ConnectedSocket, } from '@nestjs/websockets' //OnGatewayConnection, OnGatewayInit
 import { Server, Socket } from 'socket.io'
 import * as hush from 'src/common/common'
 
-const config = appConfig()
-
-@WebSocketGateway(parseInt(config.sock.port), { 
+@WebSocketGateway(hush.cons.sockPort, { 
     transports: ['websocket', 'polling'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 
 })
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
