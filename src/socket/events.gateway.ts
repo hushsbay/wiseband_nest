@@ -7,7 +7,7 @@ import { Server, Socket } from 'socket.io'
 import * as hush from 'src/common/common'
 
 //@WebSocketGateway({ port: 3052, cors: { origin: '*' }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 })
-@WebSocketGateway({ port: 3052, transports: ['websocket', 'polling'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 })
+@WebSocketGateway({ port: 3051, transports: ['websocket', 'polling'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 })
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
 
     constructor(
