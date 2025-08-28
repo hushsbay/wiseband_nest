@@ -41,7 +41,7 @@ export enum Msg {
     NOT_AUTHORIZED = '권한이 없습니다.',
 }
 
-export const cons = {
+export const cons = {   
     appName : 'WiSEBand', //socket.io namespace로도 사용됨 (서버/클라이언트 동일해야 동작함)
     sockPort: SOCK_PORT, //AWS CLB에 등록된 PORT. 바로 아래처럼 lovalhost에서는 rest 및 socket.io 포트를 하나로 합쳐 사용도 가능함 (운영서버에서도 rest용도인 446으로도 가능함)
     //하지만 운영에서는 별도 구분하라고 가이드하고 있으며, 하나로 쓸 경우 접속후 polling->websocket 전환이 안되고 계속 polling되는 것을 확인함
