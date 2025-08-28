@@ -11,7 +11,7 @@ import * as hush from 'src/common/common'
     transports: ['websocket', 'polling'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 
 })
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
-
+    
     constructor(
         @Inject(DataSource) private readonly dataSource: DataSource, //private dataSource : DataSource,
         private readonly jwtService: JwtService,
