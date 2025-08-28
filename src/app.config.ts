@@ -15,6 +15,9 @@ export default registerAs('app', () => ({
     jwt: {
         key: process.env.JWT_KEY
     },
+    sock: {
+        port: process.env.SOCK_PORT
+    },
     redis: {
         host: process.env.REDIS_HOST,
         port: process.env.REDIS_PORT,

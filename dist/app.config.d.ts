@@ -12,6 +12,9 @@ declare const _default: (() => {
     jwt: {
         key: string;
     };
+    sock: {
+        port: string;
+    };
     redis: {
         host: string;
         port: string;
@@ -30,6 +33,9 @@ declare const _default: (() => {
     };
     jwt: {
         key: string;
+    };
+    sock: {
+        port: string;
     };
     redis: {
         host: string;
