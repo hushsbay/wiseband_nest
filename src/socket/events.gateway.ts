@@ -6,7 +6,7 @@ import { MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, W
 import { Server, Socket } from 'socket.io'
 import * as hush from 'src/common/common'
 
-@WebSocketGateway({ port: 446, transports: ['websocket'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 })
+@WebSocketGateway({ port: 8080, transports: ['websocket'], cors: { origin: hush.cons.corsOrigin }, namespace: hush.cons.appName, pingTimeout: 5000, pingInterval: 25000 })
 export class EventsGateway implements OnGatewayDisconnect { //OnGatewayConnection
 
     constructor(
