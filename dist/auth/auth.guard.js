@@ -40,6 +40,7 @@ let AuthGuard = class AuthGuard {
             if (payloadStr != JSON.stringify(payload)) {
                 hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH);
             }
+            console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd);
             request['user'] = payload;
             const payloadToUpdate = { userid: payload.userid, usernm: payload.usernm, orgcd: payload.orgcd, toporgcd: payload.toporgcd };
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate);

@@ -27,6 +27,7 @@ export class AuthGuard implements CanActivate {
             if (payloadStr != JSON.stringify(payload)) { //필요시 위변조 가능성도 체크
                 hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH)
             }
+            console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd)
             request['user'] = payload
             const payloadToUpdate = { userid: payload.userid, usernm: payload.usernm, orgcd: payload.orgcd, toporgcd: payload.toporgcd }
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate) //무조건 갱신함
@@ -43,8 +44,7 @@ export class AuthGuard implements CanActivate {
                 const strErr = hush.Msg.JWT_EXPIRED + ' ' + userInfoStr
                 this.logger.error(strErr, hush.Code.JWT_EXPIRED)
                 hush.throwHttpEx(strErr, hush.Code.JWT_EXPIRED)
-            }
-            else {
+            } else {
                 const strErr = hush.Msg.JWT_ETC + ' (' + ex.name + ') ' + ex.message + ' ' + userInfoStr
                 this.logger.error(strErr, hush.Code.JWT_ETC)
                 hush.throwHttpEx(strErr, hush.Code.JWT_ETC)

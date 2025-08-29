@@ -66,10 +66,8 @@ let UserService = class UserService {
             if (!user)
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
             if (user.PWD == '') {
-                console.log(user.PWD, "##################", uid);
             }
             else {
-                console.log("/" + user.PWD + "/", "##################1111", uid);
                 if (!pwd)
                     return hush.setResJson(resJson, '비번을 입력하시기 바랍니다 : ' + uid, hush.Code.NOT_OK, null, methodName);
                 const config = (0, app_config_1.default)();
