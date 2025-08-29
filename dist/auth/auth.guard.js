@@ -30,18 +30,13 @@ let AuthGuard = class AuthGuard {
                 return true;
             const request = context.switchToHttp().getRequest();
             const response = context.switchToHttp().getResponse();
-            console.log("111111111111111111111");
             const token = this.extractToken(request);
-            console.log("1111111111111111111112: " + token);
-            if (!token)
-                hush.throwHttpEx(hush.Msg.JWT_NEEDED, hush.Code.JWT_NEEDED);
-            console.log("1111111111111111111113");
+            if (!token) {
+                throw new Error(hush.Msg.JWT_NEEDED);
+            }
             const arr = token.split('.');
-            console.log("1111111111111111111114");
             payloadStr = Buffer.from(arr[1], 'base64').toString('utf-8');
-            console.log("1111111111111111111115");
             const config = (0, app_config_1.default)();
-            console.log(payloadStr);
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key });
             console.log(JSON.stringify(payload));
             if (payloadStr != JSON.stringify(payload)) {
@@ -62,7 +57,7 @@ let AuthGuard = class AuthGuard {
             else {
                 userInfoStr = payloadStr;
             }
-            console.log(ex.message, ex.name);
+            console.log(ex.message);
             if (ex.name == 'TokenExpiredError') {
                 const strErr = hush.Msg.JWT_EXPIRED + ' ' + userInfoStr;
                 this.logger.error(strErr, hush.Code.JWT_EXPIRED);
