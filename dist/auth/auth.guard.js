@@ -32,7 +32,7 @@ let AuthGuard = class AuthGuard {
             const response = context.switchToHttp().getResponse();
             console.log("111111111111111111111");
             const token = this.extractToken(request);
-            console.log("1111111111111111111112");
+            console.log("1111111111111111111112: " + token);
             if (!token)
                 hush.throwHttpEx(hush.Msg.JWT_NEEDED, hush.Code.JWT_NEEDED);
             console.log("1111111111111111111113");
