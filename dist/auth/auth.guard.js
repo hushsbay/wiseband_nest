@@ -40,7 +40,7 @@ let AuthGuard = class AuthGuard {
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key });
             console.log(JSON.stringify(payload));
             if (payloadStr != JSON.stringify(payload)) {
-                hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH);
+                throw new Error(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload));
             }
             console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd);
             request['user'] = payload;

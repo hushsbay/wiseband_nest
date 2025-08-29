@@ -16,9 +16,9 @@ export enum Code {
     BLANK_DATA = '-101',
     ALREADY_EXIST = '-102',
     DELETE_FAIL = '-201',
-    JWT_NEEDED = '-801',
-    JWT_MISMATCH = '-802',
-    JWT_EXPIRED = '-803',
+    JWT_NEEDED = '-801', //auth.guard.ts 보면 Msg는 사용하는데 Code는 사용안하고는 있음
+    JWT_MISMATCH = '-802', //상동
+    JWT_EXPIRED = '-803', //상동
     JWT_ETC = '-809',
     PWD_MISMATCH = '-811',
     OTP_MISMATCH = '-812',
@@ -46,9 +46,8 @@ export const cons = {
     sockPort: SOCK_PORT, //AWS CLB에 등록된 PORT. 바로 아래처럼 lovalhost에서는 rest 및 socket.io 포트를 하나로 합쳐 사용도 가능함 (운영서버에서도 rest용도인 446으로도 가능함)
     //하지만 운영에서는 별도 구분하라고 가이드하고 있으며, 하나로 쓸 경우 접속후 polling->websocket 전환이 안되고 계속 polling되는 것을 확인함
     corsOrigin : [
-        'http://localhost:5173', 
-        'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString(),
-        'http://domdev2.sbs.co.kr:9450', 'http://domdev2.sbs.co.kr:' + SOCK_PORT.toString()
+        'http://localhost:5173', 'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString()
+        //'http://domdev2.xxx.xx.xx:9450', 'http://domdev2.xxx.xx.xx:' + SOCK_PORT.toString() //http는 cookie 설정이 secure:false로 해도 생성되지 않아 제외함
     ],
     otpDiffMax : 1, //분
     rowsCnt : 30, //20개 이하는 설정하지 말기. 예1) 20개로 했을 때 맨 아래->위로 스크롤시 다시 아래로 내려가는 현상. 예2) 10개로 줄이면 새창 띄우기 할 때 위 5개 아래 5개 가져와서 맨 위 맨 아래 메시지 기준으로 하면 스크롤이 생기지 않음

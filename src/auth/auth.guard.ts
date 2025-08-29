@@ -19,7 +19,8 @@ export class AuthGuard implements CanActivate {
             const request = context.switchToHttp().getRequest()
             const response = context.switchToHttp().getResponse()
             const token = this.extractToken(request)
-            if (!token) { //hush.throwHttpEx(hush.Msg.JWT_NEEDED, hush.Code.JWT_NEEDED)
+            if (!token) { 
+                //hush.throwHttpEx(hush.Msg.JWT_NEEDED, hush.Code.JWT_NEEDED)
                 throw new Error(hush.Msg.JWT_NEEDED)
             }
             const arr = token.split('.')
@@ -28,7 +29,8 @@ export class AuthGuard implements CanActivate {
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key })
             console.log(JSON.stringify(payload))
             if (payloadStr != JSON.stringify(payload)) { //필요시 위변조 가능성도 체크
-                hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH)
+                //hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH)
+                throw new Error(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload))
             }
             console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd)
             request['user'] = payload
