@@ -62,6 +62,7 @@ let AuthGuard = class AuthGuard {
             else {
                 userInfoStr = payloadStr;
             }
+            console.log(ex.message, ex.name);
             if (ex.name == 'TokenExpiredError') {
                 const strErr = hush.Msg.JWT_EXPIRED + ' ' + userInfoStr;
                 this.logger.error(strErr, hush.Code.JWT_EXPIRED);
