@@ -30,13 +30,16 @@ let AuthGuard = class AuthGuard {
                 return true;
             const request = context.switchToHttp().getRequest();
             const response = context.switchToHttp().getResponse();
+            console.log("111111111111111111111");
             const token = this.extractToken(request);
             if (!token)
                 hush.throwHttpEx(hush.Msg.JWT_NEEDED, hush.Code.JWT_NEEDED);
             const arr = token.split('.');
             payloadStr = Buffer.from(arr[1], 'base64').toString('utf-8');
             const config = (0, app_config_1.default)();
+            console.log(payloadStr);
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key });
+            console.log(JSON.stringify(payload));
             if (payloadStr != JSON.stringify(payload)) {
                 hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH);
             }
