@@ -48,7 +48,7 @@ export const cons = {
     corsOrigin : [
         'http://localhost:5173', 
         'https://hushsbay.com:446', 'https://hushsbay.com:' + SOCK_PORT.toString(),
-        'https://domdev2.sbs.co.kr:9450', 'https://domdev2.sbs.co.kr:' + SOCK_PORT.toString()
+        'http://domdev2.sbs.co.kr:9450', 'http://domdev2.sbs.co.kr:' + SOCK_PORT.toString()
     ],
     otpDiffMax : 1, //분
     rowsCnt : 30, //20개 이하는 설정하지 말기. 예1) 20개로 했을 때 맨 아래->위로 스크롤시 다시 아래로 내려가는 현상. 예2) 10개로 줄이면 새창 띄우기 할 때 위 5개 아래 5개 가져와서 맨 위 맨 아래 메시지 기준으로 하면 스크롤이 생기지 않음
