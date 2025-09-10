@@ -803,7 +803,27 @@ export class ChanmsgService {
                 .insert().values({ 
                     MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
                 }).execute()
-            }) //아래는 로깅
+            }) //아래는 멘션 처리 
+            //let str = '<span class="mention clickable" data-userid="N727710" data-usernm="이상돈" contenteditable="false">@이상돈</span>' +
+            //'&nbsp;하하하하하<br>그래서<span class="mention clickable" data-userid="S643497" data-usernm="이상기" contenteditable="false">@이상기</span>&nbsp;ffff'
+            const arr = body.split("mention clickable")        
+            for (let item of arr) {
+                const exp = /data\-userid=\"(\w+)\"/
+                const brr = item.match(exp)
+                if (brr && brr.length > 0) { //brr[1]="N727710"
+                    const exp1 = /data\-usernm=\"([가-힣]+|\w+)"/
+                    const crr = item.match(exp1)
+                    if (crr && crr.length > 0) { //crr[1]="이상돈"
+                        const strKind = 'mention'
+                        const typ = hush.getTypeForMsgDtl(strKind)
+                        await qbMsgDtl
+                        .insert().values({ 
+                            MSGID: msgid, CHANID: chanid, USERID: brr[1], KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: crr[1]
+                        }).execute()
+                    }
+                }
+            }
+            //아래는 로깅
             let cud = crud
             const kind = replyto ? 'child' : 'parent'
             let typ = hush.getTypeForMsgDtl(kind)

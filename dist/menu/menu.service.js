@@ -349,6 +349,15 @@ let MenuService = class MenuService {
             }
             sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE USERID = '" + userid + "' AND KIND = 'vip') ";
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM ";
+            let sqlMention = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'mention' TITLE, MAX(CDT) DT ";
+            sqlMention += "  FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT ";
+            sqlMention += "          FROM S_MSGMST_TBL A ";
+            sqlMention += "         INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID ";
+            if (notyet == 'Y') {
+                sqlMention += "     INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' ";
+            }
+            sqlMention += "         WHERE B.USERID = '" + userid + "' AND B.TYP = 'mention') Z ";
+            sqlMention += " GROUP BY Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO ";
             let sqlThread = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, ";
             sqlThread += "          '' SUBKIND, 'thread' TITLE, MAX(CDT) DT ";
             sqlThread += "     FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, CDT ";
@@ -394,6 +403,7 @@ let MenuService = class MenuService {
             }
             let sql = '';
             if (kind == 'mention') {
+                sql = sqlHeaderStart + sqlMention + sqlHeaderEnd;
             }
             else if (kind == 'vip') {
                 sql = sqlHeaderStart + sqlVip + sqlHeaderEnd;
@@ -406,6 +416,7 @@ let MenuService = class MenuService {
             }
             else {
                 sql = sqlHeaderStart;
+                sql += sqlMention + "UNION ALL ";
                 sql += sqlVip + "UNION ALL ";
                 sql += sqlThread + "UNION ALL ";
                 sql += sqlReact;

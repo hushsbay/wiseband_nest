@@ -175,6 +175,8 @@ function getTypeForMsgDtl(strKind) {
         case 'read':
         case 'unread':
             return 'read';
+        case 'mention':
+            return 'mention';
         case 'parent':
         case 'child':
             return 'msg';

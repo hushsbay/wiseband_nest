@@ -803,6 +803,23 @@ let ChanmsgService = class ChanmsgService {
                     MSGID: msgid, CHANID: chanid, USERID: item.USERID, KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: item.USERNM
                 }).execute();
             });
+            const arr = body.split("mention clickable");
+            for (let item of arr) {
+                const exp = /data\-userid=\"(\w+)\"/;
+                const brr = item.match(exp);
+                if (brr && brr.length > 0) {
+                    const exp1 = /data\-usernm=\"([가-힣]+|\w+)"/;
+                    const crr = item.match(exp1);
+                    if (crr && crr.length > 0) {
+                        const strKind = 'mention';
+                        const typ = hush.getTypeForMsgDtl(strKind);
+                        await qbMsgDtl
+                            .insert().values({
+                            MSGID: msgid, CHANID: chanid, USERID: brr[1], KIND: strKind, TYP: typ, CDT: unidObj.DT, UDT: unidObj.DT, USERNM: crr[1]
+                        }).execute();
+                    }
+                }
+            }
             let cud = crud;
             const kind = replyto ? 'child' : 'parent';
             let typ = hush.getTypeForMsgDtl(kind);

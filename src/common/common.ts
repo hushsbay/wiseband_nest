@@ -199,6 +199,8 @@ export function getTypeForMsgDtl(strKind: string): string { //서버,클라언�
         case 'read':
         case 'unread':
             return 'read'
+        case 'mention':
+            return 'mention'
         case 'parent':
         case 'child':
             return 'msg'
