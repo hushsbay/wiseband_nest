@@ -425,7 +425,7 @@ export class MenuService {
             sql += "ORDER BY Y.DT DESC "
             if (!oldestMsgDt) sql += "LIMIT " + hush.cons.rowsCnt //console.log(sql)
             const list = await this.dataSource.query(sql, null)
-            for (let i = 0; i < list.length; i++) {
+            for (let i = 0; i < list.length; i++) { //아래 루프에는 mention에 대한 데이터 확보는 필요없어서 추가 코딩은 없음
                 const row = list[i]
                 if (row.TITLE == 'vip') {
                     let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? ORDER BY CDT DESC LIMIT 1 " //AND AUTHORID = ? AND UDT = ? "
