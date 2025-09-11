@@ -181,14 +181,6 @@ let ChanmsgService = class ChanmsgService {
         }).groupBy('B.KIND').orderBy('B.KIND', 'ASC').getRawMany();
         return (msgdtl.length > 0) ? msgdtl : [];
     }
-    async qryMsgDtlMention(qb, msgid, chanid) {
-        let sql = "SELECT USERID, USERNM ";
-        sql += "     FROM S_MSGDTL_TBL ";
-        sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' ";
-        sql += "    ORDER BY USERNM ";
-        const msgdtl = await this.dataSource.query(sql, [msgid, chanid]);
-        return (msgdtl.length > 0) ? msgdtl : [];
-    }
     async qryMsgSub(qb, msgid, chanid) {
         const msgsub = await qb
             .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
@@ -390,8 +382,6 @@ let ChanmsgService = class ChanmsgService {
                 item.act_fixed = msgdtlforuser.act_fixed;
                 const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid);
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : [];
-                const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid);
-                item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : [];
                 const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid);
                 item.msgfile = msgsub.msgfile;
                 item.msgimg = msgsub.msgimg;
@@ -655,8 +645,6 @@ let ChanmsgService = class ChanmsgService {
             data.act_fixed = msgdtlforuser.act_fixed;
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid);
             data.msgdtl = (msgdtl.length > 0) ? msgdtl : [];
-            const msgdtlmention = await this.qryMsgDtlMention(qbDtl, msgid, chanid);
-            data.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : [];
             const msgsub = await this.qryMsgSub(qbSub, msgid, chanid);
             data.msgfile = msgsub.msgfile;
             data.msgimg = msgsub.msgimg;

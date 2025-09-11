@@ -194,14 +194,15 @@ export class ChanmsgService {
         return (msgdtl.length > 0) ? msgdtl : []
     }
 
-    async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
-        let sql = "SELECT USERID, USERNM "
-        sql += "     FROM S_MSGDTL_TBL "
-        sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' "
-        sql += "    ORDER BY USERNM "
-        const msgdtl = await this.dataSource.query(sql, [msgid, chanid])
-        return (msgdtl.length > 0) ? msgdtl : []
-    }
+    //미사용이나 지우지 말 것 : 실제로 여기말고 메뉴(패널)>내활동에서는 아래 테이블 정보로 조회하고 있음
+    // async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
+    //     let sql = "SELECT USERID, USERNM "
+    //     sql += "     FROM S_MSGDTL_TBL "
+    //     sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' "
+    //     sql += "    ORDER BY USERNM "
+    //     const msgdtl = await this.dataSource.query(sql, [msgid, chanid])
+    //     return (msgdtl.length > 0) ? msgdtl : []
+    // }
 
     async qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any> { //d-2) S_MSGSUB_TBL
         const msgsub = await qb
@@ -411,8 +412,8 @@ export class ChanmsgService {
                 item.act_fixed = msgdtlforuser.act_fixed
                 const msgdtl = await this.qryMsgDtl(qbDtl, item.MSGID, chanid) //read, react
                 item.msgdtl = (msgdtl.length > 0) ? msgdtl : []                
-                const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid) //mention
-                item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
+                //const msgdtlmention = await this.qryMsgDtlMention(qbDtl, item.MSGID, chanid) //mention
+                //item.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
                 const msgsub = await this.qryMsgSub(qbSub, item.MSGID, chanid) //파일, 이미지, 링크
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
@@ -662,8 +663,8 @@ export class ChanmsgService {
             data.act_fixed = msgdtlforuser.act_fixed
             const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //read, react
             data.msgdtl = (msgdtl.length > 0) ? msgdtl : []
-            const msgdtlmention = await this.qryMsgDtlMention(qbDtl, msgid, chanid) //mention
-            data.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
+            //const msgdtlmention = await this.qryMsgDtlMention(qbDtl, msgid, chanid) //mention
+            //data.msgdtlmention = (msgdtlmention.length > 0) ? msgdtlmention : []
             const msgsub = await this.qryMsgSub(qbSub, msgid, chanid) //파일, 이미지, 링크
             data.msgfile = msgsub.msgfile
             data.msgimg = msgsub.msgimg

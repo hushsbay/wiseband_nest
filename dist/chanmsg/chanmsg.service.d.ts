@@ -21,7 +21,6 @@ export declare class ChanmsgService {
     chkAcl(dto: Record<string, any>): Promise<any>;
     qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any>;
     qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any>;
-    qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any>;
     qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any>;
     qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any>;
     qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any>;
