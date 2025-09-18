@@ -265,7 +265,7 @@ export class UserService {
                 const userlist = await qb
                 .select([
                     'USERID', 'KIND', 'USERNM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 
-                    'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'PICTURE'
+                    'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', //'PICTURE'
                 ])
                 .where("ORG_CD = :orgcd ", { 
                     orgcd: orgcd
