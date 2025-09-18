@@ -87,6 +87,7 @@ export class UserService {
             if (!user) return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uidReal, hush.Code.NOT_OK, null, methodName)
             if (pictureOnly) {
                 resJson.data.PICTURE = user.PICTURE
+                console.log('111111111111===', uidReal, uid)
             } else {
                 const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user //PWD 등 제외
                 const userEnv = await this.userenvRepo.findOneBy({ USERID: uidReal }) //개인설정정보
