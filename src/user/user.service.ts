@@ -255,6 +255,7 @@ export class UserService {
             if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, methodName)
             }
+            console.log("111111111111")
             let myOrgArr = []
             const qb = this.userRepo.createQueryBuilder()
             for (let i = 0; i < orglist.length; i++) {
@@ -272,7 +273,9 @@ export class UserService {
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
                 if (myteam != '' && orgcd == myteam) myOrgArr.push(item) //###9
+                console.log("111111111111=="+orgcd)
             }
+            console.log("222222222222222222222")
             if (myOrgArr.length > 0) { //아래는 내팀 찾아서 트리에서 펼칠 수 있게 상위노드 가져오는 로직임 ###9
                 let ok = true
                 while (ok) {

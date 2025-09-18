@@ -271,6 +271,7 @@ let UserService = class UserService {
             if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, methodName);
             }
+            console.log("111111111111");
             let myOrgArr = [];
             const qb = this.userRepo.createQueryBuilder();
             for (let i = 0; i < orglist.length; i++) {
@@ -290,7 +291,9 @@ let UserService = class UserService {
                     maxLevel = lvl;
                 if (myteam != '' && orgcd == myteam)
                     myOrgArr.push(item);
+                console.log("111111111111==" + orgcd);
             }
+            console.log("222222222222222222222");
             if (myOrgArr.length > 0) {
                 let ok = true;
                 while (ok) {
