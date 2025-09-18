@@ -323,7 +323,7 @@ let UserService = class UserService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { searchText, onlyAllUsers } = dto;
-            const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO', 'A.PICTURE'];
+            const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO'];
             if (onlyAllUsers) {
                 const userlist = await this.userRepo.createQueryBuilder('A')
                     .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
@@ -366,7 +366,6 @@ let UserService = class UserService {
             if (list.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName);
             }
-            console.log("1111111111");
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
                 sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, ";
@@ -381,9 +380,7 @@ let UserService = class UserService {
                 sql += "ORDER BY A.USERNM, A.USERID ";
                 const userlist = await this.dataSource.query(sql, [row.GR_ID]);
                 row.userlist = userlist;
-                console.log("2222222222====" + row.GR_ID);
             }
-            console.log("11111111113333333333");
             resJson.list = list;
             const vipList = await this.getVipList(userid);
             resJson.data.vipList = vipList;
