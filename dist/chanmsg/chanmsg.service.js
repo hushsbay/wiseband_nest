@@ -97,7 +97,7 @@ let ChanmsgService = class ChanmsgService {
                         item.EMAIL = user.EMAIL;
                         item.TELNO = user.TELNO;
                         item.RMKS = '';
-                        item.PICTURE = null;
+                        item.HASPICT = (user.PICTURE != null) ? 'Y' : '';
                     }
                 }
                 else {
@@ -108,7 +108,7 @@ let ChanmsgService = class ChanmsgService {
                         item.EMAIL = grdtl.EMAIL;
                         item.TELNO = grdtl.TELNO;
                         item.RMKS = grdtl.RMKS;
-                        item.PICTURE = null;
+                        item.HASPICT = '';
                     }
                 }
             }

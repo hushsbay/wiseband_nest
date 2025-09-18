@@ -48,7 +48,7 @@ export class User {
     TOP_ORG_NM: string
     
     @Column()
-    PICTURE: Buffer
+    PICTURE: Buffer //비동기 캐싱 처리 필요
 
     @Column()
     JOB: string

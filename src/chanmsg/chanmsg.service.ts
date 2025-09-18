@@ -111,7 +111,8 @@ export class ChanmsgService {
                         item.EMAIL = user.EMAIL
                         item.TELNO = user.TELNO
                         item.RMKS = ''
-                        item.PICTURE = null //if (includeBlob) item.PICTURE = user.PICTURE //includeBlob 제거하지 않으면 멤버수가 많은 경우 동기로 내려 받기 때문에 504 발생할 정도로 오래 걸림
+                        //if (includeBlob) item.PICTURE = user.PICTURE //includeBlob 제거하지 않으면 멤버수가 많은 경우 동기로 내려 받기 때문에 504 발생할 정도로 오래 걸림
+                        item.HASPICT = (user.PICTURE != null) ? 'Y' : '' //위 행 대체
                     }
                 } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
@@ -121,7 +122,7 @@ export class ChanmsgService {
                         item.EMAIL = grdtl.EMAIL
                         item.TELNO = grdtl.TELNO
                         item.RMKS = grdtl.RMKS
-                        item.PICTURE = null
+                        item.HASPICT = '' //item.PICTURE = null
                     }
                 }
             }

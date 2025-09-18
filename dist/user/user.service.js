@@ -97,7 +97,6 @@ let UserService = class UserService {
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uidReal, hush.Code.NOT_OK, null, methodName);
             if (pictureOnly) {
                 resJson.data.PICTURE = user.PICTURE;
-                console.log('111111111111===', uidReal, uid);
             }
             else {
                 const { PWD, OTP_NUM, OTP_DT, ISUR, MODR, ...userFiltered } = user;
@@ -281,7 +280,7 @@ let UserService = class UserService {
                 const userlist = await qb
                     .select([
                     'USERID', 'KIND', 'USERNM', 'SEQ', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM',
-                    'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL',
+                    'JOB', 'EMAIL', 'TELNO', lvl.toString() + ' LVL', 'CASE WHEN PICTURE IS NOT NULL THEN \'Y\' ELSE \'\' END HASPICT'
                 ])
                     .where("ORG_CD = :orgcd ", {
                     orgcd: orgcd
@@ -324,20 +323,20 @@ let UserService = class UserService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { searchText, onlyAllUsers } = dto;
-            const fieldArr = ['A.USERID', 'A.USERNM', 'A.ORG_CD', 'A.ORG_NM', 'A.TOP_ORG_CD', 'A.TOP_ORG_NM', 'A.JOB', 'A.EMAIL', 'A.TELNO'];
+            const fieldArr = ['USERID', 'USERNM', 'ORG_CD', 'ORG_NM', 'TOP_ORG_CD', 'TOP_ORG_NM', 'JOB', 'EMAIL', 'TELNO', 'CASE WHEN PICTURE IS NOT NULL THEN \'Y\' ELSE \'\' END HASPICT'];
             if (onlyAllUsers) {
-                const userlist = await this.userRepo.createQueryBuilder('A')
-                    .select(fieldArr).where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('A.USERNM', 'ASC').getMany();
+                const userlist = await this.userRepo.createQueryBuilder()
+                    .select(fieldArr).where("USERNM LIKE :usernm ", { usernm: `%${searchText}%` }).orderBy('USERNM', 'ASC').getRawMany();
                 resJson.list = userlist;
             }
             else {
-                const userlist = await this.userRepo.createQueryBuilder('A')
-                    .select(fieldArr).where("A.SYNC = 'Y' ")
+                const userlist = await this.userRepo.createQueryBuilder()
+                    .select(fieldArr).where("SYNC = 'Y' ")
                     .andWhere(new typeorm_2.Brackets(qb => {
-                    qb.where("A.USERNM LIKE :usernm ", { usernm: `%${searchText}%` });
-                    qb.orWhere("A.ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` });
-                    qb.orWhere("A.JOB LIKE :job ", { job: `%${searchText}%` });
-                })).orderBy('A.USERNM', 'ASC').getMany();
+                    qb.where("USERNM LIKE :usernm ", { usernm: `%${searchText}%` });
+                    qb.orWhere("ORG_NM LIKE :ormnm ", { ormnm: `%${searchText}%` });
+                    qb.orWhere("JOB LIKE :job ", { job: `%${searchText}%` });
+                })).orderBy('USERNM', 'ASC').getRawMany();
                 resJson.list = userlist;
             }
             const vipList = await this.getVipList(userid);
@@ -369,7 +368,7 @@ let UserService = class UserService {
             }
             for (let i = 0; i < list.length; i++) {
                 const row = list[i];
-                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, ";
+                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, CASE WHEN B.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT, ";
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, ";
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, ";
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, ";
