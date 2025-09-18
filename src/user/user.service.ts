@@ -255,7 +255,6 @@ export class UserService {
             if (orglist.length == 0) {
                 return hush.setResJson(resJson, '조직정보가 없습니다.', hush.Code.NOT_FOUND, null, methodName)
             }
-            console.log("111111111111")
             let myOrgArr = []
             const qb = this.userRepo.createQueryBuilder()
             for (let i = 0; i < orglist.length; i++) {
@@ -273,9 +272,7 @@ export class UserService {
                 item.userlist = userlist
                 if (lvl > maxLevel) maxLevel = lvl
                 if (myteam != '' && orgcd == myteam) myOrgArr.push(item) //###9
-                console.log("111111111111=="+orgcd)
             }
-            console.log("222222222222222222222")
             if (myOrgArr.length > 0) { //아래는 내팀 찾아서 트리에서 펼칠 수 있게 상위노드 가져오는 로직임 ###9
                 let ok = true
                 while (ok) {
@@ -349,9 +346,10 @@ export class UserService {
             if (list.length == 0) {
                 return hush.setResJson(resJson, hush.Msg.NOT_FOUND + fv, hush.Code.NOT_FOUND, this.req, methodName)
             }
+            console.log("1111111111")
             for (let i = 0; i < list.length; i++) {
                 const row = list[i]
-                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, B.PICTURE, "
+                sql = "SELECT A.GR_ID, A.USERID, A.USERNM, A.KIND, A.SYNC, 1 LVL, " //B.PICTURE, "
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN CONCAT(B.TOP_ORG_NM, '/', B.ORG_NM) ELSE A.ORG END ORG, "
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.JOB ELSE A.JOB END JOB, "
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
@@ -363,7 +361,9 @@ export class UserService {
                 sql += "ORDER BY A.USERNM, A.USERID "
                 const userlist = await this.dataSource.query(sql, [row.GR_ID])
                 row.userlist = userlist
+                console.log("2222222222===="+row.GR_ID)
             }
+            console.log("11111111113333333333")
             resJson.list = list
             const vipList = await this.getVipList(userid)
             resJson.data.vipList = vipList //데이터 없으면 vipList[0].VIP = null로 나옴
