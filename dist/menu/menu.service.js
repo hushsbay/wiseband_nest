@@ -24,8 +24,8 @@ let MenuService = class MenuService {
         this.req = req;
     }
     async qryMembersWithPic(chanid, userid, pictureCount) {
-        const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, picture: null, url: null };
-        let sql = "SELECT A.USERID, A.USERNM, B.PICTURE ";
+        const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, haspict: null, url: null };
+        let sql = "SELECT A.USERID, A.USERNM, CASE WHEN B.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT ";
         sql += "     FROM S_CHANDTL_TBL A ";
         sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID ";
         sql += "    WHERE A.CHANID = ? ";
@@ -40,7 +40,7 @@ let MenuService = class MenuService {
             }
             arr.push(listChan[j].USERNM);
             brr.push(listChan[j].USERID);
-            crr.push(listChan[j].PICTURE);
+            crr.push(listChan[j].HASPICT);
             drr.push('');
             picCnt += 1;
             if (pictureCount > -1 && picCnt >= pictureCount)
@@ -49,7 +49,7 @@ let MenuService = class MenuService {
         if (picCnt == 0 && me) {
             arr.push(me.USERNM);
             brr.push(me.USERID);
-            crr.push(me.PICTURE);
+            crr.push(me.HASPICT);
             drr.push('');
             picCnt = 1;
         }
@@ -57,7 +57,7 @@ let MenuService = class MenuService {
         retObj.memnm = arr;
         retObj.memid = brr;
         retObj.picCnt = picCnt;
-        retObj.picture = crr;
+        retObj.haspict = crr;
         retObj.url = drr;
         return retObj;
     }
@@ -229,7 +229,7 @@ let MenuService = class MenuService {
                 row.memnm = obj.memnm;
                 row.memid = obj.memid;
                 row.picCnt = obj.picCnt;
-                row.picture = obj.picture;
+                row.haspict = obj.haspict;
                 row.url = obj.url;
                 row.mynotyetCnt = await this.qryKindCntForUser(row.CHANID, userid, 'notyet');
                 arr.push(row);
@@ -274,7 +274,7 @@ let MenuService = class MenuService {
         try {
             const { kind, prevMsgMstCdt, msgid, oldestMsgDt, key } = dto;
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, ";
-            sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE ";
+            sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, CASE WHEN E.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT ";
             sql += "     FROM S_MSGMST_TBL A ";
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID ";
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID ";
@@ -304,9 +304,6 @@ let MenuService = class MenuService {
                     row.memcnt = obj.memcnt;
                     row.memnm = obj.memnm;
                     row.memid = obj.memid;
-                    row.picCnt = obj.picCnt;
-                    row.picture = obj.picture;
-                    row.url = obj.url;
                 }
             }
             resJson.list = list;
@@ -339,7 +336,7 @@ let MenuService = class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid]);
         try {
             const { kind, notyet, prevMsgMstCdt, oldestMsgDt, key1, key2 } = dto;
-            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( ";
+            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, CASE WHEN E.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT FROM ( ";
             let sqlHeaderEnd = ") Y ";
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL");
             let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, '' SUBKIND, 'vip' TITLE, MAX(A.CDT) DT ";
@@ -500,9 +497,6 @@ let MenuService = class MenuService {
                     row.memcnt = obj.memcnt;
                     row.memnm = obj.memnm;
                     row.memid = obj.memid;
-                    row.picCnt = obj.picCnt;
-                    row.picture = obj.picture;
-                    row.url = obj.url;
                 }
             }
             resJson.list = list;

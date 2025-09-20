@@ -19,8 +19,8 @@ export class MenuService {
     ) {}
 
     async qryMembersWithPic(chanid: string, userid: string, pictureCount: number): Promise<any> {
-        const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, picture: null, url: null }
-        let sql = "SELECT A.USERID, A.USERNM, B.PICTURE "
+        const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, haspict: null, url: null } //picture 대신 haspict 
+        let sql = "SELECT A.USERID, A.USERNM, CASE WHEN B.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT " //B.PICTURE "
         sql += "     FROM S_CHANDTL_TBL A "
         sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
         sql += "    WHERE A.CHANID = ? "
@@ -35,7 +35,7 @@ export class MenuService {
             }
             arr.push(listChan[j].USERNM)
             brr.push(listChan[j].USERID)
-            crr.push(listChan[j].PICTURE)
+            crr.push(listChan[j].HASPICT)
             drr.push('')
             picCnt += 1
             if (pictureCount > -1 && picCnt >= pictureCount) break //picCnt명까지만 사진 등 보여주기
@@ -43,15 +43,17 @@ export class MenuService {
         if (picCnt == 0 && me) { //나만의 대화인 채널 (me는 반드시 존재할 것이나 한번 더 체크)
             arr.push(me.USERNM)
             brr.push(me.USERID)
-            crr.push(me.PICTURE)
+            crr.push(me.HASPICT)
             drr.push('')
             picCnt = 1
-        } //memcnt(전체멤버수), memnm(전체멤버이름-혼자면내이름포함,여러명이면내이름제외), memid(=memnm), picCnt(사진보여주는갯수), picture(사진), url(빈값으로내려서클라이언트에서이용)
+        } 
+        //memcnt(전체멤버수), memnm(전체멤버이름-혼자면내이름포함,여러명이면내이름제외), memid(=memnm), 
+        //picCnt(사진보여주는갯수), picture(사진), url(빈값으로내려서클라이언트에서이용) //picture(사진) 대신 haspict 
         retObj.memcnt = listChan.length
         retObj.memnm = arr
         retObj.memid = brr
         retObj.picCnt = picCnt
-        retObj.picture = crr        
+        retObj.haspict = crr //retObj.picture = crr
         retObj.url = drr
         return retObj
     }
@@ -224,7 +226,7 @@ export class MenuService {
                 row.memnm = obj.memnm
                 row.memid = obj.memid
                 row.picCnt = obj.picCnt
-                row.picture = obj.picture
+                row.haspict = obj.haspict //row.picture = obj.picture
                 row.url = obj.url //url은 로컬에서 사용
                 row.mynotyetCnt = await this.qryKindCntForUser(row.CHANID, userid, 'notyet')
                 arr.push(row)
@@ -267,7 +269,7 @@ export class MenuService {
         try {
             const { kind, prevMsgMstCdt, msgid, oldestMsgDt, key } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
-            sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, E.PICTURE "
+            sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, CASE WHEN E.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT " //E.PICTURE "
             sql += "     FROM S_MSGMST_TBL A "
             sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
             sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
@@ -293,9 +295,9 @@ export class MenuService {
                     row.memcnt = obj.memcnt
                     row.memnm = obj.memnm
                     row.memid = obj.memid
-                    row.picCnt = obj.picCnt
-                    row.picture = obj.picture
-                    row.url = obj.url //url은 로컬에서 사용
+                    //row.picCnt = obj.picCnt
+                    //row.haspict = obj.haspict
+                    //row.url = obj.url //url은 로컬에서 사용
                 }
             }
             resJson.list = list
@@ -329,7 +331,7 @@ export class MenuService {
         try {
             const { kind, notyet, prevMsgMstCdt, oldestMsgDt, key1, key2 } = dto
             //0. 기본
-            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, E.PICTURE FROM ( "
+            let sqlHeaderStart = "SELECT Y.MSGID, Y.CHANID, Z.CHANNM, Y.AUTHORID, Y.AUTHORNM, Y.REPLYTO, Y.BODYTEXT, Y.SUBKIND, Y.TITLE, Y.DT, CASE WHEN E.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT FROM ( " //E.PICTURE FROM ( "
             let sqlHeaderEnd = ") Y "
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL")
             //1. vip : 방별로 구분 (group by chanid)
@@ -479,9 +481,9 @@ export class MenuService {
                     row.memcnt = obj.memcnt
                     row.memnm = obj.memnm
                     row.memid = obj.memid
-                    row.picCnt = obj.picCnt
-                    row.picture = obj.picture
-                    row.url = obj.url //url은 로컬에서 사용
+                    //row.picCnt = obj.picCnt
+                    //row.picture = obj.picture
+                    //row.url = obj.url //url은 로컬에서 사용
                 }
             }
             resJson.list = list
