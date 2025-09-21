@@ -21,6 +21,7 @@ let UserController = class UserController {
         this.userSvc = userSvc;
     }
     getUserInfo(dto) { return this.userSvc.getUserInfo(dto); }
+    getUserInfo1(dto) { return this.userSvc.getUserInfo(dto); }
     setUserInfo(dto, file) {
         return this.userSvc.setUserInfo(dto, file);
     }
@@ -38,12 +39,20 @@ let UserController = class UserController {
 };
 exports.UserController = UserController;
 __decorate([
+    (0, common_1.Get)('getUserInfo'),
+    (0, common_1.Header)('Cache-Control', 'no-cache'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UserController.prototype, "getUserInfo", null);
+__decorate([
     (0, common_1.Post)('getUserInfo'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], UserController.prototype, "getUserInfo", null);
+], UserController.prototype, "getUserInfo1", null);
 __decorate([
     (0, common_1.Post)('setUserInfo'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),

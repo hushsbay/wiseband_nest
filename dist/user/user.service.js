@@ -95,7 +95,7 @@ let UserService = class UserService {
             const user = await this.userRepo.findOneBy({ USERID: uidReal });
             if (!user)
                 return hush.setResJson(resJson, '해당 아이디가 없습니다 : ' + uidReal, hush.Code.NOT_OK, null, methodName);
-            if (pictureOnly) {
+            if (pictureOnly == 'Y') {
                 resJson.data.PICTURE = user.PICTURE;
             }
             else {

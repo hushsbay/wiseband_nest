@@ -3,6 +3,7 @@ export declare class UserController {
     private readonly userSvc;
     constructor(userSvc: UserService);
     getUserInfo(dto: Record<string, any>): Promise<any>;
+    getUserInfo1(dto: Record<string, any>): Promise<any>;
     setUserInfo(dto: Record<string, any>, file: Express.Multer.File): Promise<any>;
     setNoti(dto: Record<string, any>): Promise<import("../common/resjson").ResJson>;
     changePwd(dto: Record<string, any>): Promise<any>;
