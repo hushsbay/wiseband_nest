@@ -40,7 +40,7 @@ let UserController = class UserController {
 exports.UserController = UserController;
 __decorate([
     (0, common_1.Get)('getUserInfo'),
-    (0, common_1.Header)('Cache-Control', 'no-cache'),
+    (0, common_1.Header)('Cache-Control', 'max-age=0, must-revalidate'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
