@@ -14,7 +14,7 @@ export class UserController {
     //실제로 no-cache로 설정후 이미지를 변경하면 200/201로 내려오고 그 다음에 요청시 바로 304 not modified로 잘 되는 것을 확인함 (브라우저가 알아서 처리하고 있음)
     getUserInfo(@Query() dto: Record<string, any>) { return this.userSvc.getUserInfo(dto) }
 
-    @Post('getUserInfo')
+    @Post('getUserInfo') //위의 @Get이 아닌 @Post임을 유의
     getUserInfo1(@Body() dto: Record<string, any>) { return this.userSvc.getUserInfo(dto) }
 
     @Post('setUserInfo')
