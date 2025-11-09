@@ -759,7 +759,8 @@ export class ChanmsgService {
             const qbMsgMst = this.msgmstRepo.createQueryBuilder()
             if (crud == 'C') {                
                 if (bodytext.startsWith('#')) { //RAG + LLM 호출 테스트 => just test (속도, 요청/응답 구분 등의 문제가 있음)
-                    const url = 'http://localhost:8000/gigwork_doc_search'
+                    //const url = 'http://localhost:8000/gigwork_doc_search'
+                    const url = 'http://223.130.152.72:8000/gigwork_doc_search'
                     const data = { query: bodytext }
                     try {
                         const res = await firstValueFrom(this.httpService.post(url, data))
