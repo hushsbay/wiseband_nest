@@ -18,6 +18,8 @@ const core_1 = require("@nestjs/core");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const typeorm_transactional_1 = require("typeorm-transactional");
+const axios_1 = require("@nestjs/axios");
+const rxjs_1 = require("rxjs");
 const hush = require("../common/common");
 const resjson_1 = require("../common/resjson");
 const user_service_1 = require("../user/user.service");
@@ -25,7 +27,7 @@ const mail_service_1 = require("../mail/mail.service");
 const chanmsg_entity_1 = require("./chanmsg.entity");
 const user_entity_1 = require("../user/user.entity");
 let ChanmsgService = class ChanmsgService {
-    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, userSvc, mailSvc, req) {
+    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, userSvc, mailSvc, req, httpService) {
         this.msgmstRepo = msgmstRepo;
         this.msgsubRepo = msgsubRepo;
         this.msgdtlRepo = msgdtlRepo;
@@ -38,6 +40,7 @@ let ChanmsgService = class ChanmsgService {
         this.userSvc = userSvc;
         this.mailSvc = mailSvc;
         this.req = req;
+        this.httpService = httpService;
     }
     async chkAcl(dto) {
         const methodName = 'chanmsg>chkAcl';
@@ -735,6 +738,14 @@ let ChanmsgService = class ChanmsgService {
             const unidObj = await hush.getMysqlUnid(this.dataSource);
             const qbMsgMst = this.msgmstRepo.createQueryBuilder();
             if (crud == 'C') {
+                if (bodytext.startsWith('#')) {
+                    const url = 'http://localhost:8000/gigwork_doc_search';
+                    const data = { query: bodytext };
+                    const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data));
+                    const json = JSON.parse(res.data.reply.replace("\n", ""));
+                    const text = json.answer;
+                    body += "AI 응답 => " + text;
+                }
                 msgid = unidObj.ID;
                 await qbMsgMst
                     .insert().values({
@@ -1801,6 +1812,6 @@ exports.ChanmsgService = ChanmsgService = __decorate([
         typeorm_2.Repository,
         typeorm_2.DataSource,
         user_service_1.UserService,
-        mail_service_1.MailService, Object])
+        mail_service_1.MailService, Object, axios_1.HttpService])
 ], ChanmsgService);
 //# sourceMappingURL=chanmsg.service.js.map
