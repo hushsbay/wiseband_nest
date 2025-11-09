@@ -4,14 +4,15 @@ import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
-import { HttpService } from '@nestjs/axios'
-import { firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios' //RAG + LLM 호출 테스트
+import { firstValueFrom } from 'rxjs' //RAG + LLM 호출 테스트
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { UserService } from 'src/user/user.service'
 import { MailService } from 'src/mail/mail.service'
 import { MsgMst, MsgSub, MsgDtl, ChanMst, ChanDtl, GrMst, GrDtl } from 'src/chanmsg/chanmsg.entity'
 import { User } from 'src/user/user.entity'
+import { Z_ASCII } from 'zlib'
 
 // interface IDataLog {
 //     MSGID: string, 
@@ -760,10 +761,21 @@ export class ChanmsgService {
                 if (bodytext.startsWith('#')) { //RAG + LLM 호출 테스트 => just test (속도, 요청/응답 구분 등의 문제가 있음)
                     const url = 'http://localhost:8000/gigwork_doc_search'
                     const data = { query: bodytext }
-                    const res = await firstValueFrom(this.httpService.post(url, data))
-                    const json = JSON.parse(res.data.reply.replace("\n", ""))
-                    const text = json.answer
-                    body += "AI 응답 => " + text
+                    try {
+                        const res = await firstValueFrom(this.httpService.post(url, data))
+                        const json = JSON.parse(res.data.reply.replace("\n", ""))
+                        const text = json.answer
+                        body += "<br><br>AI 응답 => " + text
+                        for (let item of res.data.rs) {
+                            body += "<br><br>==========================================="
+                            body += "<br>id: " + item.id
+                            body += "<br>title: " + item.title
+                            body += "<br>content: " + item.content
+                            body += "<br>metadata: " + item.metadata
+                        }
+                    } catch (exSub) {
+                        throw new Error("AI Test 오류 : " + exSub.message)
+                    }
                 }
                 msgid = unidObj.ID
                 await qbMsgMst

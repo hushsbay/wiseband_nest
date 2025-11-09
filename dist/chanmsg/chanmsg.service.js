@@ -741,10 +741,22 @@ let ChanmsgService = class ChanmsgService {
                 if (bodytext.startsWith('#')) {
                     const url = 'http://localhost:8000/gigwork_doc_search';
                     const data = { query: bodytext };
-                    const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data));
-                    const json = JSON.parse(res.data.reply.replace("\n", ""));
-                    const text = json.answer;
-                    body += "AI 응답 => " + text;
+                    try {
+                        const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data));
+                        const json = JSON.parse(res.data.reply.replace("\n", ""));
+                        const text = json.answer;
+                        body += "<br><br>AI 응답 => " + text;
+                        for (let item of res.data.rs) {
+                            body += "<br><br>===========================================";
+                            body += "<br>id: " + item.id;
+                            body += "<br>title: " + item.title;
+                            body += "<br>content: " + item.content;
+                            body += "<br>metadata: " + item.metadata;
+                        }
+                    }
+                    catch (exSub) {
+                        throw new Error("AI Test 오류 : " + exSub.message);
+                    }
                 }
                 msgid = unidObj.ID;
                 await qbMsgMst
