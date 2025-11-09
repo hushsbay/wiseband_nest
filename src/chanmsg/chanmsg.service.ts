@@ -4,6 +4,8 @@ import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
+//import { HttpService } from '@nestjs/axios'
+//import { firstValueFrom } from 'rxjs';
 import * as hush from 'src/common/common'
 import { ResJson } from 'src/common/resjson'
 import { UserService } from 'src/user/user.service'
@@ -35,7 +37,8 @@ export class ChanmsgService {
         private dataSource : DataSource,
         private userSvc: UserService,
         private mailSvc: MailService, 
-        @Inject(REQUEST) private readonly req: Request
+        @Inject(REQUEST) private readonly req: Request,
+        //private httpService: HttpService
     ) {}
 
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
@@ -825,6 +828,14 @@ export class ChanmsgService {
                     }
                 }
             }
+            //RAG + LLM 호출 테스트 => 속도, 요청/응답 구분 등의 문제가 있어 일단 초안 테스트 개념으로 그냥 프론트에서 호출하는 것으로 처리(테스트)함
+            // if (bodytext.startsWith('#')) {
+            //     const url = 'http://localhost:8000/gigwork_doc_search'
+            //     const data = { query: bodytext }
+            //     const res = await firstValueFrom(this.httpService.post(url, data))
+            //     resJson.data.chat = res.data
+            //     console.log("@#$ "+JSON.stringify(resJson))
+            // }
             //아래는 로깅
             let cud = crud
             const kind = replyto ? 'child' : 'parent'
