@@ -16,6 +16,7 @@ exports.ChanmsgService = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const typeorm_1 = require("@nestjs/typeorm");
+const config_1 = require("@nestjs/config");
 const typeorm_2 = require("typeorm");
 const typeorm_transactional_1 = require("typeorm-transactional");
 const axios_1 = require("@nestjs/axios");
@@ -27,7 +28,7 @@ const mail_service_1 = require("../mail/mail.service");
 const chanmsg_entity_1 = require("./chanmsg.entity");
 const user_entity_1 = require("../user/user.entity");
 let ChanmsgService = class ChanmsgService {
-    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, userSvc, mailSvc, req, httpService) {
+    constructor(msgmstRepo, msgsubRepo, msgdtlRepo, chanmstRepo, chandtlRepo, grmstRepo, grdtlRepo, userRepo, dataSource, userSvc, mailSvc, req, httpService, configService) {
         this.msgmstRepo = msgmstRepo;
         this.msgsubRepo = msgsubRepo;
         this.msgdtlRepo = msgdtlRepo;
@@ -41,6 +42,7 @@ let ChanmsgService = class ChanmsgService {
         this.mailSvc = mailSvc;
         this.req = req;
         this.httpService = httpService;
+        this.configService = configService;
     }
     async chkAcl(dto) {
         const methodName = 'chanmsg>chkAcl';
@@ -742,7 +744,7 @@ let ChanmsgService = class ChanmsgService {
                     const url = 'http://223.130.152.72:8000/gigwork/doc_search';
                     const data = { query: bodytext };
                     try {
-                        const headers = { 'server_key': '00001111' };
+                        const headers = { 'server_key': this.configService.get('GIGWORK_TEST') };
                         const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data, { headers }));
                         if (res.data.reply && res.data.rs) {
                             const json = JSON.parse(res.data.reply.replace("\n", ""));
@@ -757,7 +759,7 @@ let ChanmsgService = class ChanmsgService {
                             }
                         }
                         else {
-                            body += "<br><br>AI 응답 => 데이터가 없습니다.";
+                            body += "<br><br>AI 응답 => " + res.data.code + "/" + res.data.msg;
                         }
                     }
                     catch (exSub) {
@@ -1830,6 +1832,7 @@ exports.ChanmsgService = ChanmsgService = __decorate([
         typeorm_2.Repository,
         typeorm_2.DataSource,
         user_service_1.UserService,
-        mail_service_1.MailService, Object, axios_1.HttpService])
+        mail_service_1.MailService, Object, axios_1.HttpService,
+        config_1.ConfigService])
 ], ChanmsgService);
 //# sourceMappingURL=chanmsg.service.js.map

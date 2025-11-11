@@ -2,6 +2,7 @@ import { Inject, Injectable, Scope, UploadedFile } from '@nestjs/common'
 import { REQUEST } from '@nestjs/core'
 import { Request } from 'express'
 import { InjectRepository } from '@nestjs/typeorm'
+import { ConfigService } from '@nestjs/config'
 import { Repository, DataSource, SelectQueryBuilder, Brackets } from 'typeorm'
 import { Propagation, Transactional } from 'typeorm-transactional'
 import { HttpService } from '@nestjs/axios' //RAG + LLM 호출 테스트
@@ -39,7 +40,8 @@ export class ChanmsgService {
         private userSvc: UserService,
         private mailSvc: MailService, 
         @Inject(REQUEST) private readonly req: Request,
-        private httpService: HttpService
+        private httpService: HttpService,
+        private configService: ConfigService
     ) {}
 
     async chkAcl(dto: Record<string, any>): Promise<any> { //1) 각종 권한 체크 2) 각종 공통데이터 읽어 오기
@@ -763,7 +765,7 @@ export class ChanmsgService {
                     const url = 'http://223.130.152.72:8000/gigwork/doc_search'            
                     const data = { query: bodytext }                    
                     try {
-                        const headers = { 'server_key': '00001111' }
+                        const headers = { 'server_key': this.configService.get<string>('GIGWORK_TEST') }
                         const res = await firstValueFrom(this.httpService.post(url, data, { headers }))
                         if (res.data.reply && res.data.rs) {
                             const json = JSON.parse(res.data.reply.replace("\n", ""))
@@ -777,7 +779,7 @@ export class ChanmsgService {
                                 body += "<br>metadata: " + item.metadata
                             }
                         } else {
-                            body += "<br><br>AI 응답 => 데이터가 없습니다."
+                            body += "<br><br>AI 응답 => " + res.data.code + "/" + res.data.msg
                         }
                     } catch (exSub) {
                         throw new Error("AI Test 오류 : " + exSub.message)

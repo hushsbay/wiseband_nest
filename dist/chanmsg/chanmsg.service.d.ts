@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { UserService } from 'src/user/user.service';
@@ -19,7 +20,8 @@ export declare class ChanmsgService {
     private mailSvc;
     private readonly req;
     private httpService;
-    constructor(msgmstRepo: Repository<MsgMst>, msgsubRepo: Repository<MsgSub>, msgdtlRepo: Repository<MsgDtl>, chanmstRepo: Repository<ChanMst>, chandtlRepo: Repository<ChanDtl>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, userRepo: Repository<User>, dataSource: DataSource, userSvc: UserService, mailSvc: MailService, req: Request, httpService: HttpService);
+    private configService;
+    constructor(msgmstRepo: Repository<MsgMst>, msgsubRepo: Repository<MsgSub>, msgdtlRepo: Repository<MsgDtl>, chanmstRepo: Repository<ChanMst>, chandtlRepo: Repository<ChanDtl>, grmstRepo: Repository<GrMst>, grdtlRepo: Repository<GrDtl>, userRepo: Repository<User>, dataSource: DataSource, userSvc: UserService, mailSvc: MailService, req: Request, httpService: HttpService, configService: ConfigService);
     chkAcl(dto: Record<string, any>): Promise<any>;
     qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any>;
     qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any>;
