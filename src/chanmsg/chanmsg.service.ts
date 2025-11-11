@@ -765,15 +765,19 @@ export class ChanmsgService {
                     try {
                         const headers = { 'server_key': '00001111' }
                         const res = await firstValueFrom(this.httpService.post(url, data, { headers }))
-                        const json = JSON.parse(res.data.reply.replace("\n", ""))
-                        const text = json.answer
-                        body += "<br><br>AI 응답 => " + text
-                        for (let item of res.data.rs) {
-                            body += "<br><br>===================================="
-                            body += "<br>id: " + item.id
-                            body += "<br>title: " + item.title
-                            body += "<br>content: " + item.content
-                            body += "<br>metadata: " + item.metadata
+                        if (res.data.reply && res.data.rs) {
+                            const json = JSON.parse(res.data.reply.replace("\n", ""))
+                            const text = json.answer
+                            body += "<br><br>AI 응답 => " + text
+                            for (let item of res.data.rs) {
+                                body += "<br><br>===================================="
+                                body += "<br>id: " + item.id
+                                body += "<br>title: " + item.title
+                                body += "<br>content: " + item.content
+                                body += "<br>metadata: " + item.metadata
+                            }
+                        } else {
+                            body += "<br><br>AI 응답 => 데이터가 없습니다."
                         }
                     } catch (exSub) {
                         throw new Error("AI Test 오류 : " + exSub.message)
