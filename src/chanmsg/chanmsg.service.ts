@@ -762,6 +762,7 @@ export class ChanmsgService {
                     //const url = 'http://localhost:8000/gigwork/doc_search'
                     const url = 'http://223.130.152.72:8000/gigwork/doc_search'            
                     const data = { query: bodytext }
+                    console.log("#############################")
                     try {
                         const res = await firstValueFrom(this.httpService.post(url, data))
                         const json = JSON.parse(res.data.reply.replace("\n", ""))
