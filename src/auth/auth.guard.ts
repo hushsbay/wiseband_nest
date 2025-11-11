@@ -27,12 +27,12 @@ export class AuthGuard implements CanActivate {
             payloadStr = Buffer.from(arr[1], 'base64').toString('utf-8')
             const config = appConfig()
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key })
-            console.log(JSON.stringify(payload))
+            //console.log(JSON.stringify(payload))
             if (payloadStr != JSON.stringify(payload)) { //필요시 위변조 가능성도 체크
                 //hush.throwHttpEx(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload), hush.Code.JWT_MISMATCH)
                 throw new Error(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload))
             }
-            console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd)
+            //console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd)
             request['user'] = payload
             const payloadToUpdate = { userid: payload.userid, usernm: payload.usernm, orgcd: payload.orgcd, toporgcd: payload.toporgcd }
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate) //무조건 갱신함
