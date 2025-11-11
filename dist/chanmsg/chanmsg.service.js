@@ -739,15 +739,16 @@ let ChanmsgService = class ChanmsgService {
             const qbMsgMst = this.msgmstRepo.createQueryBuilder();
             if (crud == 'C') {
                 if (bodytext.startsWith('#')) {
-                    const url = 'http://223.130.152.72:8000/gigwork_doc_search';
+                    const url = 'http://223.130.152.72:8000/gigwork/doc_search';
                     const data = { query: bodytext };
                     try {
-                        const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data));
+                        const headers = { 'server_key': '00001111' };
+                        const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data, { headers }));
                         const json = JSON.parse(res.data.reply.replace("\n", ""));
                         const text = json.answer;
                         body += "<br><br>AI 응답 => " + text;
                         for (let item of res.data.rs) {
-                            body += "<br><br>===========================================";
+                            body += "<br><br>====================================";
                             body += "<br>id: " + item.id;
                             body += "<br>title: " + item.title;
                             body += "<br>content: " + item.content;

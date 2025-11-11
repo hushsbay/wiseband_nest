@@ -38,11 +38,9 @@ let AuthGuard = class AuthGuard {
             payloadStr = Buffer.from(arr[1], 'base64').toString('utf-8');
             const config = (0, app_config_1.default)();
             const payload = await this.jwtSvc.verifyAsync(token, { secret: config.jwt.key });
-            console.log(JSON.stringify(payload));
             if (payloadStr != JSON.stringify(payload)) {
                 throw new Error(hush.Msg.JWT_MISMATCH + '\n[payloadStr]' + payloadStr + '\n[payload]' + JSON.stringify(payload));
             }
-            console.log(payload.userid, payload.usernm, payload.orgcd, payload.toporgcd);
             request['user'] = payload;
             const payloadToUpdate = { userid: payload.userid, usernm: payload.usernm, orgcd: payload.orgcd, toporgcd: payload.toporgcd };
             const tokenToUpdate = await this.jwtSvc.signAsync(payloadToUpdate);
