@@ -747,15 +747,20 @@ let ChanmsgService = class ChanmsgService {
                         const headers = { 'server_key': this.configService.get('GIGWORK_TEST') };
                         const res = await (0, rxjs_1.firstValueFrom)(this.httpService.post(url, data, { headers }));
                         if (res.data.reply && res.data.rs) {
-                            const json = JSON.parse(res.data.reply.replace("\n", ""));
-                            const text = json.answer;
-                            body += "<br><br>AI 응답 => " + text;
-                            for (let item of res.data.rs) {
-                                body += "<br><br>====================================";
-                                body += "<br>id: " + item.id;
-                                body += "<br>title: " + item.title;
-                                body += "<br>content: " + item.content;
-                                body += "<br>metadata: " + item.metadata;
+                            if (typeof res.data.reply == 'string') {
+                                body += "<br><br>AI 응답 => " + res.data.reply;
+                            }
+                            else {
+                                const json = JSON.parse(res.data.reply.replace("\n", ""));
+                                const text = json.answer;
+                                body += "<br><br>AI 응답 => " + text;
+                                for (let item of res.data.rs) {
+                                    body += "<br><br>====================================";
+                                    body += "<br>id: " + item.id;
+                                    body += "<br>title: " + item.title;
+                                    body += "<br>content: " + item.content;
+                                    body += "<br>metadata: " + item.metadata;
+                                }
                             }
                         }
                         else {
