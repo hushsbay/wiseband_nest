@@ -166,7 +166,7 @@ export function setPageInfo(perPage: number, curPage: number, totalCnt: number, 
 }
 
 export async function insertIntoSockTbl(dataSource: DataSource, obj: any): Promise<any> {
-    let sql = "INSERT INTO S_SOCK_TBL (ROOMID, USERID, USERNM, SOCKETID, KIND, ISUR, ISUDT) "
+    let sql = "INSERT INTO s_sock_tbl (ROOMID, USERID, USERNM, SOCKETID, KIND, ISUR, ISUDT) "
     sql += " VALUES (?, ?, ?, ?, ?, ?, ?) "
     await dataSource.query(sql, [obj.roomid, obj.memberid, obj.membernm, obj.socketid, obj.kind, obj.userid, obj.dt])
 }
@@ -213,7 +213,7 @@ export async function insertDataLog(dataSource: DataSource, obj: any): Promise<a
     //로깅은 2가지 역할 : 1) 로그 자체의 역할 (사용자 동선 추적) 2) 리얼타임 화면 데이터 반영
     let { cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext, subkind } = obj
     try {
-        let sql = "INSERT INTO S_DATALOG_TBL (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND) "
+        let sql = "INSERT INTO s_datalog_tbl (CDT, MSGID, REPLYTO, CHANID, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND) "
         sql += " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
         await dataSource.query(sql, [cdt, msgid, replyto, chanid, userid, usernm, cud, kind, typ, bodytext, subkind ?? ''])
         return ''
@@ -228,17 +228,17 @@ export function getBasicAclSql(userid: string, typ: string, includeOnlyPrivate?:
     //           2) 내가 속하지 않아도 공개(A=All)된 방이면 그룹 멤버라면 누구나 열람 가능
     //DM은 그룹에 무관하게 DM방이 존재하여 내가 속한 DM방의 메시지는 모두 열람 가능
     let sqlWs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT "
-    sqlWs += " FROM S_CHANMST_TBL A "
-    sqlWs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
-    sqlWs += "INNER JOIN S_GRDTL_TBL C ON A.GR_ID = C.GR_ID "
+    sqlWs += " FROM s_chanmst_tbl A "
+    sqlWs += "INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
+    sqlWs += "INNER JOIN s_grdtl_tbl C ON A.GR_ID = C.GR_ID "
     if (includeOnlyPrivate) {
         sqlWs += "WHERE B.USERID = '" + userid + "' AND A.TYP = 'WS' "
     } else {
         sqlWs += "WHERE A.TYP = 'WS' AND (B.USERID = '" + userid + "' OR A.STATE = 'A') "
     }
     let sqlGs = "SELECT DISTINCT A.CHANID, A.CHANNM, A.TYP, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT "
-    sqlGs += " FROM S_CHANMST_TBL A "
-    sqlGs += "INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+    sqlGs += " FROM s_chanmst_tbl A "
+    sqlGs += "INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
     sqlGs += "WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' "    
     if (typ == 'WS') {
         return sqlWs

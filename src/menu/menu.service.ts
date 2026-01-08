@@ -21,8 +21,8 @@ export class MenuService {
     async qryMembersWithPic(chanid: string, userid: string, pictureCount: number): Promise<any> {
         const retObj = { memcnt: null, picCnt: null, memnm: null, memid: null, haspict: null, url: null } //picture 대신 haspict 
         let sql = "SELECT A.USERID, A.USERNM, CASE WHEN B.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT " //B.PICTURE "
-        sql += "     FROM S_CHANDTL_TBL A "
-        sql += "     LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
+        sql += "     FROM s_chandtl_tbl A "
+        sql += "     LEFT OUTER JOIN s_user_tbl B ON A.USERID = B.USERID "
         sql += "    WHERE A.CHANID = ? "
         sql += "    ORDER BY A.USERNM "
         const listChan = await this.dataSource.query(sql, [chanid])
@@ -59,7 +59,7 @@ export class MenuService {
     }
 
     async qryKindCntForUser(chanid: string, userid: string, kind: string): Promise<number> { //해당 채널 + 해당 사용자의 kindCnt 조회
-        let sql = "SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE CHANID = ? AND USERID = ? AND KIND = ? "
+        let sql = "SELECT COUNT(*) CNT FROM s_msgdtl_tbl WHERE CHANID = ? AND USERID = ? AND KIND = ? "
         const list = await this.dataSource.query(sql, [chanid, userid, kind])
         return list[0].CNT
     }
@@ -72,16 +72,16 @@ export class MenuService {
         try {            
             const { kind } = dto //바로 아래에서 개인메뉴 없으면 생성하기
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            let sqlChk = "SELECT COUNT(*) CNT FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ? "
+            let sqlChk = "SELECT COUNT(*) CNT FROM s_menuper_tbl WHERE USERID = ? AND KIND = ? "
             const menuList = await this.dataSource.query(sqlChk, [userid, kind])
             if (menuList[0].CNT == 0) {
-                sqlChk =  "INSERT INTO S_MENUPER_TBL (USERID, KIND, ID) "
-                sqlChk += "SELECT ?, ?, ID FROM S_MENU_TBL WHERE INUSE = 'Y' "
+                sqlChk =  "INSERT INTO s_menuper_tbl (USERID, KIND, ID) "
+                sqlChk += "SELECT ?, ?, ID FROM s_menu_tbl WHERE INUSE = 'Y' "
                 await this.dataSource.query(sqlChk, [userid, kind])
             }
             let sql = "SELECT A.ID, A.NM, A.SEQ, A.IMG, A.POPUP, A.RMKS, B.USERID " //B.USERID가 있으면 내게 설정된 메뉴. null이면 내게 설정되지 않은 메뉴
-            sql += "     FROM S_MENU_TBL A "
-            sql += "     LEFT OUTER JOIN (SELECT USERID, KIND, ID FROM S_MENUPER_TBL WHERE USERID = ? AND KIND = ?) B "
+            sql += "     FROM s_menu_tbl A "
+            sql += "     LEFT OUTER JOIN (SELECT USERID, KIND, ID FROM s_menuper_tbl WHERE USERID = ? AND KIND = ?) B "
             sql += "       ON A.KIND = B.KIND AND A.ID = B.ID "
             sql += "    WHERE A.KIND = ? "
             sql += "      AND A.INUSE = 'Y' "
@@ -106,35 +106,35 @@ export class MenuService {
             let sql = "SELECT Z.DEPTH, Z.GR_ID, Z.GR_NM, Z.GRMST_UDT, Z.CHANID, Z.CHANNM, Z.MASTERID, Z.MASTERNM, Z.STATE, Z.CHANMST_UDT, Z.KIND, Z.NOTI, Z.BOOKMARK, Z.OTHER "
             sql += "     FROM ( "
             sql += "SELECT 1 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT, '' CHANID, '' CHANNM, '' MASTERID, '' MASTERNM, '' STATE, '' CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, '' OTHER "
-            sql += "     FROM S_GRMST_TBL A "
-            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "     FROM s_grmst_tbl A "
+            sql += "    INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = '" + userid + "' "
             sql += "    UNION ALL "
             sql += "   SELECT X.DEPTH, X.GR_ID, X.GR_NM, X.GRMST_UDT, Y.CHANID, Y.CHANNM, Y.MASTERID, Y.MASTERNM, Y.STATE, Y.CHANMST_UDT, Y.KIND, Y.NOTI, Y.BOOKMARK, Y.OTHER "
             sql += "     FROM (SELECT 2 DEPTH, A.GR_ID, A.GR_NM, A.UDT GRMST_UDT "
-            sql += "             FROM S_GRMST_TBL A "
-            sql += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "             FROM s_grmst_tbl A "
+            sql += "            INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID "
             sql += "            WHERE B.USERID = '" + userid + "') X "
             if (kind == 'my') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
-                sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+                sql += "                    FROM s_chanmst_tbl A "
+                sql += "                   INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE B.USERID = '" + userid + "' "
                 sql += "                     AND A.TYP = 'WS') Y "
             } else if (kind == 'other') {
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
-                sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+                sql += "                    FROM s_chanmst_tbl A "
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM s_chandtl_tbl WHERE USERID = '" + userid + "') "
                 sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y "
             } else { //all=my+other
                 sql += " LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, B.KIND, B.NOTI, B.BOOKMARK, '' OTHER "
-                sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+                sql += "                    FROM s_chanmst_tbl A "
+                sql += "                   INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
                 sql += "                   WHERE B.USERID = '" + userid + "' "
                 sql += "                   UNION ALL "
                 sql += "                  SELECT A.CHANID, A.CHANNM, A.GR_ID, A.MASTERID, A.MASTERNM, A.STATE, A.UDT CHANMST_UDT, '' KIND, '' NOTI, '' BOOKMARK, 'other' OTHER "
-                sql += "                    FROM S_CHANMST_TBL A "
-                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+                sql += "                    FROM s_chanmst_tbl A "
+                sql += "                   WHERE A.CHANID NOT IN (SELECT CHANID FROM s_chandtl_tbl WHERE USERID = '" + userid + "') "
                 sql += "                     AND A.TYP = 'WS' AND A.STATE = 'A') Y "
             }
             sql += "      ON X.GR_ID = Y.GR_ID) Z "
@@ -172,15 +172,15 @@ export class MenuService {
             const memField = search ? ', Z.MEMBERS ' : ''
             let sql = "SELECT Z.CHANID, Z.CHANNM, Z.BOOKMARK, Z.NOTI, Z.STATE, Z.MASTERID, Z.CDT, Z.LASTMSGDT, Z.CHANDTL_UDT, Z.CHANMST_UDT  " + memField
             sql += "     FROM (SELECT B.CHANID, B.CHANNM, B.STATE, B.MASTERID, A.BOOKMARK, A.NOTI, A.CDT, B.UDT CHANMST_UDT, "
-            sql += "                  (SELECT MAX(UDT) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CHANDTL_UDT, " //리얼타임용
-            sql += "                  IFNULL((SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = B.CHANID), '9999-99-98') LASTMSGDT " //메시지가 없는 경우 맨 위에 표시
+            sql += "                  (SELECT MAX(UDT) FROM s_chandtl_tbl WHERE CHANID = A.CHANID) CHANDTL_UDT, " //리얼타임용
+            sql += "                  IFNULL((SELECT MAX(CDT) FROM s_msgmst_tbl WHERE CHANID = B.CHANID), '9999-99-98') LASTMSGDT " //메시지가 없는 경우 맨 위에 표시
             if (search) {
-                sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEMBERS "
+                sql += "              ,(SELECT GROUP_CONCAT(USERNM SEPARATOR ', ') FROM s_chandtl_tbl WHERE CHANID = A.CHANID) MEMBERS "
             }
-            sql += "             FROM S_CHANDTL_TBL A "
-            sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            sql += "             FROM s_chandtl_tbl A "
+            sql += "            INNER JOIN s_chanmst_tbl B ON A.CHANID = B.CHANID "
             if (kind == 'notyet') {
-                sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM S_MSGDTL_TBL WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
+                sql += "        INNER JOIN (SELECT DISTINCT CHANID FROM s_msgdtl_tbl WHERE USERID = '" + userid + "' AND KIND = 'notyet') D ON A.CHANID = D.CHANID "
             }
             sql += "            WHERE A.USERID = ? "
             if (chanid) {
@@ -210,7 +210,7 @@ export class MenuService {
                     //따라서, 최초 만들었을 때는 상대방들에게는 안보여야 하고 마스터에게만 보여야 함 (일장일단)
                     if (row.MASTERID != userid) continue //이 M은 메시지가 처음 생길 때 P(DM은 무조건 비공개)로 변경되어야 함
                 }
-                sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM S_MSGMST_TBL WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 "
+                sql = "SELECT MSGID, BODYTEXT, REPLYTO FROM s_msgmst_tbl WHERE CHANID = ? ORDER BY CDT DESC LIMIT 1 "
                 const listMst = await this.dataSource.query(sql, [row.CHANID])
                 if (listMst.length == 0) {
                     row.MSGID = ''
@@ -248,10 +248,10 @@ export class MenuService {
             member.sort((a: string, b: string) => a.localeCompare(b)) //오름차순 정렬            
             let sql = "SELECT CHANID, CNT, MEM "
             sql += "     FROM (SELECT A.CHANID, "
-            sql += "                  (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, "
-            sql += "                  (SELECT GROUP_CONCAT(USERID ORDER BY USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
-            sql += "             FROM S_CHANDTL_TBL A "
-            sql += "            INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+            sql += "                  (SELECT COUNT(*) FROM s_chandtl_tbl WHERE CHANID = A.CHANID) CNT, "
+            sql += "                  (SELECT GROUP_CONCAT(USERID ORDER BY USERID) FROM s_chandtl_tbl WHERE CHANID = A.CHANID) MEM "
+            sql += "             FROM s_chandtl_tbl A "
+            sql += "            INNER JOIN s_chanmst_tbl B ON A.CHANID = B.CHANID "
             sql += "            WHERE A.USERID = ? AND B.TYP = 'GS' ORDER BY A.UDT DESC) Z "
             sql += "    WHERE CNT = ? AND MEM = ? "
             const list = await this.dataSource.query(sql, [userid, member.length, member.join(',')])
@@ -270,10 +270,10 @@ export class MenuService {
             const { kind, prevMsgMstCdt, msgid, oldestMsgDt, key } = dto //kind = later, stored, finished
             let sql = "SELECT A.MSGID, A.AUTHORID, A.AUTHORNM, A.BODYTEXT, A.KIND, A.CDT, A.UDT, A.REPLYTO, "
             sql += "          B.CHANID, B.TYP, B.CHANNM, B.STATE, D.KIND, CASE WHEN E.PICTURE IS NOT NULL THEN 'Y' ELSE '' END HASPICT " //E.PICTURE "
-            sql += "     FROM S_MSGMST_TBL A "
-            sql += "    INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
-            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
-            sql += "     LEFT OUTER JOIN S_USER_TBL E ON A.AUTHORID = E.USERID "
+            sql += "     FROM s_msgmst_tbl A "
+            sql += "    INNER JOIN s_chanmst_tbl B ON A.CHANID = B.CHANID "
+            sql += "     LEFT OUTER JOIN s_msgdtl_tbl D ON A.MSGID = D.MSGID AND A.CHANID = D.CHANID "
+            sql += "     LEFT OUTER JOIN s_user_tbl E ON A.AUTHORID = E.USERID "
             if (msgid) {
                 sql += "WHERE A.MSGID = '" + msgid + "' AND D.USERID = ? "
             } else {
@@ -313,8 +313,8 @@ export class MenuService {
             const userid = this.req['user'].userid
             const { kind } = dto //later, stored, finished, fixed
             let sql = "SELECT COUNT(*) CNT "
-            sql += "     FROM S_MSGMST_TBL A "
-            sql += "     LEFT OUTER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "     FROM s_msgmst_tbl A "
+            sql += "     LEFT OUTER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "    WHERE B.USERID = ? AND B.KIND = ? "
             const list = await this.dataSource.query(sql, [userid, kind])
             resJson.list = list
@@ -336,42 +336,42 @@ export class MenuService {
             let sqlBasicAcl = hush.getBasicAclSql(userid, "ALL")
             //1. vip : 방별로 구분 (group by chanid)
             let sqlVip = "SELECT '' MSGID, A.CHANID, AUTHORID, AUTHORNM, '' REPLYTO, '' BODYTEXT, '' SUBKIND, 'vip' TITLE, MAX(A.CDT) DT "
-            sqlVip += "     FROM S_MSGMST_TBL A "
+            sqlVip += "     FROM s_msgmst_tbl A "
             if (notyet == 'Y') {
-                sqlVip += "INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
+                sqlVip += "INNER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
             }
-            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM S_USERCODE_TBL WHERE USERID = '" + userid + "' AND KIND = 'vip') "
+            sqlVip += "    WHERE AUTHORID IN (SELECT UID FROM s_usercode_tbl WHERE USERID = '" + userid + "' AND KIND = 'vip') "
             sqlVip += "    GROUP BY CHANID, AUTHORID, AUTHORNM "
             //2. mention : 더 간략하게 되는데 전체적으로 형식을 맞추려 group by 추가함
-            let sqlMention = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'mention' TITLE, MAX(CDT) DT "
+            let sqlMention = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM s_msgmst_tbl WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'mention' TITLE, MAX(CDT) DT "
             sqlMention += "  FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT "
-            sqlMention += "          FROM S_MSGMST_TBL A "
-            sqlMention += "         INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+            sqlMention += "          FROM s_msgmst_tbl A "
+            sqlMention += "         INNER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID "
             if (notyet == 'Y') {
-                sqlMention += "     INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
+                sqlMention += "     INNER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID AND B.USERID = '" + userid + "' AND B.KIND = 'notyet' "
             }
             sqlMention += "         WHERE B.USERID = '" + userid + "' AND B.TYP = 'mention') Z "
             sqlMention += " GROUP BY Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO "
             //3. thread : 메시지별로 구분
-            let sqlThread = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, "
+            let sqlThread = "SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM s_msgmst_tbl WHERE MSGID = Z.MSGID) BODYTEXT, "
             sqlThread += "          '' SUBKIND, 'thread' TITLE, MAX(CDT) DT "
             sqlThread += "     FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, CDT "
-            sqlThread += "             FROM S_MSGMST_TBL A "
+            sqlThread += "             FROM s_msgmst_tbl A "
             sqlThread += "            WHERE A.AUTHORID = '" + userid + "' "
             if (notyet == 'Y') {
-                sqlThread += "          AND (SELECT COUNT(*) FROM S_MSGMST_TBL K INNER JOIN S_MSGDTL_TBL J ON K.MSGID = J.MSGID AND J.USERID = '" + userid + "' AND J.KIND = 'notyet' "
+                sqlThread += "          AND (SELECT COUNT(*) FROM s_msgmst_tbl K INNER JOIN s_msgdtl_tbl J ON K.MSGID = J.MSGID AND J.USERID = '" + userid + "' AND J.KIND = 'notyet' "
                 sqlThread += "                WHERE K.REPLYTO = A.MSGID ) > 0 "//내가 아직 안읽은 자식을 가진 내글(부모글)
             } else {
-                sqlThread += "          AND (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE REPLYTO = A.MSGID) > 0 " //자식을 가진 내글(부모글)
+                sqlThread += "          AND (SELECT COUNT(*) FROM s_msgmst_tbl WHERE REPLYTO = A.MSGID) > 0 " //자식을 가진 내글(부모글)
             }
             if (notyet == 'Y') {
                 sqlThread += " ) Z "
             } else{ //내가 댓글 단 부모글은 무조건 읽은 것이므로 notyet != 'Y'으로 읽어야 함
                 sqlThread += "        UNION ALL "
                 sqlThread += "       SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, B.CDT "
-                sqlThread += "         FROM S_MSGMST_TBL A "
+                sqlThread += "         FROM s_msgmst_tbl A "
                 sqlThread += "        INNER JOIN (SELECT REPLYTO, MSGID, CHANID, BODYTEXT, AUTHORID, AUTHORNM, CDT "
-                sqlThread += "                      FROM S_MSGMST_TBL "
+                sqlThread += "                      FROM s_msgmst_tbl "
                 sqlThread += "                     WHERE AUTHORID = '" + userid + "' AND REPLYTO <> '') B ON A.MSGID = B.REPLYTO) Z " //내가 댓글 단 부모글        
             }
             sqlThread += "   GROUP BY Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO "
@@ -379,18 +379,18 @@ export class MenuService {
             let sqlReact = ''
             if (notyet == 'Y') { //notyet은 없을 것임 (내글은 분명히 읽음처리되었고 내가 단 리액션은 내가 읽었으니 달았을 것임 - 그래서 dummy 추가)
                 sqlReact = "SELECT DISTINCT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, '' SUBKIND, 'react' TITLE, CDT DT "
-                sqlReact += " FROM S_MSGMST_TBL "
+                sqlReact += " FROM s_msgmst_tbl "
                 sqlReact += "WHERE AUTHORID = 'dummy' "
             } else {
-                sqlReact = " SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM S_MSGMST_TBL WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'react' TITLE, MAX(CDT) DT "
+                sqlReact = " SELECT Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO, (SELECT BODYTEXT FROM s_msgmst_tbl WHERE MSGID = Z.MSGID) BODYTEXT, '' SUBKIND, 'react' TITLE, MAX(CDT) DT "
                 sqlReact += "  FROM (SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT "
-                sqlReact += "          FROM S_MSGMST_TBL A "
-                sqlReact += "         INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+                sqlReact += "          FROM s_msgmst_tbl A "
+                sqlReact += "         INNER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID "
                 sqlReact += "         WHERE A.AUTHORID = '" + userid + "' AND B.TYP = 'react' "
                 sqlReact += "         UNION ALL "
                 sqlReact += "        SELECT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT "
-                sqlReact += "          FROM S_MSGMST_TBL A "
-                sqlReact += "         INNER JOIN S_MSGDTL_TBL B ON A.MSGID = B.MSGID "
+                sqlReact += "          FROM s_msgmst_tbl A "
+                sqlReact += "         INNER JOIN s_msgdtl_tbl B ON A.MSGID = B.MSGID "
                 sqlReact += "         WHERE B.USERID = '" + userid + "' AND B.TYP = 'react') Z "
                 sqlReact += " GROUP BY Z.MSGID, Z.CHANID, Z.AUTHORID, Z.AUTHORNM, Z.REPLYTO "
             }
@@ -412,7 +412,7 @@ export class MenuService {
                 sql += sqlHeaderEnd
             }
             sql += "INNER JOIN (" + sqlBasicAcl + ") Z ON Y.CHANID = Z.CHANID "
-            sql += " LEFT OUTER JOIN S_USER_TBL E ON Y.AUTHORID = E.USERID "
+            sql += " LEFT OUTER JOIN s_user_tbl E ON Y.AUTHORID = E.USERID "
             if (key1 && key2) {
                 if (key2 == 'vip') {
                     sql += "WHERE Y.CHANID = '" + key1 + "' AND Y.TITLE = '" + key2 + "' "
@@ -430,7 +430,7 @@ export class MenuService {
             for (let i = 0; i < list.length; i++) { //아래 루프에는 mention에 대한 데이터 확보는 필요없어서 추가 코딩은 없음
                 const row = list[i]
                 if (row.TITLE == 'vip') {
-                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM S_MSGMST_TBL WHERE CHANID = ? AND AUTHORID = ? ORDER BY CDT DESC LIMIT 1 " //AND AUTHORID = ? AND UDT = ? "
+                    let sql = "SELECT MSGID, BODYTEXT, REPLYTO, UDT CHKDT FROM s_msgmst_tbl WHERE CHANID = ? AND AUTHORID = ? ORDER BY CDT DESC LIMIT 1 " //AND AUTHORID = ? AND UDT = ? "
                     const listSub = await this.dataSource.query(sql, [row.CHANID, row.AUTHORID]) //, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
@@ -443,7 +443,7 @@ export class MenuService {
                     row.REPLYTO = listSub[0].REPLYTO //처음엔 GROUP BY때문에 빈칸이었다가 여기서 가져옴. 댓글 여부
                     row.CHKDT = listSub[0].CHKDT
                 } else if (row.TITLE == 'thread') {
-                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM S_MSGMST_TBL WHERE REPLYTO = ? AND CHANID = ? ORDER BY CDT DESC LIMIT 1 "
+                    let sql = "SELECT BODYTEXT, UDT CHKDT FROM s_msgmst_tbl WHERE REPLYTO = ? AND CHANID = ? ORDER BY CDT DESC LIMIT 1 "
                     const listSub = await this.dataSource.query(sql, [row.MSGID, row.CHANID]) //, row.DT])
                     if (listSub.length == 0) {
                         row.LASTMSG = '없음'
@@ -456,7 +456,7 @@ export class MenuService {
                     row.LASTMSG = '' //BODYTEXT로 커버됨
                     let sql = "SELECT KIND, COUNT(KIND) CNT, GROUP_CONCAT(USERNM ORDER BY USERNM SEPARATOR \", \") NM, "
                     sql += "          GROUP_CONCAT(USERID ORDER BY USERID SEPARATOR \", \") ID, MAX(UDT) CHKDT "
-                    sql += "     FROM S_MSGDTL_TBL "
+                    sql += "     FROM s_msgdtl_tbl "
                     sql += "    WHERE MSGID = ? AND CHANID = ? AND TYP = 'react' "
                     sql += "    GROUP BY KIND "
                     sql += "    ORDER BY KIND "
@@ -469,7 +469,7 @@ export class MenuService {
                         row.CHKDT = listSub[0].CHKDT
                     }                    
                 }
-                let sql = "SELECT TYP FROM S_CHANMST_TBL WHERE CHANID = ? "
+                let sql = "SELECT TYP FROM s_chanmst_tbl WHERE CHANID = ? "
                 const listSub = await this.dataSource.query(sql, [row.CHANID])
                 if (listSub.length == 0) {
                     row.TYP = 'WS'
@@ -499,8 +499,8 @@ export class MenuService {
         let fv = hush.addFieldValue(dto, null, [userid])
         try { //내가 만들지 않았지만 내가 관리자로 들어가 있는 그룹도 포함됨 (관리자로 지정이 안되어 있으면 편집 권한 없음)
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, B.KIND, B.SYNC, CASE WHEN A.MASTERID = ? THEN '' ELSE 'other' END OTHER "
-            sql += "     FROM S_GRMST_TBL A "
-            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "     FROM s_grmst_tbl A "
+            sql += "    INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = ? " //AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
             sql += "    ORDER BY A.GR_NM, A.GR_ID "
             const list = await this.dataSource.query(sql, [userid, userid])

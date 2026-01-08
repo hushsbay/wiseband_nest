@@ -52,13 +52,13 @@ export class ChanmsgService {
         try {
             let data = { chanmst: null, chandtl: [], msgmst: null }
             const { userid, grid, chanid, msgid, chkAuthor, chkGuest } = dto //보통은 grid 없어도 chanid로 grid 가져와서 체크
-            //////////a) S_CHANMST_TBL + S_GRMST_TBL => TYP : WS(WorkSpace)/GS(GeneralSapce-S_GRMST_TBL비연동), STATE : 공개(A)/비공개(P)
+            //////////a) s_chanmst_tbl + s_grmst_tbl => TYP : WS(WorkSpace)/GS(GeneralSapce-s_grmst_tbl비연동), STATE : 공개(A)/비공개(P)
             const chanmst = await this.chanmstRepo.createQueryBuilder('A')
             .select(['A.CHANNM', 'A.TYP', 'A.GR_ID', 'A.MASTERID', 'A.MASTERNM', 'A.STATE'])
             .where("A.CHANID = :chanid ", { 
                 chanid: chanid 
             }).getOne()
-            //let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM S_CHANMST_TBL WHERE CHANID = ? "
+            //let sql = "SELECT CHANNM, TYP, GR_ID, MASTERID, MASTERNM, STATE FROM s_chanmst_tbl WHERE CHANID = ? "
             //const list = await this.dataSource.query(sql, [chanid])
             //const chanmst = list[0] //chanmst를 typeorm으로 가져 오니 느린 적 있어 전환한 것임
             if (!chanmst) {
@@ -66,7 +66,7 @@ export class ChanmsgService {
             }
             let grnm = ''
             if (chanmst.TYP == 'GS') {
-                //S_GRMST_TBL 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
+                //s_grmst_tbl 체크할 필요없음 (예: DM은 GR_ID 필요없는 GS 타입)
             } else {
                 if (grid) {
                     if (grid != chanmst.GR_ID) {
@@ -84,8 +84,8 @@ export class ChanmsgService {
                 // }
                 //grnm = gr.GR_NM
                 let sql = "SELECT A.GR_NM "
-                sql += "     FROM S_GRMST_TBL A "
-                sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+                sql += "     FROM s_grmst_tbl A "
+                sql += "    INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID "
                 sql += "    WHERE A.GR_ID = ? AND B.USERID = ? "
                 const list = await this.dataSource.query(sql, [chanmst.GR_ID, userid])
                 if (list.length == 0) {
@@ -95,9 +95,9 @@ export class ChanmsgService {
             }
             data.chanmst = chanmst
             data.chanmst.GR_NM = grnm
-            //////////b) S_CHANDTL_TBL 
+            //////////b) s_chandtl_tbl 
             let sql = "SELECT USERID, USERNM, STATE, KIND, SYNC "
-            sql += "     FROM S_CHANDTL_TBL "
+            sql += "     FROM s_chandtl_tbl "
             sql += "    WHERE CHANID = ? "
             sql += "    ORDER BY USERNM "
             const chandtl = await this.dataSource.query(sql, [chanid])
@@ -109,7 +109,7 @@ export class ChanmsgService {
                     data.chanmst.USERID = item.USERID //아래 사용
                     data.chanmst.KIND = item.KIND //admin/member/guest
                 }
-                if (item.SYNC == 'Y') { //기타 정보를 S_USER_TBL에서 읽어와야 함
+                if (item.SYNC == 'Y') { //기타 정보를 s_user_tbl에서 읽어와야 함
                     const user = await this.userRepo.findOneBy({ USERID: item.USERID })
                     if (user) {
                         item.ORG = user.TOP_ORG_NM + '/' + user.ORG_NM
@@ -120,7 +120,7 @@ export class ChanmsgService {
                         //if (includeBlob) item.PICTURE = user.PICTURE //includeBlob 제거하지 않으면 멤버수가 많은 경우 동기로 내려 받기 때문에 504 발생할 정도로 오래 걸림
                         item.HASPICT = (user.PICTURE != null) ? 'Y' : '' //위 행 대체
                     }
-                } else { //기타 정보를 S_GRDTL_TBL에서 읽어와야 함
+                } else { //기타 정보를 s_grdtl_tbl에서 읽어와야 함
                     const grdtl = await this.grdtlRepo.findOneBy({ USERID: item.USERID })
                     if (grdtl) {
                         item.ORG = grdtl.ORG
@@ -144,7 +144,7 @@ export class ChanmsgService {
                 }
             }
             data.chandtl = chandtl            
-            //////////c) S_MSGMST_TBL
+            //////////c) s_msgmst_tbl
             if (msgid && msgid != userid) { //temp가 userid로 바뀌는 경우는 작성중인 파일,이미지,링크임
                 let msgmst = await this.msgmstRepo.createQueryBuilder('A')
                 .select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.REPLYTO', 'A.CDT', 'A.UDT'])
@@ -170,7 +170,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any> { //d-0) S_MSGDTL_TBL 본인 액션만 가져오기
+    async qryMsgDtlForUser(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string, userid: string): Promise<any> { //d-0) s_msgdtl_tbl 본인 액션만 가져오기
         const retObj = { act_later: null, act_fixed: null }
         const msgdtlforuser = await qb //예) "later","stored","finished"는 한몸으로서 해당 사용자만 조회해 보여줘야 하는 데이터임. 필요할 경우 CASE WHEN으로 추가해 관리해야 함
         .select([
@@ -192,7 +192,7 @@ export class ChanmsgService {
         return retObj
     }
 
-    async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL 다른 사용자가 처리한 것도 가져오기
+    async qryMsgDtl(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) s_msgdtl_tbl 다른 사용자가 처리한 것도 가져오기
         const msgdtl = await qb
         .select(['B.KIND KIND', 'COUNT(B.KIND) CNT', 'GROUP_CONCAT(B.USERNM ORDER BY B.USERNM SEPARATOR ", ") NM', 'GROUP_CONCAT(B.USERID ORDER BY B.USERID SEPARATOR ", ") ID'])
         .where("B.MSGID = :msgid and B.CHANID = :chanid and B.TYP in ('read', 'react') ", { //and B.KIND not in ('read', 'unread') 화면에는 notyet만 보여주면 read, unread는 안보여줘도 알 수 있음
@@ -202,16 +202,16 @@ export class ChanmsgService {
     }
 
     //미사용이나 지우지 말 것 : 실제로 여기말고 메뉴(패널)>내활동에서는 아래 테이블 정보로 조회하고 있음
-    // async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) S_MSGDTL_TBL
+    // async qryMsgDtlMention(qb: SelectQueryBuilder<MsgDtl>, msgid: string, chanid: string): Promise<any> { //d-1) s_msgdtl_tbl
     //     let sql = "SELECT USERID, USERNM "
-    //     sql += "     FROM S_MSGDTL_TBL "
+    //     sql += "     FROM s_msgdtl_tbl "
     //     sql += "    WHERE MSGID = ? AND CHANID = ? AND KIND = 'mention' "
     //     sql += "    ORDER BY USERNM "
     //     const msgdtl = await this.dataSource.query(sql, [msgid, chanid])
     //     return (msgdtl.length > 0) ? msgdtl : []
     // }
 
-    async qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any> { //d-2) S_MSGSUB_TBL
+    async qryMsgSub(qb: SelectQueryBuilder<MsgSub>, msgid: string, chanid: string): Promise<any> { //d-2) s_msgsub_tbl
         const msgsub = await qb
         .select(['C.KIND', 'C.CDT', 'C.BODY', 'C.BUFFER', 'C.FILESIZE'])
         .where("C.MSGID = :msgid and C.CHANID = :chanid ", { 
@@ -227,7 +227,7 @@ export class ChanmsgService {
         }
     }
 
-    async qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any> { //d-3) S_MSGMST_TBL 사용자별 정보
+    async qryReply(qb: SelectQueryBuilder<MsgMst>, msgid: string, chanid: string): Promise<any> { //d-3) s_msgmst_tbl 사용자별 정보
         const reply = await qb
         .select('AUTHORID').addSelect('AUTHORNM')
         .distinct(true)
@@ -238,18 +238,18 @@ export class ChanmsgService {
         return (reply.length > 0) ? reply : []
     }
 
-    async qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any> { //d-4) S_MSGMST_TBL 댓글 갯수, 안읽은갯수, 최종업데이트일시
+    async qryReplyInfo(msgid: string, chanid: string, userid: string): Promise<any> { //d-4) s_msgmst_tbl 댓글 갯수, 안읽은갯수, 최종업데이트일시
         let sql = "SELECT SUM(CNT) CNT_BY_USER, "
-        sql += "          (SELECT COUNT(*) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
-        sql += "          (SELECT MAX(CDT) FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
+        sql += "          (SELECT COUNT(*) FROM s_msgmst_tbl WHERE CHANID = ? AND REPLYTO = ?) CNT_EACH, "
+        sql += "          (SELECT MAX(CDT) FROM s_msgmst_tbl WHERE CHANID = ? AND REPLYTO = ?) CDT_MAX "
         sql += "     FROM (SELECT 1 CNT "
-        sql += "             FROM S_MSGMST_TBL "
+        sql += "             FROM s_msgmst_tbl "
         sql += "            WHERE CHANID = ? AND REPLYTO = ? "
         sql += "            GROUP BY AUTHORID) Z "
         const replyInfo = await this.dataSource.query(sql, [chanid, msgid, chanid, msgid, chanid, msgid])
         sql = "SELECT COUNT(*) MYNOTYETCNT " //내가 아직 안읽은 댓글 갯수가 스레드를 열지 않으면 안보이므로 표시하도록 함
-        sql += " FROM S_MSGDTL_TBL "
-        sql += "WHERE MSGID IN (SELECT MSGID FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = ?) "
+        sql += " FROM s_msgdtl_tbl "
+        sql += "WHERE MSGID IN (SELECT MSGID FROM s_msgmst_tbl WHERE CHANID = ? AND REPLYTO = ?) "
         sql += "  AND CHANID = ? AND USERID = ? AND KIND = 'notyet'  "
         const replyUnread = await this.dataSource.query(sql, [chanid, msgid, chanid, userid])
         replyInfo[0].MYNOTYETCNT = replyUnread[0].MYNOTYETCNT
@@ -257,33 +257,33 @@ export class ChanmsgService {
     }
 
     // async qryVipList(userid: string): Promise<any> {
-    //     let sql = "SELECT GROUP_CONCAT(UID) UID FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
+    //     let sql = "SELECT GROUP_CONCAT(UID) UID FROM s_usercode_tbl WHERE KIND = 'vip' AND USERID = ? "
     //     return await this.dataSource.query(sql, [userid])
     // }
 
     getSqlWs(userid: string): string { //common.ts의 getBasicAclSql() 참조
         let sqlWs = "SELECT X.GR_ID, X.GR_NM, Y.CHANID, Y.CHANNM " //이 부분은 채널트리에서도 동일한 로직으로 구성됨
         sqlWs += "     FROM (SELECT A.GR_ID, A.GR_NM "
-        sqlWs += "             FROM S_GRMST_TBL A "
-        sqlWs += "            INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
+        sqlWs += "             FROM s_grmst_tbl A "
+        sqlWs += "            INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID " //1) 바로 아래 채널이 그 채널의 사용자그룹에 내가 등록되어 있어야 권한이 있는 것임
         sqlWs += "            WHERE B.USERID = '" + userid + "') X " //사용자그룹에서 빠지면 채널 참여자라도 권한 없어짐
         sqlWs += "             LEFT OUTER JOIN (SELECT A.CHANID, A.CHANNM, A.GR_ID "
-        sqlWs += "                                FROM S_CHANMST_TBL A "
-        sqlWs += "                               INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+        sqlWs += "                                FROM s_chanmst_tbl A "
+        sqlWs += "                               INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
         sqlWs += "                               WHERE B.USERID = '" + userid + "' " //a. 내가 참여하고 있는 채널
         sqlWs += "                               UNION ALL "
         sqlWs += "                              SELECT A.CHANID, A.CHANNM, A.GR_ID "
-        sqlWs += "                                FROM S_CHANMST_TBL A "
+        sqlWs += "                                FROM s_chanmst_tbl A "
         sqlWs += "                               WHERE A.TYP = 'WS' AND A.STATE = 'A' " //b. 내가 참여하고 있지 않지만 공개(A)된 채널
-        sqlWs += "                                 AND A.CHANID NOT IN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = '" + userid + "') "
+        sqlWs += "                                 AND A.CHANID NOT IN (SELECT CHANID FROM s_chandtl_tbl WHERE USERID = '" + userid + "') "
         sqlWs += "          ) Y ON X.GR_ID = Y.GR_ID "
         return sqlWs
     }
 
     getSqlGs(userid: string): string { //common.ts의 getBasicAclSql() 참조
         let sqlGs = "      SELECT '' GR_ID, '' GR_NM, A.CHANID, A.CHANNM " //2) DM은 사용자그룹 등록없이 채널멤버만으로도 사용되므로 바로 여기처럼 가져옴
-        sqlGs += "           FROM S_CHANMST_TBL A "
-        sqlGs += "          INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID "
+        sqlGs += "           FROM s_chanmst_tbl A "
+        sqlGs += "          INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID "
         sqlGs += "          WHERE B.USERID = '" + userid + "' AND A.TYP = 'GS' "
         return sqlGs
     }
@@ -311,7 +311,7 @@ export class ChanmsgService {
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
-            ///////////////////////////////////////////////////////////d) S_MSGMST_TBL (목록 읽어옴 - 댓글 및 S_MSGDTL_TBL, S_MSGSUB_TBL 포함)
+            ///////////////////////////////////////////////////////////d) s_msgmst_tbl (목록 읽어옴 - 댓글 및 s_msgdtl_tbl, s_msgsub_tbl 포함)
             const fldArr = ['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT'] //qryMsg()와 동일한 필드값이여야 함
             let msglist: MsgMst[]
             if (nextMsgMstCdt) { //ASC임을 유의
@@ -351,7 +351,7 @@ export class ChanmsgService {
                 } 
                 const msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
-                const tbl = "FROM S_MSGMST_TBL "
+                const tbl = "FROM s_msgmst_tbl "
                 const where = "WHERE CHANID = '" + chanid + "' AND REPLYTO = '' "
                 const cnt = Math.floor(hush.cons.rowsCnt / 2)
                 let sql = "SELECT " + fields
@@ -374,7 +374,7 @@ export class ChanmsgService {
                 data.msgidChild = msgid //MsgList.vue의 getList()에서 사용. msgidParent와 다르면 이건 댓글의 msgid임
             } else if (msgid && kind == 'withReply') { //ASC임을 유의. menu>qryChan의 QueryFailedError: read ECONNRESET 문제 발생 소지 있음
                 const fields = fldArr.join(", ").replace(/A\./g, "") + " " 
-                const tbl = "FROM S_MSGMST_TBL "
+                const tbl = "FROM s_msgmst_tbl "
                 let sql = ""
                 sql = "SELECT " + fields + tbl + " WHERE MSGID = ? AND CHANID = ? "
                 sql += "    UNION ALL "
@@ -392,14 +392,14 @@ export class ChanmsgService {
                 const fieldz = fldArr.join(", ").replace(/A\./g, "Z.") + " " 
                 let sql = "SELECT DISTINCT " + fieldz
                 sql += "     FROM (SELECT " + fields
-                sql += "             FROM S_MSGMST_TBL A "
+                sql += "             FROM s_msgmst_tbl A "
                 sql += "             LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
                 sql += "            WHERE A.CHANID = ? AND A.REPLYTO = '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ? "
                 sql += "            UNION ALL "
                 sql += "           SELECT " + fields //아직안읽은 자식댓글은 부모글을 찾아서 보여주기
-                sql += "             FROM S_MSGMST_TBL A "
+                sql += "             FROM s_msgmst_tbl A "
                 sql += "            WHERE A.MSGID IN (SELECT A.REPLYTO "
-                sql += "                                FROM S_MSGMST_TBL A "
+                sql += "                                FROM s_msgmst_tbl A "
                 sql += "                                LEFT OUTER JOIN S_MSGDTL_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
                 sql += "                               WHERE A.CHANID = ? AND A.REPLYTO <> '' AND B.USERID = ? AND B.KIND = ? AND A.CDT >= ?) "
                 sql += "              AND A.CHANID = ?) Z "
@@ -407,7 +407,7 @@ export class ChanmsgService {
                 sql += "    LIMIT " + hush.cons.rowsCntForNotyet //1년치만 조회하는 것으로 했으나 혹시 몰라서 LIMIT도 설정 (처음 못읽은 것은 두번째 클릭하면 읽힘)
                 msglist = await this.dataSource.query(sql, [chanid, userid, kind, dtMinusStr, chanid, userid, kind, dtMinusStr, chanid])
             }
-            let sqlLast = "SELECT MSGID, CDT FROM S_MSGMST_TBL WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
+            let sqlLast = "SELECT MSGID, CDT FROM s_msgmst_tbl WHERE CHANID = ? AND REPLYTO = '' ORDER BY CDT DESC LIMIT 1 "
             const realLastList = await this.dataSource.query(sqlLast, [chanid]) //데이터가 있으면 1개임
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //sql로 읽고 난 직후 시각을 리얼타임 반영의 기준으로 보기
             if (msglist && msglist.length > 0) data.msglist = msglist  
@@ -425,9 +425,9 @@ export class ChanmsgService {
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
                 item.msglink = msgsub.msglink
-                const reply = await this.qryReply(qb, item.MSGID, chanid) //S_MSGMST_TBL (댓글-스레드) - 사용자별 정보
+                const reply = await this.qryReply(qb, item.MSGID, chanid) //s_msgmst_tbl (댓글-스레드) - 사용자별 정보
                 item.reply = (reply.length > 0) ? reply : []
-                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //S_MSGMST_TBL (댓글-스레드) - 댓글 갯수, 안읽은댓글갯수, 최종업데이트일시
+                const replyInfo = await this.qryReplyInfo(item.MSGID, chanid, userid) //s_msgmst_tbl (댓글-스레드) - 댓글 갯수, 안읽은댓글갯수, 최종업데이트일시
                 item.replyinfo = replyInfo
                 //1밀리섹(1000분의1초)간격으로 양쪽에서 saveMsg()해서 순서가 흐트러지지 않고 잘 가져오는지 테스트함 : OK
                 //처음엔 한행이 n x 순서 횟수만큼 조회되는 오류 발생 - scrollToBottom을 나중에 모아서 한번에 해야 하고 그 한번이 완료될 때까지 또 그대로 조회(실행)되면 안되게 막고 있어야 함
@@ -440,7 +440,7 @@ export class ChanmsgService {
                     if (ret != '') throw new Error(ret)
                 }
             }
-            ///////////////////////////////////////////////////////////e) S_MSGSUB_TBL (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
+            ///////////////////////////////////////////////////////////e) s_msgsub_tbl (메시지에 저장하려고 올렸던 임시 저장된 파일/이미지/링크)
             const arr = ['F', 'I', 'L'] //파일,이미지,링크
             for (let i = 0; i < arr.length; i++) {
                 const msgsub = await qbSub
@@ -482,17 +482,17 @@ export class ChanmsgService {
             resJson.data.chanmst = rs.data.chanmst
             resJson.data.chandtl = rs.data.chandtl 
             if (rs.data.chanmst.TYP == "GS") { //멤버중복 체크하는 루틴 (DM방에 대해서만. 미리 체크해 방지하면 최선이나 멤버추가시 마다 체크하는 루틴이므로 쉽지 않아 일단 사후경고만 하고 있음)
-                let sql = "SELECT (SELECT COUNT(*) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) MEM "
-                sql += "     FROM S_CHANDTL_TBL A "
+                let sql = "SELECT (SELECT COUNT(*) FROM s_chandtl_tbl WHERE CHANID = A.CHANID) CNT, (SELECT GROUP_CONCAT(USERID) FROM s_chandtl_tbl WHERE CHANID = A.CHANID) MEM "
+                sql += "     FROM s_chandtl_tbl A "
                 sql += "    WHERE CHANID = ? AND USERID = ? "
                 sql += "    ORDER BY USERID "
                 const mychan = await this.dataSource.query(sql, [chanid, userid]) //console.log(userid, mychan[0].CNT, mychan[0].MEM, chanid)
                 if (mychan.length > 0) {
                     sql = "SELECT Y.CHANID, Y.CNT, Y.MEM "
-                    sql += " FROM (SELECT Z.CHANID, Z.CNT, (SELECT GROUP_CONCAT(USERID) FROM S_CHANDTL_TBL WHERE CHANID = Z.CHANID) MEM "
-                    sql += "         FROM (SELECT A.CHANID, (SELECT COUNT(*) GTOM FROM S_CHANDTL_TBL WHERE CHANID = A.CHANID) CNT "
-                    sql += "                 FROM S_CHANDTL_TBL A "
-                    sql += "                INNER JOIN S_CHANMST_TBL B ON A.CHANID = B.CHANID "
+                    sql += " FROM (SELECT Z.CHANID, Z.CNT, (SELECT GROUP_CONCAT(USERID) FROM s_chandtl_tbl WHERE CHANID = Z.CHANID) MEM "
+                    sql += "         FROM (SELECT A.CHANID, (SELECT COUNT(*) GTOM FROM s_chandtl_tbl WHERE CHANID = A.CHANID) CNT "
+                    sql += "                 FROM s_chandtl_tbl A "
+                    sql += "                INNER JOIN s_chanmst_tbl B ON A.CHANID = B.CHANID "
                     sql += "                WHERE A.USERID = ? AND B.GR_ID = 'GS' "
                     sql += "                ORDER BY USERID) Z "
                     sql += "         WHERE Z.CNT = ?) Y "                
@@ -515,8 +515,8 @@ export class ChanmsgService {
         try { //채널 열 때 내가 아직 읽지 않은 최초의 메시지를 볼 수 있도록 함 (댓글이 최초라면 그 댓글의 부모글을 보여줘야 함)
             const { chanid } = dto
             let sql = "SELECT A.MSGID, CASE WHEN B.REPLYTO <> '' THEN B.REPLYTO ELSE A.MSGID END MSGIDOLD "
-            sql += "     FROM S_MSGDTL_TBL A "
-            sql += "    INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "     FROM s_msgdtl_tbl A "
+            sql += "    INNER JOIN s_msgmst_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "    WHERE A.CHANID = ? AND A.USERID = ? AND A.KIND = 'notyet' "
             sql += "    ORDER BY MSGIDOLD ASC " //CDT가 아님 (제일 오래된 메시지). MSGIDOLD는 소팅에만 관여하고 내려받는 것은 MSGID
             sql += "    LIMIT 1 " //결국, MSGID는 댓글의 MSGID일 수도 있으며 실제 쓰이는 곳에서는 MSGID의 부모 아이디를 구해서 처리됨
@@ -556,9 +556,9 @@ export class ChanmsgService {
             sql += "    INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
             sql += "   SELECT MSGID, CHANID, KIND, CDTSUB, BODY, CDT, UDT, FILESIZE, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, TYP, STATE " + bufferField
             sql += "     FROM (SELECT A.MSGID, B.CHANID, A.KIND, A.CDT CDTSUB, A.BODY, B.CDT, B.UDT, A.FILESIZE, B.AUTHORID, B.AUTHORNM, B.REPLYTO, B.BODYTEXT, C.TYP, C.STATE " + bufferFieldA
-            sql += "             FROM S_MSGSUB_TBL A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
-            sql += "            INNER JOIN S_MSGMST_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
-            sql += "            INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
+            sql += "             FROM s_msgsub_tbl A " //메시지는 있는데 파일,이미지 데이터가 없는 경우는 제외되어야 함
+            sql += "            INNER JOIN s_msgmst_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "            INNER JOIN s_chanmst_tbl C ON A.CHANID = C.CHANID "
             sql += "            WHERE B.CDT >= '" + frDash + "' AND B.CDT <= '" + toDash + "' "
             if (chanid) sql += "  AND B.CHANID = '" + chanid + "' "
             if (rdoOpt == 'chan') {
@@ -606,9 +606,9 @@ export class ChanmsgService {
             sql += "    INNER JOIN ( " //위 1), 2)에서 읽어온 내가 권한있는 채널아이디만으로 아래 검색 결과를 inner join해서 결국은 "내가 권한있는 채널에 대해서만 검색한 것이 됨"
             sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, REPLYTO, BODYTEXT, CDT, UDT, TYP, STATE "
             sql += "     FROM (SELECT DISTINCT A.MSGID, A.CHANID, A.AUTHORID, A.AUTHORNM, A.REPLYTO, A.BODYTEXT, A.CDT, A.UDT, C.TYP, C.STATE "
-            sql += "             FROM S_MSGMST_TBL A "
-            sql += "            INNER JOIN S_CHANMST_TBL C ON A.CHANID = C.CHANID "
-            sql += "             LEFT OUTER JOIN S_MSGSUB_TBL B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
+            sql += "             FROM s_msgmst_tbl A "
+            sql += "            INNER JOIN s_chanmst_tbl C ON A.CHANID = C.CHANID "
+            sql += "             LEFT OUTER JOIN s_msgsub_tbl B ON A.MSGID = B.MSGID AND A.CHANID = B.CHANID "
             sql += "            WHERE A.CDT >= '" + frDash + "' AND A.CDT <= '" + toDash + "' "
             if (chanid) sql += "  AND A.CHANID = '" + chanid + "' "
             if (rdoOpt == 'chan') {
@@ -626,7 +626,7 @@ export class ChanmsgService {
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
             for (let i = 0; i < list.length; i++) {
                 const item = list[i]
-                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, item.CHANID) //d-2) S_MSGSUB_TBL (파일, 이미지, 링크 등)
+                const msgsub = await this.qryMsgSub(qbSub, item.MSGID, item.CHANID) //d-2) s_msgsub_tbl (파일, 이미지, 링크 등)
                 item.msgfile = msgsub.msgfile
                 item.msgimg = msgsub.msgimg
                 item.msglink = msgsub.msglink
@@ -658,7 +658,7 @@ export class ChanmsgService {
             const qb = this.msgmstRepo.createQueryBuilder('A')
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
             const qbSub = this.msgsubRepo.createQueryBuilder('C')
-            ///////////////////////////////////////////////////////////d) S_MSGMST_TBL
+            ///////////////////////////////////////////////////////////d) s_msgmst_tbl
             const msgmst = await qb.select(['A.MSGID', 'A.AUTHORID', 'A.AUTHORNM', 'A.BODY', 'A.KIND', 'A.CDT', 'A.UDT']) //qry()와 동일한 필드값이여야 함
             .where("A.MSGID = :msgid and A.CHANID = :chanid ", { 
                 msgid: msgid, chanid: chanid
@@ -676,9 +676,9 @@ export class ChanmsgService {
             data.msgfile = msgsub.msgfile
             data.msgimg = msgsub.msgimg
             data.msglink = msgsub.msglink
-            const reply = await this.qryReply(qb, msgid, chanid) //S_MSGMST_TBL (댓글-스레드) - 사용자별 정보
+            const reply = await this.qryReply(qb, msgid, chanid) //s_msgmst_tbl (댓글-스레드) - 사용자별 정보
             data.reply = (reply.length > 0) ? reply : []
-            const replyInfo = await this.qryReplyInfo(msgid, chanid, userid) //S_MSGMST_TBL (댓글-스레드) - 댓글 갯수, 안읽은댓글갯수, 최종업데이트일시
+            const replyInfo = await this.qryReplyInfo(msgid, chanid, userid) //s_msgmst_tbl (댓글-스레드) - 댓글 갯수, 안읽은댓글갯수, 최종업데이트일시
             data.replyinfo = replyInfo
             ////////////////////////////////////////////////////////////////////////////////////////////
             resJson.data = data
@@ -695,7 +695,7 @@ export class ChanmsgService {
         try {
             const { chanid, msgid } = dto
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
-            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) S_MSGDTL_TBL (본인액션만 가져오기)
+            const msgdtlforuser = await this.qryMsgDtlForUser(qbDtl, msgid, chanid, userid) //d-0) s_msgdtl_tbl (본인액션만 가져오기)
             resJson.data = msgdtlforuser //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
@@ -710,7 +710,7 @@ export class ChanmsgService {
         try {
             const { chanid, msgid } = dto
             const qbDtl = this.msgdtlRepo.createQueryBuilder('B')
-            const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) S_MSGDTL_TBL (각종 이모티콘)
+            const msgdtl = await this.qryMsgDtl(qbDtl, msgid, chanid) //d-1) s_msgdtl_tbl (각종 이모티콘)
             resJson.list = msgdtl //데이터 없어도 없는대로 넘기기 (안그러면 사용자에게 소켓통신 통해 정보요청이 올 때마다 뜨게됨)
             return resJson
         } catch (ex) {
@@ -818,14 +818,14 @@ export class ChanmsgService {
                 }
                 resJson.data.msgid = msgid
                 resJson.data.replyto = replyto
-            } else { //현재 U에서는 S_MSGMST_TBL만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
+            } else { //현재 U에서는 s_msgmst_tbl만 수정하는 것으로 되어 있음 (슬랙도 파일,이미지,링크 편집은 없음)
                 await qbMsgMst
                 .update()
                 .set({ BODY: body, BODYTEXT: bodytext, UDT: unidObj.DT })
                 .where("MSGID = :msgid and CHANID = :chanid ", {
                     msgid: msgid, chanid: chanid
                 }).execute()
-                let sql = "DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND KIND IN ('notyet', 'read', 'unread') "
+                let sql = "DELETE FROM s_msgdtl_tbl WHERE MSGID = ? AND CHANID = ? AND KIND IN ('notyet', 'read', 'unread') "
                 await this.dataSource.query(sql, [msgid, chanid]) //편집저장후엔 멤버들이 새로 읽어야 함
             } 
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
@@ -891,19 +891,19 @@ export class ChanmsgService {
             rs = await this.chkAcl({ userid: userid, chanid: targetChanid, chkGuest: true })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const unidObj = await hush.getMysqlUnid(this.dataSource) //await this.msgmstRepo.createQueryBuilder().select(hush.cons.unidMySqlStr).getRawOne()
-            let sql = "INSERT INTO S_MSGMST_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, KIND, CDT, UDT) " //REPLYTO는 없음
+            let sql = "INSERT INTO s_msgmst_tbl (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, KIND, CDT, UDT) " //REPLYTO는 없음
             sql += "   SELECT ?, ?, ?, ?, BODY, BODYTEXT, KIND, ?, '' " 
-            sql += "     FROM S_MSGMST_TBL "
+            sql += "     FROM s_msgmst_tbl "
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [unidObj.ID, targetChanid, userid, usernm, unidObj.DT, msgid, chanid])
             resJson.data.newMsgid = unidObj.ID
-            //S_MSGSUB_TBL
-            sql = "INSERT INTO S_MSGSUB_TBL (MSGID, CHANID, KIND, BODY, FILESIZE, FILEEXT, BUFFER, CDT, UDT) "
+            //s_msgsub_tbl
+            sql = "INSERT INTO s_msgsub_tbl (MSGID, CHANID, KIND, BODY, FILESIZE, FILEEXT, BUFFER, CDT, UDT) "
             sql += "SELECT ?, ?, KIND, BODY, FILESIZE, FILEEXT, BUFFER, ?, ? " 
-            sql += "  FROM S_MSGSUB_TBL "
+            sql += "  FROM s_msgsub_tbl "
             sql += " WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [unidObj.ID, targetChanid, unidObj.DT, unidObj.DT, msgid, chanid])
-            //S_MSGDTL_TBL
+            //s_msgdtl_tbl
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder()
             const chandtl = await this.chandtlRepo.createQueryBuilder('A')
             .select(['A.USERID', 'A.USERNM'])
@@ -952,19 +952,19 @@ export class ChanmsgService {
                 msgid: msgid, chanid: chanid
             }).getOne()
             if (msgmst) msgidParent = msgmst.REPLYTO ? msgmst.REPLYTO : msgid
-            let sql = "INSERT INTO S_MSGMSTDEL_TBL (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, REPLYTO, KIND, CDT, UDT) "
+            let sql = "INSERT INTO s_msgmstdel_tbl (MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, REPLYTO, KIND, CDT, UDT) "
             sql += "   SELECT MSGID, CHANID, AUTHORID, AUTHORNM, BODY, BODYTEXT, REPLYTO, KIND, CDT, UDT "
-            sql += "     FROM S_MSGMST_TBL "
+            sql += "     FROM s_msgmst_tbl "
             sql += "    WHERE MSGID = ? AND CHANID = ? AND AUTHORID = ? "
             await this.dataSource.query(sql, [msgid, chanid, userid])
-            sql = " INSERT INTO S_MSGSUBDEL_TBL (MSGID, CHANID, KIND, BODY, BUFFER, FILESIZE, CDT, UDT) "
+            sql = " INSERT INTO s_msgsubdel_tbl (MSGID, CHANID, KIND, BODY, BUFFER, FILESIZE, CDT, UDT) "
             sql += "SELECT MSGID, CHANID, KIND, BODY, BUFFER, FILESIZE, CDT, UDT "
-            sql += "     FROM S_MSGSUB_TBL "
+            sql += "     FROM s_msgsub_tbl "
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [msgid, chanid])
-            sql = " INSERT INTO S_MSGDTLDEL_TBL (MSGID, CHANID, USERID, USERNM, KIND, BODY, CDT, UDT) "
+            sql = " INSERT INTO s_msgdtldel_tbl (MSGID, CHANID, USERID, USERNM, KIND, BODY, CDT, UDT) "
             sql += "SELECT MSGID, CHANID, USERID, USERNM, KIND, BODY, CDT, UDT "
-            sql += "     FROM S_MSGDTL_TBL "
+            sql += "     FROM s_msgdtl_tbl "
             sql += "    WHERE MSGID = ? AND CHANID = ? "
             await this.dataSource.query(sql, [msgid, chanid])
             await this.msgmstRepo.createQueryBuilder()
@@ -1049,10 +1049,10 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) //await qbMsgDtl.select(hush.cons.curdtMySqlStr).getRawOne()
-            let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+            let sql = " SELECT COUNT(*) CNT FROM s_msgdtl_tbl WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
             const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
             if (ret[0].CNT > 0) {
-                sql = " DELETE FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+                sql = " DELETE FROM s_msgdtl_tbl WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
                 await this.dataSource.query(sql, [msgid, chanid, userid, newKind]) //console.log(msgid, chanid, userid, newKind, '000')
             }
             let msgdtl = await this.msgdtlRepo.findOneBy({ MSGID: msgid, CHANID: chanid, USERID: userid, KIND: oldKind })
@@ -1114,7 +1114,7 @@ export class ChanmsgService {
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
             const qbMsgDtl = this.msgdtlRepo.createQueryBuilder('B')
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
-            let sql = " SELECT COUNT(*) CNT FROM S_MSGDTL_TBL WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
+            let sql = " SELECT COUNT(*) CNT FROM s_msgdtl_tbl WHERE MSGID = ? AND CHANID = ? AND USERID = ? AND KIND = ? "
             const ret = await this.dataSource.query(sql, [msgid, chanid, userid, newKind])
             if (ret[0].CNT > 0) { //read가 이미 있으면 굳이 다시 처리할 필요없음
                 //console.log(msgid, chanid, userid, newKind, '000')
@@ -1359,7 +1359,7 @@ export class ChanmsgService {
             //임시 코딩 - 사진 넣기 시작
             // if (kind == 'I') {
             //     console.log(userid, chanid, kind, body, filesize, "@@@@@@")
-            //     let sql = "UPDATE S_USER_TBL set PICTURE = ? WHERE USER_ID = ? "
+            //     let sql = "UPDATE s_user_tbl set PICTURE = ? WHERE USER_ID = ? "
             //     await this.dataSource.query(sql, [Buffer.from(new Uint8Array(file.buffer)), userid])
             // }
             //임시 코딩 - 사진 넣기 끝
@@ -1525,7 +1525,7 @@ export class ChanmsgService {
             const { CHANID } = dto
             const rs = await this.chkAcl({ userid: userid, chanid: CHANID })
             if (rs.code != hush.Code.OK) return hush.setResJson(resJson, rs.msg, rs.code, this.req, methodName)
-            let sql = "SELECT COUNT(*) CNT FROM S_MSGMST_TBL WHERE CHANID = ? "
+            let sql = "SELECT COUNT(*) CNT FROM s_msgmst_tbl WHERE CHANID = ? "
             const msgmst = await this.dataSource.query(sql, [CHANID])
             if (msgmst[0].CNT > 0) {
                 return hush.setResJson(resJson, '해당 채널(또는 DM)에서 생성된 메시지가 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
@@ -1534,8 +1534,8 @@ export class ChanmsgService {
             if (chanmst.MASTERID != userid) {
                 return hush.setResJson(resJson, '마스터만 삭제 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
-            await this.dataSource.query("DELETE FROM S_CHANDTL_TBL WHERE CHANID = ? ", [CHANID])
-            await this.dataSource.query("DELETE FROM S_CHANMST_TBL WHERE CHANID = ? ", [CHANID])
+            await this.dataSource.query("DELETE FROM s_chandtl_tbl WHERE CHANID = ? ", [CHANID])
+            await this.dataSource.query("DELETE FROM s_chanmst_tbl WHERE CHANID = ? ", [CHANID])
             const curdtObj = await hush.getMysqlCurdt(this.dataSource)
             const logObj = { 
                 cdt: curdtObj.DT, msgid: '', replyto: '', chanid: CHANID, 
@@ -1721,36 +1721,36 @@ export class ChanmsgService {
             let sql = "SELECT MSGID, X.CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
             sql += "  FROM ( "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
-            sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP = 'chan' AND NOT (KIND = 'mst' AND CUD = 'D') " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
+            sql += "  FROM s_datalog_tbl "
+            sql += " WHERE CDT > ? AND TYP = 'chan' AND NOT (KIND = 'mst' AND CUD = 'D') " //chan의 mst의 D는 s_chandtl_tbl에 INNERJOIN할 데이터 없음
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
-            sql += "  FROM S_DATALOG_TBL "
+            sql += "  FROM s_datalog_tbl "
             sql += " WHERE CDT > ? AND TYP IN ('msg', 'react') "
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
-            sql += "  FROM S_DATALOG_TBL " //read는 원래 S_MSGDTL_TBL에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
+            sql += "  FROM s_datalog_tbl " //read는 원래 s_msgdtl_tbl에서 가져오는데 MsgList의 newParentAdded/newChildAdded 배열의 항목을 제거하기 위해 msgid가 필요함
             sql += " WHERE CDT > ? AND TYP IN ('user', 'read') AND USERID = ? " //그래서, updateNotyetToRead()에서 로깅처리중임 (내가 읽은 메시지를 배열에서 제거하면 됨)
             sql += " UNION ALL "
-            sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM S_MSGMST_TBL WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, "
+            sql += "SELECT MSGID, CHANID, MAX(UDT) CDT, (SELECT REPLYTO FROM s_msgmst_tbl WHERE MSGID = A.MSGID AND A.CHANID) REPLYTO, "
             sql += "       '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT, '' SUBKIND "
-            sql += "  FROM S_MSGDTL_TBL A "
+            sql += "  FROM s_msgdtl_tbl A "
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = '' " //UDT에 유의. NOTYET -> READ로의 처리는 빈번하게 발생하므로 효율적으로 GROUP BY가 필요함
             sql += " GROUP BY MSGID, CHANID "
             sql += " UNION ALL "
             sql += "SELECT '' MSGID, CHANID, UDT AS CDT, '' REPLYTO, '' USERID, '' USERNM, 'T' CUD, '' KIND, TYP, '' BODYTEXT, SUBKIND "
-            sql += "  FROM S_MSGDTL_TBL " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
+            sql += "  FROM s_msgdtl_tbl " //아래 readall은 리얼타임 반영시 모두읽음처리가 몇천개쯤 되면 로깅 읽을 때는 하나의 행으로 가져와야 부하를 줄일 수 있음 (동일시각)
             sql += " WHERE UDT > ? AND TYP = 'read' AND SUBKIND = 'readall' " //UDT에 유의
             sql += " GROUP BY CHANID, UDT " //UDT에 유의
-            sql += ") X INNER JOIN (SELECT CHANID FROM S_CHANDTL_TBL WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //#$ 사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
+            sql += ") X INNER JOIN (SELECT CHANID FROM s_chandtl_tbl WHERE USERID = ?) Y ON X.CHANID = Y.CHANID " //#$ 사용자가 속하지 않은 공개된 채널은 리얼타임 반영(알림 포함)하지 않음 
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
-            sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND = 'mst' AND CUD = 'D' " //chan의 mst의 D는 S_CHANDTL_TBL에 INNERJOIN할 데이터 없음
+            sql += "  FROM s_datalog_tbl "
+            sql += " WHERE CDT > ? AND TYP = 'chan' AND KIND = 'mst' AND CUD = 'D' " //chan의 mst의 D는 s_chandtl_tbl에 INNERJOIN할 데이터 없음
             sql += " UNION ALL "
             sql += "SELECT MSGID, CHANID, CDT, REPLYTO, USERID, USERNM, CUD, KIND, TYP, BODYTEXT, SUBKIND "
-            sql += "  FROM S_DATALOG_TBL "
-            sql += " WHERE CDT > ? AND TYP = 'group' AND KIND = 'mst' " //group은 S_CHANDTL_TBL에 INNERJOIN할 데이터 없으며 kind가 mem은 리얼타임엔 필요없음. CHANID에 GR_ID가 들어가 있음
+            sql += "  FROM s_datalog_tbl "
+            sql += " WHERE CDT > ? AND TYP = 'group' AND KIND = 'mst' " //group은 s_chandtl_tbl에 INNERJOIN할 데이터 없으며 kind가 mem은 리얼타임엔 필요없음. CHANID에 GR_ID가 들어가 있음
             sql += " ORDER BY CDT "
             const list = await this.dataSource.query(sql, [logdt, logdt, logdt, userid, logdt, logdt, userid, logdt, logdt])
             const len = list.length
@@ -1760,7 +1760,7 @@ export class ChanmsgService {
                     //qryMsg() 필요없음
                 } else if (row.TYP == 'chan') {
                     if (row.KIND == 'mst' && row.CUD == 'D') {
-                        //S_CHANDTL_TBL에 INNERJOIN할 데이터 없어 권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
+                        //s_chandtl_tbl에 INNERJOIN할 데이터 없어 권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
                     } else {
                         const rs = await this.chkAcl({ userid: userid, chanid: row.CHANID })
                         row.chanmst = rs.data.chanmst
@@ -1770,7 +1770,7 @@ export class ChanmsgService {
                     if (row.KIND == 'mst' && row.CUD == 'D') {
                         //권한이 없는 경우도 있을텐데 로깅만 내리는 것이므로 문제될 사안은 아님
                     } else {
-                        const sqlGr = "SELECT GR_NM FROM S_GRMST_TBL WHERE GR_ID = ? "
+                        const sqlGr = "SELECT GR_NM FROM s_grmst_tbl WHERE GR_ID = ? "
                         const grData = await this.dataSource.query(sqlGr, [row.CHANID]) //실제로는 GR_ID임
                         row.grnm = (grData.length > 0) ? grData[0].GR_NM : ''
                     }
@@ -1778,13 +1778,13 @@ export class ChanmsgService {
                     //클라이언트에서 getList()로 scrollToBottom으로 통으로 가져옴
                 } else {
                     const parentMsgid = (row.REPLYTO != '') ? row.REPLYTO : row.MSGID
-                    row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (S_MSGDTL_TBL 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
+                    row.msgItem = await this.qryMsg({ chanid: row.CHANID, msgid: parentMsgid }) //모두 부모메시지 정보만 있으면 됨 (s_msgdtl_tbl 관련일 경우는 사실 본문,이미지 등 필요없긴 함)
                 }
             }
             sql = "SELECT Z.TYP, SUM(Y.CNT) SUM "
-            sql += " FROM (SELECT CHANID, COUNT(*) CNT FROM S_MSGDTL_TBL WHERE USERID = ? AND KIND = 'notyet' GROUP BY CHANID) Y "
-            sql += "INNER JOIN (SELECT A.CHANID, A.TYP FROM S_CHANMST_TBL A "
-            sql += "             INNER JOIN S_CHANDTL_TBL B ON A.CHANID = B.CHANID WHERE B.USERID = ?) Z "
+            sql += " FROM (SELECT CHANID, COUNT(*) CNT FROM s_msgdtl_tbl WHERE USERID = ? AND KIND = 'notyet' GROUP BY CHANID) Y "
+            sql += "INNER JOIN (SELECT A.CHANID, A.TYP FROM s_chanmst_tbl A "
+            sql += "             INNER JOIN s_chandtl_tbl B ON A.CHANID = B.CHANID WHERE B.USERID = ?) Z "
             sql += "   ON Y.CHANID = Z.CHANID "
             sql += "GROUP BY Z.TYP "
             sql += "ORDER BY Z.TYP "

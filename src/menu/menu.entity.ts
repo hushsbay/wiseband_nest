@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm'
 
-@Entity({ name: 'S_MENU_TBL'})
+@Entity({ name: 's_menu_tbl'})
 export class Menu {
 
     @PrimaryColumn()
@@ -32,7 +32,7 @@ export class Menu {
 
 }
 
-@Entity({ name: 'S_MENUPER_TBL'})
+@Entity({ name: 's_menuper_tbl'})
 export class MenuPer {
 
     @PrimaryColumn()

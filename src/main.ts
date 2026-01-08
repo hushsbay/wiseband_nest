@@ -8,7 +8,7 @@ import * as hush from 'src/common/common'
 
 async function bootstrap() {
 
-    const corsList = hush.cons.corsOrigin //['https://hushsbay.com:446', 'http://localhost:5173'] //Postman, MobileApp 등에서는 cors 설정이 없어도 들어올 수 있으므로 설정으로 모두 막을 수 없음
+    const corsList = hush.cons.corsOrigin //['https://albahero.com:548', 'http://localhost:5173'] //Postman, MobileApp 등에서는 cors 설정이 없어도 들어올 수 있으므로 설정으로 모두 막을 수 없음
     
     initializeTransactionalContext()
     

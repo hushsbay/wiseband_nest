@@ -24,7 +24,7 @@ export class UserService {
         @Inject(REQUEST) private readonly req: Request) {}
 
     async getVipList(userid: string): Promise<any> {
-        let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM S_USERCODE_TBL WHERE KIND = 'vip' AND USERID = ? "
+        let sql = "SELECT GROUP_CONCAT(UID) VIPS FROM s_usercode_tbl WHERE KIND = 'vip' AND USERID = ? "
         const vipList = await this.dataSource.query(sql, [userid]) //console.log(JSON.stringify(vipList[0]), "0000000000000")
         return vipList //데이터 없으면 vipList[0].VIP = null로 나옴
     }
@@ -245,8 +245,8 @@ export class UserService {
             // .select('A.ORG_CD', 'ORG_CD').addSelect('A.ORG_NM', 'ORG_NM').addSelect('A.SEQ', 'SEQ').addSelect('A.LVL', 'LVL')  
             // .addSelect((subQuery) => { return subQuery.select('COUNT(*)').from(User, 'B').where("B.ORG_CD = A.ORG_CD ")}, 'CNT')
             // .from(Org, 'A').orderBy('A.SEQ', 'ASC').getRawMany()
-            let sql = "SELECT ORG_CD, ORG_NM, TOP_ORG_CD, SEQ, LVL, (SELECT COUNT(*) FROM S_USER_TBL WHERE ORG_CD = A.ORG_CD) CNT "
-            sql += "     FROM S_ORG_TBL A "
+            let sql = "SELECT ORG_CD, ORG_NM, TOP_ORG_CD, SEQ, LVL, (SELECT COUNT(*) FROM s_user_tbl WHERE ORG_CD = A.ORG_CD) CNT "
+            sql += "     FROM s_org_tbl A "
             if (mycomp) {
                 sql += "WHERE TOP_ORG_CD = '" + mycomp + "' "
             }
@@ -278,7 +278,7 @@ export class UserService {
                 while (ok) {
                     const seq = myOrgArr[myOrgArr.length - 1].SEQ
                     const lvl = myOrgArr[myOrgArr.length - 1].LVL
-                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM S_ORG_TBL WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 "
+                    let sql = "SELECT ORG_CD, ORG_NM, SEQ, LVL FROM s_org_tbl WHERE SEQ < ? AND LVL < ? ORDER BY SEQ DESC LIMIT 1 "
                     const orgList = await this.dataSource.query(sql, [seq, lvl])
                     if (orgList.length == 0) {
                         ok = false
@@ -335,8 +335,8 @@ export class UserService {
         try { //내가 만들지 않았지만 내가 관리자로 들어가 있는 그룹도 포함됨 (관리자로 지정이 안되어 있으면 편집 권한 없음)
             const { grid } = dto
             let sql = "SELECT A.GR_ID, A.GR_NM, A.MASTERID, A.MASTERNM, 0 LVL "
-            sql += "     FROM S_GRMST_TBL A "
-            sql += "    INNER JOIN S_GRDTL_TBL B ON A.GR_ID = B.GR_ID "
+            sql += "     FROM s_grmst_tbl A "
+            sql += "    INNER JOIN s_grdtl_tbl B ON A.GR_ID = B.GR_ID "
             sql += "    WHERE B.USERID = ? " //AND B.KIND = 'admin' " //A.MASTERID는 무조건 B.KIND가 admin임
             if (grid) {
                 sql += "  AND A.GR_ID = '" + grid + "' "
@@ -354,8 +354,8 @@ export class UserService {
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.EMAIL ELSE A.EMAIL END EMAIL, "
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN B.TELNO ELSE A.TELNO END TELNO, "
                 sql += "      CASE WHEN A.SYNC = 'Y' THEN '' ELSE A.RMKS END RMKS "
-                sql += " FROM S_GRDTL_TBL A "
-                sql += " LEFT OUTER JOIN S_USER_TBL B ON A.USERID = B.USERID "
+                sql += " FROM s_grdtl_tbl A "
+                sql += " LEFT OUTER JOIN s_user_tbl B ON A.USERID = B.USERID "
                 sql += "WHERE A.GR_ID = ? "
                 sql += "ORDER BY A.USERNM, A.USERID "
                 const userlist = await this.dataSource.query(sql, [row.GR_ID])
@@ -508,7 +508,7 @@ export class UserService {
                     user.USERID = useridToProc
                     user.KIND = 'U'
                     user.SEQ = 'ZZZZ' //마지막 순서로 잡기
-                    user.SYNC = 'W' //S_GRDTL_TBL에는 ''로 입력되는데 S_USER_TBL에는 'W'로 입력됨
+                    user.SYNC = 'W' //s_grdtl_tbl에는 ''로 입력되는데 s_user_tbl에는 'W'로 입력됨
                     user.ISUR = userid
                     user.ISUDT = curdtObj.DT
                 } else { //사용자아이디가 있으면 수정하기
@@ -553,10 +553,10 @@ export class UserService {
             }
             await this.grdtlRepo.delete(grdtl) //더 위로 올라가면 안됨
             if (grdtl.SYNC == '') { //수동입력(W입력)만 추가 처리
-                let sqlChk = "SELECT COUNT(*) CNT FROM S_GRDTL_TBL WHERE USERID = ? "
+                let sqlChk = "SELECT COUNT(*) CNT FROM s_grdtl_tbl WHERE USERID = ? "
                 const menuList = await this.dataSource.query(sqlChk, [USERID])
                 if (menuList[0].CNT == 0) { //하나라도 남아 있으면 사용자테이블에서는 그냥 둬야 함
-                    sqlChk =  "DELETE FROM S_USER_TBL WHERE USERID = ? "
+                    sqlChk =  "DELETE FROM s_user_tbl WHERE USERID = ? "
                     await this.dataSource.query(sqlChk, [USERID])
                 }
             }
@@ -650,7 +650,7 @@ export class UserService {
             const { GR_ID } = dto
             const [grmst, retStr] = await this.chkUserRightForGroup(GR_ID, userid)
             if (retStr != '') return hush.setResJson(resJson, retStr, hush.Code.NOT_OK, null, methodName)
-            let sql = "SELECT COUNT(*) CNT FROM S_CHANMST_TBL WHERE GR_ID = ? "
+            let sql = "SELECT COUNT(*) CNT FROM s_chanmst_tbl WHERE GR_ID = ? "
             const chanmst = await this.dataSource.query(sql, [GR_ID])
             if (chanmst[0].CNT > 0) {
                 return hush.setResJson(resJson, '해당 그룹에서 생성된 채널이 있습니다.' + fv, hush.Code.NOT_OK, null, methodName)
@@ -658,8 +658,8 @@ export class UserService {
             if (grmst.MASTERID != userid) {
                 return hush.setResJson(resJson, '그룹삭제는 해당 그룹 마스터만 가능합니다.' + fv, hush.Code.NOT_OK, null, methodName)
             }
-            await this.dataSource.query("DELETE FROM S_GRDTL_TBL WHERE GR_ID = ? ", [GR_ID])
-            await this.dataSource.query("DELETE FROM S_GRMST_TBL WHERE GR_ID = ? ", [GR_ID])
+            await this.dataSource.query("DELETE FROM s_grdtl_tbl WHERE GR_ID = ? ", [GR_ID])
+            await this.dataSource.query("DELETE FROM s_grmst_tbl WHERE GR_ID = ? ", [GR_ID])
             const curdtObj = await hush.getMysqlCurdt(this.dataSource) 
             const logObj = { //그룹은 chanid에 grid 대체
                 cdt: curdtObj.DT, msgid: '', replyto: '', chanid: GR_ID, userid: userid, usernm: usernm, 

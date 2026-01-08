@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm'
 
-@Entity({ name: 'S_MSGMST_TBL' })
+@Entity({ name: 's_msgmst_tbl' })
 export class MsgMst {
 
     @PrimaryColumn()
@@ -35,7 +35,7 @@ export class MsgMst {
 
 }
 
-@Entity({ name: 'S_MSGSUB_TBL' })
+@Entity({ name: 's_msgsub_tbl' })
 export class MsgSub {
 
     @PrimaryColumn()
@@ -67,7 +67,7 @@ export class MsgSub {
 
 }
 
-@Entity({ name: 'S_MSGDTL_TBL' })
+@Entity({ name: 's_msgdtl_tbl' })
 export class MsgDtl {
 
     @PrimaryColumn()
@@ -104,7 +104,7 @@ export class MsgDtl {
 
 //////////////////////////////////////////////////////////////////
 
-@Entity({ name: 'S_CHANMST_TBL' })
+@Entity({ name: 's_chanmst_tbl' })
 export class ChanMst {
 
     @PrimaryColumn()
@@ -142,7 +142,7 @@ export class ChanMst {
 
 }
 
-@Entity({ name: 'S_CHANDTL_TBL' })
+@Entity({ name: 's_chandtl_tbl' })
 export class ChanDtl {
 
     @PrimaryColumn()
@@ -185,7 +185,7 @@ export class ChanDtl {
 
 //////////////////////////////////////////////////////////////////
 
-@Entity({ name: 'S_GRMST_TBL'})
+@Entity({ name: 's_grmst_tbl'})
 export class GrMst {
 
     @PrimaryColumn()
@@ -217,7 +217,7 @@ export class GrMst {
 
 }
 
-@Entity({ name: 'S_GRDTL_TBL' })
+@Entity({ name: 's_grdtl_tbl' })
 export class GrDtl {
 
     @PrimaryColumn()

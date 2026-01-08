@@ -1,6 +1,6 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm'
 
-@Entity({ name: 'S_ORG_TBL' })
+@Entity({ name: 's_org_tbl' })
 export class Org {
 
     @PrimaryColumn()
@@ -17,7 +17,7 @@ export class Org {
 
 }
 
-@Entity({ name: 'S_USER_TBL' })
+@Entity({ name: 's_user_tbl' })
 export class User {
 
     @PrimaryColumn()
@@ -82,7 +82,7 @@ export class User {
 
 }
 
-@Entity({ name: 'S_USERCODE_TBL' })
+@Entity({ name: 's_usercode_tbl' })
 export class UserCode {
 
     @PrimaryColumn()
@@ -99,7 +99,7 @@ export class UserCode {
 
 }
 
-@Entity({ name: 'S_USERENV_TBL' })
+@Entity({ name: 's_userenv_tbl' })
 export class UserEnv {
 
     @PrimaryColumn()
